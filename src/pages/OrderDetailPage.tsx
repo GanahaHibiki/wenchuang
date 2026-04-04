@@ -133,6 +133,14 @@ export default function OrderDetailPage() {
     return <div className="text-center py-12 text-red-500">{error || '订单不存在'}</div>
   }
 
+  // Helper function to display specification type with custom name
+  const getSpecTypeName = (spec: { type: string; customType?: string }) => {
+    if (spec.type === '其他衍生' && spec.customType) {
+      return spec.customType
+    }
+    return spec.type
+  }
+
   const renderItem = (item: OrderItem & { product: Product }, showPurchasePrice: boolean) => (
     <div key={item.id} className="flex gap-4 p-4 bg-gray-50 rounded-lg">
       <div
@@ -155,7 +163,7 @@ export default function OrderDetailPage() {
         <div className="mt-2 space-y-1">
           {item.specifications.map((spec, index) => (
             <div key={index} className="text-sm text-gray-600">
-              {spec.type}
+              {getSpecTypeName(spec)}
               {spec.sequenceNumber > 1 && spec.sequenceNumber}:
               {' '}{spec.quantity} 个
               {showPurchasePrice && spec.purchasePrice !== undefined && (

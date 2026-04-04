@@ -202,6 +202,18 @@ export default function OrderItemEditor({ items, category, onSave, onCancel }: O
                                 ))}
                               </select>
                             </div>
+                            {spec.type === '其他衍生' && (
+                              <div>
+                                <label className="text-xs text-gray-600">自定义名称</label>
+                                <input
+                                  type="text"
+                                  value={spec.customType || ''}
+                                  onChange={(e) => updateSpecification(itemIndex, specIndex, 'customType', e.target.value)}
+                                  placeholder="输入类别名称"
+                                  className="w-full px-2 py-1 border rounded text-sm"
+                                />
+                              </div>
+                            )}
                             <div>
                               <label className="text-xs text-gray-600">数量</label>
                               <input

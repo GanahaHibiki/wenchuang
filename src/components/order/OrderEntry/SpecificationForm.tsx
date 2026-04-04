@@ -53,7 +53,7 @@ export default function SpecificationForm({
     type: SpecificationType,
     seqNum: number,
     field: keyof Specification,
-    value: number
+    value: number | string
   ) => {
     const newSpecs = specifications.map((s) =>
       s.type === type && s.sequenceNumber === seqNum ? { ...s, [field]: value } : s
@@ -140,6 +140,22 @@ export default function SpecificationForm({
                   <span className="text-sm text-gray-500 w-16">
                     {type}{spec.sequenceNumber}
                   </span>
+                )}
+
+                {/* Custom type name input for "其他衍生" */}
+                {type === '其他衍生' && (
+                  <label className="flex items-center gap-1">
+                    <span className="text-sm text-gray-600">类别名称:</span>
+                    <input
+                      type="text"
+                      value={spec.customType || ''}
+                      onChange={(e) =>
+                        updateSpec(type, spec.sequenceNumber, 'customType', e.target.value)
+                      }
+                      placeholder="请输入自定义类别"
+                      className="w-32 px-2 py-1 border rounded"
+                    />
+                  </label>
                 )}
 
                 <label className="flex items-center gap-1">

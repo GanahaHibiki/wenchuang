@@ -39,6 +39,14 @@ export default function ProductDetailPage() {
     return <div className="text-center py-12 text-red-500">{error || '商品不存在'}</div>
   }
 
+  // Helper function to display specification type with custom name
+  const getSpecTypeName = (spec: { type: string; customType?: string }) => {
+    if (spec.type === '其他衍生' && spec.customType) {
+      return spec.customType
+    }
+    return spec.type
+  }
+
   const { entries } = product
 
   return (
@@ -84,7 +92,7 @@ export default function ProductDetailPage() {
                     .filter((s) => s.quantity > 0)
                     .map((spec, i) => (
                       <div key={i} className="text-sm text-gray-600">
-                        {spec.type}
+                        {getSpecTypeName(spec)}
                         {spec.sequenceNumber > 1 && spec.sequenceNumber}:
                         {' '}{spec.quantity} 个,
                         购入价 ¥{spec.purchasePrice?.toFixed(2) || '0.00'},
@@ -119,7 +127,7 @@ export default function ProductDetailPage() {
                     .filter((s) => s.quantity > 0)
                     .map((spec, i) => (
                       <div key={i} className="text-sm text-gray-600">
-                        {spec.type}
+                        {getSpecTypeName(spec)}
                         {spec.sequenceNumber > 1 && spec.sequenceNumber}:
                         {' '}{spec.quantity} 个,
                         原价 ¥{spec.originalPrice.toFixed(2)}
@@ -150,7 +158,7 @@ export default function ProductDetailPage() {
                     .filter((s) => s.quantity > 0)
                     .map((spec, i) => (
                       <div key={i} className="text-sm text-gray-600">
-                        {spec.type}
+                        {getSpecTypeName(spec)}
                         {spec.sequenceNumber > 1 && spec.sequenceNumber}:
                         {' '}{spec.quantity} 个,
                         原价 ¥{spec.originalPrice.toFixed(2)}
