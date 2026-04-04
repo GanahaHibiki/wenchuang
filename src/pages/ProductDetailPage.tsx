@@ -212,13 +212,6 @@ export default function ProductDetailPage() {
           </div>
         </section>
       )}
-                    ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
 
       {/* No entries */}
       {entries.purchased.length === 0 &&
