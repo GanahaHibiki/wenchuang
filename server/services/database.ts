@@ -29,7 +29,39 @@ async function loadDatabase(): Promise<Database> {
 
   try {
     const content = await fs.readFile(DB_PATH, 'utf-8')
-    return JSON.parse(content)
+    const db = JSON.parse(content)
+
+    // Check if sequence numbers need reordering (if there are gaps or duplicates)
+    if (db.orders && db.orders.length > 0) {
+      const sequenceNumbers = db.orders.map((o: Order) => o.sequenceNumber).sort((a: number, b: number) => a - b)
+      let needsReorder = false
+
+      // Check for gaps or duplicates
+      for (let i = 0; i < sequenceNumbers.length; i++) {
+        if (sequenceNumbers[i] !== i + 1) {
+          needsReorder = true
+          break
+        }
+      }
+
+      // Check for duplicates
+      const uniqueSeqs = new Set(sequenceNumbers)
+      if (uniqueSeqs.size !== sequenceNumbers.length) {
+        needsReorder = true
+      }
+
+      // Reorder if necessary
+      if (needsReorder) {
+        db.orders.sort((a: Order, b: Order) => a.createdAt.localeCompare(b.createdAt))
+        db.orders.forEach((order: Order, idx: number) => {
+          order.sequenceNumber = idx + 1
+        })
+        // Save the corrected database
+        await fs.writeFile(DB_PATH, JSON.stringify(db, null, 2), 'utf-8')
+      }
+    }
+
+    return db
   } catch {
     // File doesn't exist, create default
     await saveDatabase(DEFAULT_DB)
@@ -263,7 +295,18 @@ export async function deleteOrder(id: string): Promise<boolean> {
 
   if (index === -1) return false
 
+  // Remove the order
   db.orders.splice(index, 1)
+
+  // Reorder sequence numbers based on creation time
+  // Sort by createdAt to maintain chronological order
+  db.orders.sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+
+  // Reassign sequence numbers sequentially
+  db.orders.forEach((order, idx) => {
+    order.sequenceNumber = idx + 1
+  })
+
   await saveDatabase(db)
 
   return true
