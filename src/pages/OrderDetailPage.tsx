@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useNavigate } from 'react-router-dom'
 import { orderApi } from '@/api/client'
 import type { OrderDetail, OrderItem, Product } from '@/types'
 import ImageViewer from '@/components/common/ImageViewer'
@@ -7,12 +7,14 @@ import OrderItemEditor from '@/components/order/OrderItemEditor'
 
 export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
   const [order, setOrder] = useState<OrderDetail | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [viewingImage, setViewingImage] = useState<string | null>(null)
   const [editingCategory, setEditingCategory] = useState<'purchased' | 'gift' | 'smallGift' | null>(null)
   const [isSaving, setIsSaving] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   useEffect(() => {
     if (!id) return
@@ -36,7 +38,8 @@ export default function OrderDetailPage() {
 
   const handleSaveItems = async (
     category: 'purchased' | 'gift' | 'smallGift',
-    updatedItems: (OrderItem & { product: Product })[]
+    updatedItems: (OrderItem & { product: Product })[],
+    newImages: Map<string, File>
   ) => {
     if (!order || !id) return
 
@@ -77,6 +80,21 @@ export default function OrderDetailPage() {
       formData.append('gifts', JSON.stringify(giftsData))
       formData.append('smallGifts', JSON.stringify(smallGiftsData))
 
+      // Add images for updated items
+      let imageIndex = 0
+      for (const [itemId, file] of newImages.entries()) {
+        const itemList = category === 'purchased' ? purchased : category === 'gift' ? gifts : smallGifts
+        const itemIndex = itemList.findIndex(item => item.id === itemId)
+        if (itemIndex !== -1) {
+          const fieldName = category === 'purchased'
+            ? `purchasedImage_${itemIndex}`
+            : category === 'gift'
+            ? `giftImage_${itemIndex}`
+            : `smallGiftImage_${itemIndex}`
+          formData.append(fieldName, file)
+        }
+      }
+
       await orderApi.update(id, formData)
 
       // Reload order data
@@ -87,6 +105,23 @@ export default function OrderDetailPage() {
       alert(err instanceof Error ? err.message : '保存失败')
     } finally {
       setIsSaving(false)
+    }
+  }
+
+  const handleDeleteOrder = async () => {
+    if (!id) return
+
+    const confirmed = window.confirm('确定要删除这个订单吗？此操作无法撤销。')
+    if (!confirmed) return
+
+    setIsDeleting(true)
+    try {
+      await orderApi.delete(id)
+      alert('订单已删除')
+      navigate('/orders')
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '删除失败')
+      setIsDeleting(false)
     }
   }
 
@@ -151,12 +186,21 @@ export default function OrderDetailPage() {
         <h1 className="text-2xl font-bold">
           订单 #{order.sequenceNumber} - {order.shop.name}
         </h1>
-        <Link
-          to="/orders"
-          className="text-blue-500 hover:underline"
-        >
-          返回列表
-        </Link>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleDeleteOrder}
+            disabled={isDeleting}
+            className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isDeleting ? '删除中...' : '删除订单'}
+          </button>
+          <Link
+            to="/orders"
+            className="text-blue-500 hover:underline"
+          >
+            返回列表
+          </Link>
+        </div>
       </div>
 
       {/* Purchased Items */}
@@ -278,7 +322,7 @@ export default function OrderDetailPage() {
               : order.smallGifts
           }
           category={editingCategory}
-          onSave={(items) => handleSaveItems(editingCategory, items)}
+          onSave={(items, images) => handleSaveItems(editingCategory, items, images)}
           onCancel={() => setEditingCategory(null)}
         />
       )}

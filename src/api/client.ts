@@ -76,6 +76,11 @@ export const orderApi = {
       method: 'PUT',
       body: formData,
     }),
+
+  delete: (id: string) =>
+    request<{ success: boolean; message: string }>(`/orders/${id}`, {
+      method: 'DELETE',
+    }),
 }
 
 // ==================== Image API ====================

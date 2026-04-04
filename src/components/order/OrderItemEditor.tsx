@@ -1,16 +1,18 @@
 import { useState } from 'react'
 import type { OrderItem, Product, Specification, GiftType } from '@/types'
 import { SPECIFICATION_TYPES, GIFT_TYPES } from '@/types'
+import ImageUploader from '@/components/common/ImageUploader'
 
 interface OrderItemEditorProps {
   items: (OrderItem & { product: Product })[]
   category: 'purchased' | 'gift' | 'smallGift'
-  onSave: (items: (OrderItem & { product: Product })[]) => void
+  onSave: (items: (OrderItem & { product: Product })[], newImages: Map<string, File>) => void
   onCancel: () => void
 }
 
 export default function OrderItemEditor({ items, category, onSave, onCancel }: OrderItemEditorProps) {
   const [editedItems, setEditedItems] = useState(items)
+  const [newImages, setNewImages] = useState<Map<string, File>>(new Map())
 
   const updateItemName = (index: number, name: string) => {
     const newItems = [...editedItems]
@@ -19,6 +21,11 @@ export default function OrderItemEditor({ items, category, onSave, onCancel }: O
       product: { ...newItems[index].product, name }
     }
     setEditedItems(newItems)
+  }
+
+  const updateItemImage = (index: number, file: File) => {
+    const itemId = editedItems[index].id
+    setNewImages(prev => new Map(prev).set(itemId, file))
   }
 
   const updateItemGiftType = (index: number, giftType: GiftType) => {
@@ -57,7 +64,36 @@ export default function OrderItemEditor({ items, category, onSave, onCancel }: O
   }
 
   const removeItem = (index: number) => {
+    const itemId = editedItems[index].id
+    // Also remove the image if it was set
+    const updatedImages = new Map(newImages)
+    updatedImages.delete(itemId)
+    setNewImages(updatedImages)
     setEditedItems(editedItems.filter((_, i) => i !== index))
+  }
+
+  const addNewItem = () => {
+    const newItem: OrderItem & { product: Product } = {
+      id: `new_${Date.now()}`,
+      productId: '',
+      category,
+      giftType: category === 'gift' ? '满赠礼' : undefined,
+      specifications: [{
+        type: '试吃set',
+        sequenceNumber: 1,
+        quantity: 0,
+        purchasePrice: category === 'purchased' ? 0 : undefined,
+        originalPrice: 0
+      }],
+      product: {
+        id: '',
+        name: '',
+        imagePath: '',
+        thumbnailPath: '',
+        createdAt: new Date().toISOString()
+      }
+    }
+    setEditedItems([...editedItems, newItem])
   }
 
   return (
@@ -78,8 +114,33 @@ export default function OrderItemEditor({ items, category, onSave, onCancel }: O
         <div className="p-6 space-y-6">
           {editedItems.map((item, itemIndex) => (
             <div key={item.id} className="border rounded-lg p-4 space-y-4">
-              <div className="flex justify-between items-start">
+              <div className="flex justify-between items-start gap-4">
                 <div className="flex-1 space-y-3">
+                  {/* Product Image */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      商品图片
+                    </label>
+                    <div className="flex items-center gap-3">
+                      {item.product.imagePath && !newImages.has(item.id) && (
+                        <img
+                          src={`/images/thumbnails/${item.product.thumbnailPath}`}
+                          alt={item.product.name}
+                          className="w-20 h-20 object-cover rounded border"
+                        />
+                      )}
+                      {newImages.has(item.id) && (
+                        <div className="text-sm text-green-600">
+                          ✓ 新图片已选择
+                        </div>
+                      )}
+                      <ImageUploader
+                        onImageSelect={(file) => updateItemImage(itemIndex, file)}
+                        buttonText={item.product.imagePath ? "更换图片" : "上传图片"}
+                      />
+                    </div>
+                  </div>
+
                   {/* Product Name */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -90,6 +151,7 @@ export default function OrderItemEditor({ items, category, onSave, onCancel }: O
                       value={item.product.name}
                       onChange={(e) => updateItemName(itemIndex, e.target.value)}
                       className="w-full px-3 py-2 border rounded-md"
+                      placeholder="请输入商品名称"
                     />
                   </div>
 
@@ -197,9 +259,19 @@ export default function OrderItemEditor({ items, category, onSave, onCancel }: O
 
           {editedItems.length === 0 && (
             <div className="text-center py-8 text-gray-500">
-              没有商品
+              没有商品，点击下方"添加商品"按钮来添加
             </div>
           )}
+
+          {/* Add New Item Button */}
+          <div className="text-center">
+            <button
+              onClick={addNewItem}
+              className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+            >
+              + 添加商品
+            </button>
+          </div>
         </div>
 
         {/* Footer Actions */}
@@ -211,7 +283,7 @@ export default function OrderItemEditor({ items, category, onSave, onCancel }: O
             取消
           </button>
           <button
-            onClick={() => onSave(editedItems)}
+            onClick={() => onSave(editedItems, newImages)}
             className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
           >
             保存

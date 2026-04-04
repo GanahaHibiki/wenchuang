@@ -6,6 +6,7 @@ import {
   getOrderById,
   createOrder,
   updateOrder,
+  deleteOrder,
   findOrCreateShop,
   findOrCreateProduct,
   getShopById,
@@ -258,8 +259,25 @@ router.put('/:id', upload.any(), async (req, res, next) => {
       const item = parsedPurchased[i]
 
       let productId = item.productId
-      if (!productId) {
-        const file = findFile(`purchasedImage_${i}`)
+
+      // Check if product name changed or new image provided
+      const file = findFile(`purchasedImage_${i}`)
+      if (productId) {
+        const existingProduct = await getProductById(productId)
+        // If name changed or new image, create new product
+        if (existingProduct && (existingProduct.name !== item.productName || file)) {
+          if (file) {
+            const { imagePath, thumbnailPath } = await saveImage(file.buffer, file.originalname)
+            const product = await findOrCreateProduct(item.productName, uuidv4(), imagePath, thumbnailPath)
+            productId = product.id
+          } else {
+            // Name changed but no new image, reuse existing image
+            const product = await findOrCreateProduct(item.productName, uuidv4(), existingProduct.imagePath, existingProduct.thumbnailPath)
+            productId = product.id
+          }
+        }
+      } else {
+        // New product, must have image
         if (!file) {
           return res.status(400).json({ message: `已购商品 ${i + 1} 缺少图片` })
         }
@@ -288,8 +306,25 @@ router.put('/:id', upload.any(), async (req, res, next) => {
       const item = parsedGifts[i]
 
       let productId = item.productId
-      if (!productId) {
-        const file = findFile(`giftImage_${i}`)
+
+      // Check if product name changed or new image provided
+      const file = findFile(`giftImage_${i}`)
+      if (productId) {
+        const existingProduct = await getProductById(productId)
+        // If name changed or new image, create new product
+        if (existingProduct && (existingProduct.name !== item.productName || file)) {
+          if (file) {
+            const { imagePath, thumbnailPath } = await saveImage(file.buffer, file.originalname)
+            const product = await findOrCreateProduct(item.productName, uuidv4(), imagePath, thumbnailPath)
+            productId = product.id
+          } else {
+            // Name changed but no new image, reuse existing image
+            const product = await findOrCreateProduct(item.productName, uuidv4(), existingProduct.imagePath, existingProduct.thumbnailPath)
+            productId = product.id
+          }
+        }
+      } else {
+        // New product, must have image
         if (!file) {
           return res.status(400).json({ message: `礼品 ${i + 1} 缺少图片` })
         }
@@ -312,8 +347,25 @@ router.put('/:id', upload.any(), async (req, res, next) => {
       const item = parsedSmallGifts[i]
 
       let productId = item.productId
-      if (!productId) {
-        const file = findFile(`smallGiftImage_${i}`)
+
+      // Check if product name changed or new image provided
+      const file = findFile(`smallGiftImage_${i}`)
+      if (productId) {
+        const existingProduct = await getProductById(productId)
+        // If name changed or new image, create new product
+        if (existingProduct && (existingProduct.name !== item.productName || file)) {
+          if (file) {
+            const { imagePath, thumbnailPath } = await saveImage(file.buffer, file.originalname)
+            const product = await findOrCreateProduct(item.productName, uuidv4(), imagePath, thumbnailPath)
+            productId = product.id
+          } else {
+            // Name changed but no new image, reuse existing image
+            const product = await findOrCreateProduct(item.productName, uuidv4(), existingProduct.imagePath, existingProduct.thumbnailPath)
+            productId = product.id
+          }
+        }
+      } else {
+        // New product, must have image
         if (!file) {
           return res.status(400).json({ message: `小礼物 ${i + 1} 缺少图片` })
         }
@@ -347,6 +399,22 @@ router.put('/:id', upload.any(), async (req, res, next) => {
     })
 
     res.json(updated)
+  } catch (err) {
+    next(err)
+  }
+})
+
+// DELETE /api/orders/:id
+router.delete('/:id', async (req, res, next) => {
+  try {
+    const { id } = req.params
+    const success = await deleteOrder(id)
+
+    if (!success) {
+      return res.status(404).json({ message: '订单不存在' })
+    }
+
+    res.json({ success: true, message: '订单已删除' })
   } catch (err) {
     next(err)
   }

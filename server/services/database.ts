@@ -257,4 +257,16 @@ export async function updateOrder(id: string, updates: Partial<Order>): Promise<
   return db.orders[index]
 }
 
+export async function deleteOrder(id: string): Promise<boolean> {
+  const db = await loadDatabase()
+  const index = db.orders.findIndex((o) => o.id === id)
+
+  if (index === -1) return false
+
+  db.orders.splice(index, 1)
+  await saveDatabase(db)
+
+  return true
+}
+
 export { loadDatabase, DATA_DIR }
