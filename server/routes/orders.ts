@@ -143,7 +143,7 @@ router.post('/', upload.any(), async (req, res, next) => {
         return res.status(400).json({ message: `已购商品 ${i + 1} 缺少图片` })
       }
 
-      const { imagePath, thumbnailPath } = await saveImage(file.buffer, file.originalname)
+      const { imagePath, thumbnailPath } = await saveImage(file.buffer, file.originalname, shopName, item.productName)
       const product = await findOrCreateProduct(item.productName, uuidv4(), imagePath, thumbnailPath)
 
       const specs: Specification[] = item.specifications || []
@@ -170,7 +170,7 @@ router.post('/', upload.any(), async (req, res, next) => {
         return res.status(400).json({ message: `礼品 ${i + 1} 缺少图片` })
       }
 
-      const { imagePath, thumbnailPath } = await saveImage(file.buffer, file.originalname)
+      const { imagePath, thumbnailPath } = await saveImage(file.buffer, file.originalname, shopName, item.productName)
       const product = await findOrCreateProduct(item.productName, uuidv4(), imagePath, thumbnailPath)
 
       orderItems.push({
@@ -191,7 +191,7 @@ router.post('/', upload.any(), async (req, res, next) => {
         return res.status(400).json({ message: `小礼物 ${i + 1} 缺少图片` })
       }
 
-      const { imagePath, thumbnailPath } = await saveImage(file.buffer, file.originalname)
+      const { imagePath, thumbnailPath } = await saveImage(file.buffer, file.originalname, shopName, item.productName)
       const product = await findOrCreateProduct(item.productName, uuidv4(), imagePath, thumbnailPath)
 
       const specs: Specification[] = item.specifications || []
@@ -238,6 +238,10 @@ router.put('/:id', upload.any(), async (req, res, next) => {
       return res.status(404).json({ message: '订单不存在' })
     }
 
+    // Get shop name for image naming
+    const shop = await getShopById(existingOrder.shopId)
+    const shopName = shop?.name || 'Unknown'
+
     // Similar logic to POST, but update existing order
     // For now, just update the items
     const { purchasedItems, gifts, smallGifts } = req.body
@@ -267,7 +271,7 @@ router.put('/:id', upload.any(), async (req, res, next) => {
         // If name changed or new image, create new product
         if (existingProduct && (existingProduct.name !== item.productName || file)) {
           if (file) {
-            const { imagePath, thumbnailPath } = await saveImage(file.buffer, file.originalname)
+            const { imagePath, thumbnailPath } = await saveImage(file.buffer, file.originalname, shopName, item.productName)
             const product = await findOrCreateProduct(item.productName, uuidv4(), imagePath, thumbnailPath)
             productId = product.id
           } else {
@@ -281,7 +285,7 @@ router.put('/:id', upload.any(), async (req, res, next) => {
         if (!file) {
           return res.status(400).json({ message: `已购商品 ${i + 1} 缺少图片` })
         }
-        const { imagePath, thumbnailPath } = await saveImage(file.buffer, file.originalname)
+        const { imagePath, thumbnailPath } = await saveImage(file.buffer, file.originalname, shopName, item.productName)
         const product = await findOrCreateProduct(item.productName, uuidv4(), imagePath, thumbnailPath)
         productId = product.id
       }
@@ -314,7 +318,7 @@ router.put('/:id', upload.any(), async (req, res, next) => {
         // If name changed or new image, create new product
         if (existingProduct && (existingProduct.name !== item.productName || file)) {
           if (file) {
-            const { imagePath, thumbnailPath } = await saveImage(file.buffer, file.originalname)
+            const { imagePath, thumbnailPath } = await saveImage(file.buffer, file.originalname, shopName, item.productName)
             const product = await findOrCreateProduct(item.productName, uuidv4(), imagePath, thumbnailPath)
             productId = product.id
           } else {
@@ -328,7 +332,7 @@ router.put('/:id', upload.any(), async (req, res, next) => {
         if (!file) {
           return res.status(400).json({ message: `礼品 ${i + 1} 缺少图片` })
         }
-        const { imagePath, thumbnailPath } = await saveImage(file.buffer, file.originalname)
+        const { imagePath, thumbnailPath } = await saveImage(file.buffer, file.originalname, shopName, item.productName)
         const product = await findOrCreateProduct(item.productName, uuidv4(), imagePath, thumbnailPath)
         productId = product.id
       }
@@ -355,7 +359,7 @@ router.put('/:id', upload.any(), async (req, res, next) => {
         // If name changed or new image, create new product
         if (existingProduct && (existingProduct.name !== item.productName || file)) {
           if (file) {
-            const { imagePath, thumbnailPath } = await saveImage(file.buffer, file.originalname)
+            const { imagePath, thumbnailPath } = await saveImage(file.buffer, file.originalname, shopName, item.productName)
             const product = await findOrCreateProduct(item.productName, uuidv4(), imagePath, thumbnailPath)
             productId = product.id
           } else {
@@ -369,7 +373,7 @@ router.put('/:id', upload.any(), async (req, res, next) => {
         if (!file) {
           return res.status(400).json({ message: `小礼物 ${i + 1} 缺少图片` })
         }
-        const { imagePath, thumbnailPath } = await saveImage(file.buffer, file.originalname)
+        const { imagePath, thumbnailPath } = await saveImage(file.buffer, file.originalname, shopName, item.productName)
         const product = await findOrCreateProduct(item.productName, uuidv4(), imagePath, thumbnailPath)
         productId = product.id
       }
