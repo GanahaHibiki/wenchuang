@@ -5,7 +5,14 @@ echo.
 echo Frontend: http://localhost:5173
 echo Backend: http://localhost:3001
 echo.
+echo Please wait for the server to start...
 echo Press Ctrl+C to stop the server.
 echo.
+
+REM Start the server, wait 5 seconds, then open browser
+start /b cmd /c "npm run dev"
+timeout /t 5 /nobreak >nul
 start "" http://localhost:5173
-npm run dev
+
+REM Keep window open
+cmd /k
