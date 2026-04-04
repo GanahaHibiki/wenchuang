@@ -145,32 +145,28 @@ export async function searchProducts(
   const db = await loadDatabase()
   const lowerKeyword = keyword.toLowerCase().trim()
 
-  if (!lowerKeyword) {
-    // Return all products that are in purchased items
-    const purchasedProductIds = new Set<string>()
-    for (const order of db.orders) {
-      for (const item of order.items) {
-        if (item.category === 'purchased') {
-          purchasedProductIds.add(item.productId)
-        }
-      }
-    }
-    return db.products.filter((p) => purchasedProductIds.has(p.id))
-  }
+  let matchingProducts: Product[] = []
 
-  if (type === 'productName') {
-    // Filter products that are in purchased items and match name
-    const purchasedProductIds = new Set<string>()
+  if (!lowerKeyword) {
+    // Return all products that appear in any order items (purchased, gift, or smallGift)
+    const usedProductIds = new Set<string>()
     for (const order of db.orders) {
       for (const item of order.items) {
-        if (item.category === 'purchased') {
-          purchasedProductIds.add(item.productId)
-        }
+        usedProductIds.add(item.productId)
       }
     }
-    return db.products.filter(
+    matchingProducts = db.products.filter((p) => usedProductIds.has(p.id))
+  } else if (type === 'productName') {
+    // Filter products that are used in orders and match name
+    const usedProductIds = new Set<string>()
+    for (const order of db.orders) {
+      for (const item of order.items) {
+        usedProductIds.add(item.productId)
+      }
+    }
+    matchingProducts = db.products.filter(
       (p) =>
-        purchasedProductIds.has(p.id) &&
+        usedProductIds.has(p.id) &&
         p.name.toLowerCase().includes(lowerKeyword)
     )
   } else {
@@ -185,14 +181,25 @@ export async function searchProducts(
 
     for (const order of matchingOrders) {
       for (const item of order.items) {
-        if (item.category === 'purchased') {
-          productIds.add(item.productId)
-        }
+        productIds.add(item.productId)
       }
     }
 
-    return db.products.filter((p) => productIds.has(p.id))
+    matchingProducts = db.products.filter((p) => productIds.has(p.id))
   }
+
+  // Deduplicate products by name - keep the most recent one for each unique name
+  const productsByName = new Map<string, Product>()
+  for (const product of matchingProducts) {
+    const existing = productsByName.get(product.name)
+    if (!existing || product.createdAt > existing.createdAt) {
+      productsByName.set(product.name, product)
+    }
+  }
+
+  return Array.from(productsByName.values()).sort((a, b) =>
+    b.createdAt.localeCompare(a.createdAt)
+  )
 }
 
 // ==================== Order Operations ====================

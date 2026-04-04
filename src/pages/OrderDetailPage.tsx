@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { orderApi } from '@/api/client'
 import type { OrderDetail, OrderItem, Product } from '@/types'
 import ImageViewer from '@/components/common/ImageViewer'
+import OrderItemEditor from '@/components/order/OrderItemEditor'
 
 export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -10,6 +11,8 @@ export default function OrderDetailPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [viewingImage, setViewingImage] = useState<string | null>(null)
+  const [editingCategory, setEditingCategory] = useState<'purchased' | 'gift' | 'smallGift' | null>(null)
+  const [isSaving, setIsSaving] = useState(false)
 
   useEffect(() => {
     if (!id) return
@@ -30,6 +33,62 @@ export default function OrderDetailPage() {
 
     loadOrder()
   }, [id])
+
+  const handleSaveItems = async (
+    category: 'purchased' | 'gift' | 'smallGift',
+    updatedItems: (OrderItem & { product: Product })[]
+  ) => {
+    if (!order || !id) return
+
+    setIsSaving(true)
+    try {
+      // Prepare FormData
+      const formData = new FormData()
+
+      // Prepare items data based on category
+      const purchased = category === 'purchased' ? updatedItems : order.purchasedItems
+      const gifts = category === 'gift' ? updatedItems : order.gifts
+      const smallGifts = category === 'smallGift' ? updatedItems : order.smallGifts
+
+      // Convert to the format expected by the API
+      const purchasedData = purchased.map((item) => ({
+        id: item.id,
+        productId: item.productId,
+        productName: item.product.name,
+        specifications: item.specifications,
+      }))
+
+      const giftsData = gifts.map((item) => ({
+        id: item.id,
+        productId: item.productId,
+        productName: item.product.name,
+        giftType: item.giftType,
+        specifications: item.specifications,
+      }))
+
+      const smallGiftsData = smallGifts.map((item) => ({
+        id: item.id,
+        productId: item.productId,
+        productName: item.product.name,
+        specifications: item.specifications,
+      }))
+
+      formData.append('purchasedItems', JSON.stringify(purchasedData))
+      formData.append('gifts', JSON.stringify(giftsData))
+      formData.append('smallGifts', JSON.stringify(smallGiftsData))
+
+      await orderApi.update(id, formData)
+
+      // Reload order data
+      const refreshedOrder = await orderApi.getDetail(id)
+      setOrder(refreshedOrder)
+      setEditingCategory(null)
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '保存失败')
+    } finally {
+      setIsSaving(false)
+    }
+  }
 
   if (isLoading) {
     return <div className="text-center py-12 text-gray-500">加载中...</div>
@@ -104,7 +163,15 @@ export default function OrderDetailPage() {
       <section className="bg-white rounded-lg shadow p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-bold">已购商品</h2>
-          <span className="text-sm text-gray-500">{order.purchasedItems.length} 件</span>
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-gray-500">{order.purchasedItems.length} 件</span>
+            <button
+              onClick={() => setEditingCategory('purchased')}
+              className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+            >
+              编辑
+            </button>
+          </div>
         </div>
         <div className="space-y-4">
           {order.purchasedItems.length === 0 ? (
@@ -119,7 +186,15 @@ export default function OrderDetailPage() {
       <section className="bg-white rounded-lg shadow p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-bold">礼品</h2>
-          <span className="text-sm text-gray-500">{order.gifts.length} 件</span>
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-gray-500">{order.gifts.length} 件</span>
+            <button
+              onClick={() => setEditingCategory('gift')}
+              className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+            >
+              编辑
+            </button>
+          </div>
         </div>
         {order.gifts.length === 0 ? (
           <p className="text-gray-500">暂无礼品</p>
@@ -141,7 +216,15 @@ export default function OrderDetailPage() {
       <section className="bg-white rounded-lg shadow p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-bold">小礼物</h2>
-          <span className="text-sm text-gray-500">{order.smallGifts.length} 件</span>
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-gray-500">{order.smallGifts.length} 件</span>
+            <button
+              onClick={() => setEditingCategory('smallGift')}
+              className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+            >
+              编辑
+            </button>
+          </div>
         </div>
         <div className="space-y-4">
           {order.smallGifts.length === 0 ? (
@@ -182,6 +265,31 @@ export default function OrderDetailPage() {
           src={viewingImage}
           onClose={() => setViewingImage(null)}
         />
+      )}
+
+      {/* Order Item Editor */}
+      {editingCategory && order && (
+        <OrderItemEditor
+          items={
+            editingCategory === 'purchased'
+              ? order.purchasedItems
+              : editingCategory === 'gift'
+              ? order.gifts
+              : order.smallGifts
+          }
+          category={editingCategory}
+          onSave={(items) => handleSaveItems(editingCategory, items)}
+          onCancel={() => setEditingCategory(null)}
+        />
+      )}
+
+      {/* Saving Overlay */}
+      {isSaving && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6">
+            <div className="text-center">保存中...</div>
+          </div>
+        </div>
       )}
     </div>
   )
