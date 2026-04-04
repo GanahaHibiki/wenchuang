@@ -226,114 +226,97 @@ export default function OrderItemEditor({ items, category, onSave, onCancel }: O
                         + 添加规格
                       </button>
                     </div>
-                    <div className="space-y-3">
-                      {/* Group specs by type */}
-                      {(() => {
-                        const specsByType = new Map<string, Specification[]>()
-                        item.specifications.forEach((spec, idx) => {
-                          const key = spec.type
-                          if (!specsByType.has(key)) {
-                            specsByType.set(key, [])
-                          }
-                          specsByType.get(key)!.push(spec)
-                        })
+                    <div className="space-y-2">
+                      {item.specifications.map((spec, specIndex) => {
+                        const isMultiEntry = MULTI_ENTRY_TYPES.includes(spec.type as any)
 
-                        return Array.from(specsByType.entries()).map(([type, specs]) => {
-                          const isMultiEntry = MULTI_ENTRY_TYPES.includes(type as any)
-
-                          return (
-                            <div key={type} className="border rounded p-2 bg-gray-50">
-                              <div className="flex justify-between items-center mb-2">
-                                <span className="text-sm font-medium text-gray-700">{type}</span>
-                                {isMultiEntry && (
-                                  <button
-                                    onClick={() => addMultiEntrySpec(itemIndex, type)}
-                                    className="text-xs text-blue-600 hover:text-blue-700"
-                                  >
-                                    + 添加{type}
-                                  </button>
-                                )}
+                        return (
+                          <div key={specIndex} className="flex gap-2 items-start bg-gray-50 p-3 rounded">
+                            <div className="flex-1 grid grid-cols-2 gap-2">
+                              {/* Type selector */}
+                              <div className="col-span-2">
+                                <label className="text-xs text-gray-600">类型</label>
+                                <select
+                                  value={spec.type}
+                                  onChange={(e) => updateSpecification(itemIndex, specIndex, 'type', e.target.value)}
+                                  className="w-full px-2 py-1 border rounded text-sm"
+                                >
+                                  {SPECIFICATION_TYPES.map((t) => (
+                                    <option key={t} value={t}>{t}</option>
+                                  ))}
+                                </select>
                               </div>
 
-                              {specs.map((spec) => {
-                                const specIndex = item.specifications.indexOf(spec)
-                                return (
-                                  <div key={specIndex} className="flex gap-2 items-start bg-white p-2 rounded mb-2 last:mb-0">
-                                    <div className="flex-1 grid grid-cols-2 gap-2">
-                                      {isMultiEntry && (
-                                        <div className="col-span-2">
-                                          <label className="text-xs text-gray-600">序号</label>
-                                          <input
-                                            type="number"
-                                            min="1"
-                                            value={spec.sequenceNumber}
-                                            onChange={(e) => updateSpecification(itemIndex, specIndex, 'sequenceNumber', parseInt(e.target.value) || 1)}
-                                            className="w-20 px-2 py-1 border rounded text-sm"
-                                          />
-                                        </div>
-                                      )}
+                              {isMultiEntry && (
+                                <div>
+                                  <label className="text-xs text-gray-600">序号</label>
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    value={spec.sequenceNumber}
+                                    onChange={(e) => updateSpecification(itemIndex, specIndex, 'sequenceNumber', parseInt(e.target.value) || 1)}
+                                    className="w-full px-2 py-1 border rounded text-sm"
+                                  />
+                                </div>
+                              )}
 
-                                      {spec.type === '其他衍生' && (
-                                        <div className="col-span-2">
-                                          <label className="text-xs text-gray-600">自定义名称</label>
-                                          <input
-                                            type="text"
-                                            value={spec.customType || ''}
-                                            onChange={(e) => updateSpecification(itemIndex, specIndex, 'customType', e.target.value)}
-                                            placeholder="输入类别名称"
-                                            className="w-full px-2 py-1 border rounded text-sm"
-                                          />
-                                        </div>
-                                      )}
+                              {spec.type === '其他衍生' && (
+                                <div className={isMultiEntry ? '' : 'col-span-2'}>
+                                  <label className="text-xs text-gray-600">自定义名称</label>
+                                  <input
+                                    type="text"
+                                    value={spec.customType || ''}
+                                    onChange={(e) => updateSpecification(itemIndex, specIndex, 'customType', e.target.value)}
+                                    placeholder="输入类别名称"
+                                    className="w-full px-2 py-1 border rounded text-sm"
+                                  />
+                                </div>
+                              )}
 
-                                      <div>
-                                        <label className="text-xs text-gray-600">数量</label>
-                                        <input
-                                          type="number"
-                                          value={spec.quantity}
-                                          onChange={(e) => updateSpecification(itemIndex, specIndex, 'quantity', parseInt(e.target.value) || 0)}
-                                          className="w-full px-2 py-1 border rounded text-sm"
-                                        />
-                                      </div>
+                              <div>
+                                <label className="text-xs text-gray-600">数量</label>
+                                <input
+                                  type="number"
+                                  value={spec.quantity}
+                                  onChange={(e) => updateSpecification(itemIndex, specIndex, 'quantity', parseInt(e.target.value) || 0)}
+                                  className="w-full px-2 py-1 border rounded text-sm"
+                                />
+                              </div>
 
-                                      {category === 'purchased' && (
-                                        <div>
-                                          <label className="text-xs text-gray-600">购入价</label>
-                                          <input
-                                            type="number"
-                                            step="0.01"
-                                            value={spec.purchasePrice || 0}
-                                            onChange={(e) => updateSpecification(itemIndex, specIndex, 'purchasePrice', parseFloat(e.target.value) || 0)}
-                                            className="w-full px-2 py-1 border rounded text-sm"
-                                          />
-                                        </div>
-                                      )}
+                              {category === 'purchased' && (
+                                <div>
+                                  <label className="text-xs text-gray-600">购入价</label>
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    value={spec.purchasePrice || 0}
+                                    onChange={(e) => updateSpecification(itemIndex, specIndex, 'purchasePrice', parseFloat(e.target.value) || 0)}
+                                    className="w-full px-2 py-1 border rounded text-sm"
+                                  />
+                                </div>
+                              )}
 
-                                      <div>
-                                        <label className="text-xs text-gray-600">原价</label>
-                                        <input
-                                          type="number"
-                                          step="0.01"
-                                          value={spec.originalPrice}
-                                          onChange={(e) => updateSpecification(itemIndex, specIndex, 'originalPrice', parseFloat(e.target.value) || 0)}
-                                          className="w-full px-2 py-1 border rounded text-sm"
-                                        />
-                                      </div>
-                                    </div>
-
-                                    <button
-                                      onClick={() => removeSpecification(itemIndex, specIndex)}
-                                      className="text-red-600 hover:text-red-700 mt-5"
-                                    >
-                                      ✕
-                                    </button>
-                                  </div>
-                                )
-                              })}
+                              <div>
+                                <label className="text-xs text-gray-600">原价</label>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  value={spec.originalPrice}
+                                  onChange={(e) => updateSpecification(itemIndex, specIndex, 'originalPrice', parseFloat(e.target.value) || 0)}
+                                  className="w-full px-2 py-1 border rounded text-sm"
+                                />
+                              </div>
                             </div>
-                          )
-                        })
-                      })()}
+
+                            <button
+                              onClick={() => removeSpecification(itemIndex, specIndex)}
+                              className="text-red-600 hover:text-red-700 mt-5"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        )
+                      })}
                     </div>
                   </div>
                 </div>
