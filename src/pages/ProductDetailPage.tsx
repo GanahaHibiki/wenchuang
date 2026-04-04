@@ -79,29 +79,43 @@ export default function ProductDetailPage() {
         <section className="bg-white rounded-lg shadow p-6">
           <h2 className="text-lg font-bold mb-4">已购商品记录</h2>
           <div className="space-y-4">
-            {entries.purchased.map((entry, index) => (
-              <div key={index} className="border-l-4 border-blue-500 pl-4 py-2">
-                <Link
-                  to={`/orders/${entry.orderId}`}
-                  className="font-medium text-blue-600 hover:underline"
-                >
-                  订单 {entry.orderSequence} - {entry.shopName}
-                </Link>
-                <div className="mt-2 space-y-1">
-                  {entry.specifications
-                    .filter((s) => s.quantity > 0)
-                    .map((spec, i) => (
-                      <div key={i} className="text-sm text-gray-600">
-                        {getSpecTypeName(spec)}
-                        {spec.sequenceNumber > 1 && spec.sequenceNumber}:
-                        {' '}{spec.quantity} 个,
-                        购入价 ¥{spec.purchasePrice?.toFixed(2) || '0.00'},
-                        原价 ¥{spec.originalPrice.toFixed(2)}
-                      </div>
-                    ))}
+            {entries.purchased.map((entry, index) => {
+              // Check which spec types have multiple entries in this order
+              const specTypeCounts = new Map<string, number>()
+              entry.specifications.forEach(spec => {
+                const typeName = getSpecTypeName(spec)
+                specTypeCounts.set(typeName, (specTypeCounts.get(typeName) || 0) + 1)
+              })
+
+              return (
+                <div key={index} className="border-l-4 border-blue-500 pl-4 py-2">
+                  <Link
+                    to={`/orders/${entry.orderId}`}
+                    className="font-medium text-blue-600 hover:underline"
+                  >
+                    订单 {entry.orderSequence} - {entry.shopName}
+                  </Link>
+                  <div className="mt-2 space-y-1">
+                    {entry.specifications
+                      .filter((s) => s.quantity > 0)
+                      .map((spec, i) => {
+                        const typeName = getSpecTypeName(spec)
+                        const hasMultiple = (specTypeCounts.get(typeName) || 0) > 1
+
+                        return (
+                          <div key={i} className="text-sm text-gray-600">
+                            {typeName}
+                            {hasMultiple && spec.sequenceNumber}:
+                            {' '}{spec.quantity} 个,
+                            购入价 ¥{spec.purchasePrice?.toFixed(2) || '0.00'},
+                            原价 ¥{spec.originalPrice.toFixed(2)}
+                          </div>
+                        )
+                      })}
+                  </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </section>
       )}
@@ -111,31 +125,45 @@ export default function ProductDetailPage() {
         <section className="bg-white rounded-lg shadow p-6">
           <h2 className="text-lg font-bold mb-4">礼品记录</h2>
           <div className="space-y-4">
-            {entries.gifts.map((entry, index) => (
-              <div key={index} className="border-l-4 border-green-500 pl-4 py-2">
-                <Link
-                  to={`/orders/${entry.orderId}`}
-                  className="font-medium text-blue-600 hover:underline"
-                >
-                  订单 {entry.orderSequence} - {entry.shopName}
-                </Link>
-                <span className="ml-2 text-sm bg-green-100 text-green-700 px-2 py-0.5 rounded">
-                  {entry.giftType}
-                </span>
-                <div className="mt-2 space-y-1">
-                  {entry.specifications
-                    .filter((s) => s.quantity > 0)
-                    .map((spec, i) => (
-                      <div key={i} className="text-sm text-gray-600">
-                        {getSpecTypeName(spec)}
-                        {spec.sequenceNumber > 1 && spec.sequenceNumber}:
-                        {' '}{spec.quantity} 个,
-                        原价 ¥{spec.originalPrice.toFixed(2)}
-                      </div>
-                    ))}
+            {entries.gifts.map((entry, index) => {
+              // Check which spec types have multiple entries in this order
+              const specTypeCounts = new Map<string, number>()
+              entry.specifications.forEach(spec => {
+                const typeName = getSpecTypeName(spec)
+                specTypeCounts.set(typeName, (specTypeCounts.get(typeName) || 0) + 1)
+              })
+
+              return (
+                <div key={index} className="border-l-4 border-green-500 pl-4 py-2">
+                  <Link
+                    to={`/orders/${entry.orderId}`}
+                    className="font-medium text-blue-600 hover:underline"
+                  >
+                    订单 {entry.orderSequence} - {entry.shopName}
+                  </Link>
+                  <span className="ml-2 text-sm bg-green-100 text-green-700 px-2 py-0.5 rounded">
+                    {entry.giftType}
+                  </span>
+                  <div className="mt-2 space-y-1">
+                    {entry.specifications
+                      .filter((s) => s.quantity > 0)
+                      .map((spec, i) => {
+                        const typeName = getSpecTypeName(spec)
+                        const hasMultiple = (specTypeCounts.get(typeName) || 0) > 1
+
+                        return (
+                          <div key={i} className="text-sm text-gray-600">
+                            {typeName}
+                            {hasMultiple && spec.sequenceNumber}:
+                            {' '}{spec.quantity} 个,
+                            原价 ¥{spec.originalPrice.toFixed(2)}
+                          </div>
+                        )
+                      })}
+                  </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </section>
       )}
@@ -145,24 +173,45 @@ export default function ProductDetailPage() {
         <section className="bg-white rounded-lg shadow p-6">
           <h2 className="text-lg font-bold mb-4">小礼物记录</h2>
           <div className="space-y-4">
-            {entries.smallGifts.map((entry, index) => (
-              <div key={index} className="border-l-4 border-purple-500 pl-4 py-2">
-                <Link
-                  to={`/orders/${entry.orderId}`}
-                  className="font-medium text-blue-600 hover:underline"
-                >
-                  订单 {entry.orderSequence} - {entry.shopName}
-                </Link>
-                <div className="mt-2 space-y-1">
-                  {entry.specifications
-                    .filter((s) => s.quantity > 0)
-                    .map((spec, i) => (
-                      <div key={i} className="text-sm text-gray-600">
-                        {getSpecTypeName(spec)}
-                        {spec.sequenceNumber > 1 && spec.sequenceNumber}:
-                        {' '}{spec.quantity} 个,
-                        原价 ¥{spec.originalPrice.toFixed(2)}
-                      </div>
+            {entries.smallGifts.map((entry, index) => {
+              // Check which spec types have multiple entries in this order
+              const specTypeCounts = new Map<string, number>()
+              entry.specifications.forEach(spec => {
+                const typeName = getSpecTypeName(spec)
+                specTypeCounts.set(typeName, (specTypeCounts.get(typeName) || 0) + 1)
+              })
+
+              return (
+                <div key={index} className="border-l-4 border-purple-500 pl-4 py-2">
+                  <Link
+                    to={`/orders/${entry.orderId}`}
+                    className="font-medium text-blue-600 hover:underline"
+                  >
+                    订单 {entry.orderSequence} - {entry.shopName}
+                  </Link>
+                  <div className="mt-2 space-y-1">
+                    {entry.specifications
+                      .filter((s) => s.quantity > 0)
+                      .map((spec, i) => {
+                        const typeName = getSpecTypeName(spec)
+                        const hasMultiple = (specTypeCounts.get(typeName) || 0) > 1
+
+                        return (
+                          <div key={i} className="text-sm text-gray-600">
+                            {typeName}
+                            {hasMultiple && spec.sequenceNumber}:
+                            {' '}{spec.quantity} 个,
+                            原价 ¥{spec.originalPrice.toFixed(2)}
+                          </div>
+                        )
+                      })}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </section>
+      )}
                     ))}
                 </div>
               </div>

@@ -141,43 +141,57 @@ export default function OrderDetailPage() {
     return spec.type
   }
 
-  const renderItem = (item: OrderItem & { product: Product }, showPurchasePrice: boolean) => (
-    <div key={item.id} className="flex gap-4 p-4 bg-gray-50 rounded-lg">
-      <div
-        className="w-24 h-32 bg-gray-200 rounded overflow-hidden cursor-pointer flex-shrink-0"
-        onClick={() => setViewingImage(`/images/original/${item.product.imagePath}`)}
-      >
-        <img
-          src={`/images/thumbnails/${item.product.thumbnailPath}`}
-          alt={item.product.name}
-          className="w-full h-full object-cover"
-        />
-      </div>
-      <div className="flex-1">
-        <Link
-          to={`/products/${item.product.id}`}
-          className="font-medium text-blue-600 hover:underline"
+  const renderItem = (item: OrderItem & { product: Product }, showPurchasePrice: boolean) => {
+    // Check which spec types have multiple entries
+    const specTypeCounts = new Map<string, number>()
+    item.specifications.forEach(spec => {
+      const typeName = getSpecTypeName(spec)
+      specTypeCounts.set(typeName, (specTypeCounts.get(typeName) || 0) + 1)
+    })
+
+    return (
+      <div key={item.id} className="flex gap-4 p-4 bg-gray-50 rounded-lg">
+        <div
+          className="w-24 h-32 bg-gray-200 rounded overflow-hidden cursor-pointer flex-shrink-0"
+          onClick={() => setViewingImage(`/images/original/${item.product.imagePath}`)}
         >
-          {item.product.name}
-        </Link>
-        <div className="mt-2 space-y-1">
-          {item.specifications.map((spec, index) => (
-            <div key={index} className="text-sm text-gray-600">
-              {getSpecTypeName(spec)}
-              {spec.sequenceNumber > 1 && spec.sequenceNumber}:
-              {' '}{spec.quantity} 个
-              {showPurchasePrice && spec.purchasePrice !== undefined && (
-                <> × ¥{spec.purchasePrice.toFixed(2)} = ¥{(spec.quantity * spec.purchasePrice).toFixed(2)}</>
-              )}
-              {!showPurchasePrice && (
-                <> × ¥{spec.originalPrice.toFixed(2)} = ¥{(spec.quantity * spec.originalPrice).toFixed(2)}</>
-              )}
-            </div>
-          ))}
+          <img
+            src={`/images/thumbnails/${item.product.thumbnailPath}`}
+            alt={item.product.name}
+            className="w-full h-full object-cover"
+          />
+        </div>
+        <div className="flex-1">
+          <Link
+            to={`/products/${item.product.id}`}
+            className="font-medium text-blue-600 hover:underline"
+          >
+            {item.product.name}
+          </Link>
+          <div className="mt-2 space-y-1">
+            {item.specifications.map((spec, index) => {
+              const typeName = getSpecTypeName(spec)
+              const hasMultiple = (specTypeCounts.get(typeName) || 0) > 1
+
+              return (
+                <div key={index} className="text-sm text-gray-600">
+                  {typeName}
+                  {hasMultiple && spec.sequenceNumber}:
+                  {' '}{spec.quantity} 个
+                  {showPurchasePrice && spec.purchasePrice !== undefined && (
+                    <> × ¥{spec.purchasePrice.toFixed(2)} = ¥{(spec.quantity * spec.purchasePrice).toFixed(2)}</>
+                  )}
+                  {!showPurchasePrice && (
+                    <> × ¥{spec.originalPrice.toFixed(2)} = ¥{(spec.quantity * spec.originalPrice).toFixed(2)}</>
+                  )}
+                </div>
+              )
+            })}
+          </div>
         </div>
       </div>
-    </div>
-  )
+    )
+  }
 
   // Group gifts by type
   const giftsByType = order.gifts.reduce((acc, gift) => {
