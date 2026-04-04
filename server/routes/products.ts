@@ -48,6 +48,7 @@ router.get('/:id', async (req, res, next) => {
     }
 
     // Get all entries for this product across orders
+    // Search by product name instead of productId to capture all instances
     const db = await loadDatabase()
     const shops = await getAllShops()
     const shopMap = new Map(shops.map((s) => [s.id, s]))
@@ -61,7 +62,12 @@ router.get('/:id', async (req, res, next) => {
       if (!shop) continue
 
       for (const item of order.items) {
-        if (item.productId !== id) continue
+        // Get the product for this item
+        const itemProduct = await getProductById(item.productId)
+        if (!itemProduct) continue
+
+        // Match by product name (case-insensitive)
+        if (itemProduct.name.toLowerCase() !== product.name.toLowerCase()) continue
 
         const entry: ProductEntry = {
           orderId: order.id,
