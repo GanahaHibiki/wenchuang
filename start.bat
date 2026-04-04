@@ -2,6 +2,14 @@
 cd /d "%~dp0"
 echo Starting WenChuang Order Management System...
 echo.
+
+REM Check if node_modules exists
+if not exist node_modules (
+    echo Installing dependencies...
+    call npm install
+    echo.
+)
+
 echo Frontend: http://localhost:5173
 echo Backend: http://localhost:3001
 echo.
