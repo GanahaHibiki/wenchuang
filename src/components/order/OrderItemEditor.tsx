@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import type { OrderItem, Product, Specification, GiftType } from '@/types'
 import { SPECIFICATION_TYPES, GIFT_TYPES, MULTI_ENTRY_TYPES } from '@/types'
 import ImageUploader from '@/components/common/ImageUploader'
@@ -13,6 +13,14 @@ interface OrderItemEditorProps {
 export default function OrderItemEditor({ items, category, onSave, onCancel }: OrderItemEditorProps) {
   const [editedItems, setEditedItems] = useState(items)
   const [newImages, setNewImages] = useState<Map<string, File>>(new Map())
+  const [imagePreviews, setImagePreviews] = useState<Map<string, string>>(new Map())
+
+  // Cleanup preview URLs on unmount
+  useEffect(() => {
+    return () => {
+      imagePreviews.forEach(url => URL.revokeObjectURL(url))
+    }
+  }, [imagePreviews])
 
   const updateItemName = (index: number, name: string) => {
     const newItems = [...editedItems]
@@ -26,6 +34,10 @@ export default function OrderItemEditor({ items, category, onSave, onCancel }: O
   const updateItemImage = (index: number, file: File) => {
     const itemId = editedItems[index].id
     setNewImages(prev => new Map(prev).set(itemId, file))
+
+    // Create preview URL
+    const previewUrl = URL.createObjectURL(file)
+    setImagePreviews(prev => new Map(prev).set(itemId, previewUrl))
   }
 
   const updateItemGiftType = (index: number, giftType: GiftType) => {
@@ -92,10 +104,22 @@ export default function OrderItemEditor({ items, category, onSave, onCancel }: O
 
   const removeItem = (index: number) => {
     const itemId = editedItems[index].id
-    // Also remove the image if it was set
+
+    // Clean up preview URL if exists
+    const previewUrl = imagePreviews.get(itemId)
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl)
+    }
+
+    // Remove the image and preview
     const updatedImages = new Map(newImages)
     updatedImages.delete(itemId)
     setNewImages(updatedImages)
+
+    const updatedPreviews = new Map(imagePreviews)
+    updatedPreviews.delete(itemId)
+    setImagePreviews(updatedPreviews)
+
     setEditedItems(editedItems.filter((_, i) => i !== index))
   }
 
@@ -148,24 +172,13 @@ export default function OrderItemEditor({ items, category, onSave, onCancel }: O
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       商品图片
                     </label>
-                    <div className="flex items-center gap-3">
-                      {item.product.imagePath && !newImages.has(item.id) && (
-                        <img
-                          src={`/images/thumbnails/${item.product.thumbnailPath}`}
-                          alt={item.product.name}
-                          className="w-20 h-20 object-cover rounded border"
-                        />
-                      )}
-                      {newImages.has(item.id) && (
-                        <div className="text-sm text-green-600">
-                          ✓ 新图片已选择
-                        </div>
-                      )}
-                      <ImageUploader
-                        onImageSelect={(file) => updateItemImage(itemIndex, file)}
-                        buttonText={item.product.imagePath ? "更换图片" : "上传图片"}
-                      />
-                    </div>
+                    <ImageUploader
+                      onImageSelect={(file) => updateItemImage(itemIndex, file)}
+                      preview={
+                        imagePreviews.get(item.id) ||
+                        (item.product.imagePath ? `/images/original/${item.product.imagePath}` : null)
+                      }
+                    />
                   </div>
 
                   {/* Product Name */}
