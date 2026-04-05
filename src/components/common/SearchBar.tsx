@@ -1,12 +1,20 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 interface SearchBarProps {
   onSearch: (type: 'productName' | 'shopName', keyword: string) => void
+  initialType?: 'productName' | 'shopName'
+  initialKeyword?: string
 }
 
-export default function SearchBar({ onSearch }: SearchBarProps) {
-  const [searchType, setSearchType] = useState<'productName' | 'shopName'>('productName')
-  const [keyword, setKeyword] = useState('')
+export default function SearchBar({ onSearch, initialType = 'productName', initialKeyword = '' }: SearchBarProps) {
+  const [searchType, setSearchType] = useState<'productName' | 'shopName'>(initialType)
+  const [keyword, setKeyword] = useState(initialKeyword)
+
+  // Sync with parent state changes
+  useEffect(() => {
+    setSearchType(initialType)
+    setKeyword(initialKeyword)
+  }, [initialType, initialKeyword])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()

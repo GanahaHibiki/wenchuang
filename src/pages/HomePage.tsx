@@ -17,12 +17,16 @@ export default function HomePage() {
   const [searchKeyword, setSearchKeyword] = useState('')
   const [searchType, setSearchType] = useState<'productName' | 'shopName'>('productName')
 
-  // Initialize from URL params
+  // Initialize from URL params and update when URL changes
   useEffect(() => {
     const shopName = searchParams.get('shop')
     if (shopName) {
       setSearchType('shopName')
       setSearchKeyword(shopName)
+    } else {
+      // Clear search when no shop param
+      setSearchType('productName')
+      setSearchKeyword('')
     }
   }, [searchParams])
 
@@ -59,7 +63,11 @@ export default function HomePage() {
     <div className="space-y-6">
       {/* Search */}
       <div className="bg-white rounded-lg shadow p-4">
-        <SearchBar onSearch={handleSearch} />
+        <SearchBar
+          onSearch={handleSearch}
+          initialType={searchType}
+          initialKeyword={searchKeyword}
+        />
       </div>
 
       {/* Count */}
