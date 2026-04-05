@@ -3,7 +3,7 @@
 ## Document Metadata
 - **System Name**: 文创商品订单管理系统 (Wenchuang Order Management System)
 - **Document Type**: Technical Design Specification
-- **Version**: 1.5
+- **Version**: 1.6
 - **Last Updated**: 2026-04-05
 
 ---
@@ -272,6 +272,7 @@ function calculateGiftRatio(order: Order): number {
 - Each Product Card:
   - Container: 640×480 fixed size
   - Image: Original image with object-contain (complete display, no crop)
+  - Positioning: Centered both horizontally and vertically using absolute positioning
   - Note: Uses original images, not thumbnails, for consistency with order detail page
   - Product Name (clickable → Product Detail Page)
 - Default: Show all purchased products (deduplicated by name, keep most recent)
@@ -1261,6 +1262,7 @@ WenChuang/
 | 1.3 | 2026-04-05 | Updated: ProductCard to object-contain for complete image display, ImageViewer with wheel zoom (0.5x-5x) and drag pan (no visible buttons) | AI Assistant |
 | 1.4 | 2026-04-05 | Updated: ProductCard to object-cover for center-crop fill (no empty space) | AI Assistant |
 | 1.5 | 2026-04-05 | Updated: Product gallery uses original images with object-contain (consistent with order detail), shop name editable in order detail page | AI Assistant |
+| 1.6 | 2026-04-05 | Fixed: ProductCard image centering using absolute positioning (top/left 50% with translate) | AI Assistant |
 
 ---
 
