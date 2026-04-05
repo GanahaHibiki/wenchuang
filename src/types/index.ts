@@ -24,7 +24,9 @@ export type SpecificationType =
   | '卡头'
   | '封口贴'
   | '长贴'
+  | '其他贴纸'
   | '贴纸包'
+  | '吊牌'
   | '封箱贴'
   | '售后卡'
   | '豆丁贴'
@@ -42,7 +44,9 @@ export const SPECIFICATION_TYPES: SpecificationType[] = [
   '卡头',
   '封口贴',
   '长贴',
+  '其他贴纸',
   '贴纸包',
+  '吊牌',
   '封箱贴',
   '售后卡',
   '豆丁贴',
@@ -62,7 +66,9 @@ export const SPECIFICATION_DISPLAY_ORDER: SpecificationType[] = [
   '卡头',
   '封口贴',
   '长贴',
+  '其他贴纸',
   '贴纸包',
+  '吊牌',
   '封箱贴',
   '售后卡',
   '豆丁贴',

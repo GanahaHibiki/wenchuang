@@ -186,7 +186,7 @@ export default function OrderDetailPage() {
 
   // Helper function to display specification type with custom name
   const getSpecTypeName = (spec: { type: string; customType?: string }) => {
-    if (spec.type === '其他衍生' && spec.customType) {
+    if ((spec.type === '其他衍生' || spec.type === '其他贴纸') && spec.customType) {
       return spec.customType
     }
     return spec.type

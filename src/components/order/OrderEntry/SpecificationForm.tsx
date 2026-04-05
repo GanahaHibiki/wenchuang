@@ -147,8 +147,8 @@ export default function SpecificationForm({
                   </span>
                 )}
 
-                {/* Custom type name input for "其他衍生" */}
-                {type === '其他衍生' && (
+                {/* Custom type name input for "其他衍生" and "其他贴纸" */}
+                {(type === '其他衍生' || type === '其他贴纸') && (
                   <label className="flex items-center gap-1">
                     <span className="text-sm text-gray-600">类别名称:</span>
                     <input
