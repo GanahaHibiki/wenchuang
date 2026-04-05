@@ -3,7 +3,7 @@
 ## Document Metadata
 - **System Name**: 文创商品订单管理系统 (Wenchuang Order Management System)
 - **Document Type**: Technical Design Specification
-- **Version**: 1.9
+- **Version**: 1.10
 - **Last Updated**: 2026-04-05
 
 ---
@@ -1274,6 +1274,7 @@ WenChuang/
 | 1.7 | 2026-04-05 | Updated: ProductCard responsive with aspect-[4/3] and object-cover fill, ProductDetailPage left-right layout (image 1/3, info 2/3) | AI Assistant |
 | 1.8 | 2026-04-05 | Fixed: ProductDetailPage left-right layout (image 640px fixed, records flexible) - records now alongside image | AI Assistant |
 | 1.9 | 2026-04-05 | Updated: OrderDetailPage items to responsive grid layout (2/3/4/5 columns) with card-style display, reduces whitespace | AI Assistant |
+| 1.10 | 2026-04-05 | Updated: OrderDetailPage items to auto-fill grid (max 200px item width) with original images (not thumbnails) | AI Assistant |
 
 ---
 

@@ -206,7 +206,7 @@ export default function OrderDetailPage() {
           onClick={() => setViewingImage(`/images/original/${item.product.imagePath}`)}
         >
           <img
-            src={`/images/thumbnails/${item.product.thumbnailPath}`}
+            src={`/images/original/${item.product.imagePath}`}
             alt={item.product.name}
             className="w-full h-full object-cover"
           />
