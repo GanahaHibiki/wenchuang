@@ -18,7 +18,7 @@ interface StepSmallGiftsProps {
   onBack: () => void
   isSubmitting: boolean
   shopName: string
-  purchasedItems: { productName: string; imagePreview: string | null }[]
+  previousItems: { productName: string; imagePreview: string | null }[]
 }
 
 export default function StepSmallGifts({
@@ -28,7 +28,7 @@ export default function StepSmallGifts({
   onBack,
   isSubmitting,
   shopName,
-  purchasedItems,
+  previousItems,
 }: StepSmallGiftsProps) {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [shopProducts, setShopProducts] = useState<Product[]>([])
@@ -69,12 +69,12 @@ export default function StepSmallGifts({
       return
     }
 
-    // Check if it's from purchased items
-    const purchasedItem = purchasedItems.find((item, idx) => `purchased-${idx}` === selection)
-    if (purchasedItem) {
+    // Check if it's from previous items
+    const previousItem = previousItems.find((item, idx) => `previous-${idx}` === selection)
+    if (previousItem) {
       updateCurrentItem({
-        productName: purchasedItem.productName,
-        imagePreview: purchasedItem.imagePreview
+        productName: previousItem.productName,
+        imagePreview: previousItem.imagePreview
       })
       return
     }
@@ -204,10 +204,10 @@ export default function StepSmallGifts({
                 defaultValue="manual"
               >
                 <option value="manual">手动输入商品名和图片</option>
-                {purchasedItems.length > 0 && (
-                  <optgroup label="本订单已购商品">
-                    {purchasedItems.map((item, idx) => (
-                      <option key={`purchased-${idx}`} value={`purchased-${idx}`}>
+                {previousItems.length > 0 && (
+                  <optgroup label="本订单已录入商品">
+                    {previousItems.map((item, idx) => (
+                      <option key={`previous-${idx}`} value={`previous-${idx}`}>
                         {item.productName}
                       </option>
                     ))}
