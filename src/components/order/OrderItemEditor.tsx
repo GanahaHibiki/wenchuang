@@ -10,7 +10,12 @@ interface OrderItemEditorProps {
   onSave: (items: (OrderItem & { product: Product })[], newImages: Map<string, File>) => void
   onCancel: () => void
   shopName: string
-  existingProducts: { productName: string; imagePreview: string }[]
+  existingProducts: {
+    productId: string
+    productName: string
+    imagePath: string
+    thumbnailPath: string
+  }[]
 }
 
 export default function OrderItemEditor({
@@ -65,13 +70,20 @@ export default function OrderItemEditor({
       const newItems = [...editedItems]
       newItems[index] = {
         ...newItems[index],
-        product: { ...newItems[index].product, name: existingProduct.productName }
+        productId: existingProduct.productId,
+        product: {
+          ...newItems[index].product,
+          id: existingProduct.productId,
+          name: existingProduct.productName,
+          imagePath: existingProduct.imagePath,
+          thumbnailPath: existingProduct.thumbnailPath
+        }
       }
       setEditedItems(newItems)
 
-      // Set image preview (but not a new image file, so validation passes with imagePreview)
+      // Set image preview using the existing product's image path
       const itemId = newItems[index].id
-      setImagePreviews(prev => new Map(prev).set(itemId, existingProduct.imagePreview))
+      setImagePreviews(prev => new Map(prev).set(itemId, `/images/original/${existingProduct.imagePath}`))
       return
     }
 
@@ -81,7 +93,14 @@ export default function OrderItemEditor({
       const newItems = [...editedItems]
       newItems[index] = {
         ...newItems[index],
-        product: { ...newItems[index].product, name: product.name }
+        productId: product.id,
+        product: {
+          ...newItems[index].product,
+          id: product.id,
+          name: product.name,
+          imagePath: product.imagePath,
+          thumbnailPath: product.thumbnailPath
+        }
       }
       setEditedItems(newItems)
 

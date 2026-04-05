@@ -449,16 +449,22 @@ export default function OrderDetailPage() {
           shopName={order.shopName}
           existingProducts={[
             ...order.purchasedItems.map(item => ({
+              productId: item.productId,
               productName: item.product.name,
-              imagePreview: `/images/original/${item.product.imagePath}`
+              imagePath: item.product.imagePath,
+              thumbnailPath: item.product.thumbnailPath
             })),
             ...(editingCategory !== 'purchased' ? order.gifts.map(item => ({
+              productId: item.productId,
               productName: item.product.name,
-              imagePreview: `/images/original/${item.product.imagePath}`
+              imagePath: item.product.imagePath,
+              thumbnailPath: item.product.thumbnailPath
             })) : []),
             ...(editingCategory === 'smallGift' ? order.smallGifts.map(item => ({
+              productId: item.productId,
               productName: item.product.name,
-              imagePreview: `/images/original/${item.product.imagePath}`
+              imagePath: item.product.imagePath,
+              thumbnailPath: item.product.thumbnailPath
             })) : [])
           ]}
         />
