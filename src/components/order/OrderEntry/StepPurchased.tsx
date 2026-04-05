@@ -24,6 +24,7 @@ export default function StepPurchased({
   onBack,
 }: StepPurchasedProps) {
   const [currentIndex, setCurrentIndex] = useState(0)
+  const [lastCheckedName, setLastCheckedName] = useState('')
 
   const currentItem = items[currentIndex] || {
     productName: '',
@@ -36,6 +37,40 @@ export default function StepPurchased({
     const newItems = [...items]
     newItems[currentIndex] = { ...currentItem, ...updates }
     onChange(newItems)
+  }
+
+  const handleTabSwitch = (index: number) => {
+    setCurrentIndex(index)
+    setLastCheckedName('')
+  }
+
+  const handleProductNameBlur = () => {
+    const trimmedName = currentItem.productName.trim()
+    if (!trimmedName || trimmedName === lastCheckedName) return
+
+    setLastCheckedName(trimmedName)
+
+    // Check for duplicates in other items (excluding current item)
+    const otherItems = items.filter((_, idx) => idx !== currentIndex)
+    const duplicateCount = otherItems.filter(
+      item => item.productName.trim().toLowerCase() === trimmedName.toLowerCase()
+    ).length
+
+    if (duplicateCount > 0) {
+      const userConfirmed = window.confirm(
+        `商品名"${trimmedName}"与之前录入的商品重名。\n\n` +
+        `是否为相同商品？\n\n` +
+        `- 点击"确定"：这是相同商品\n` +
+        `- 点击"取消"：这是不同商品，将自动添加序号区分`
+      )
+
+      if (!userConfirmed) {
+        // User says it's different product, add sequence number
+        const newName = `${trimmedName} (${duplicateCount + 1})`
+        updateCurrentItem({ productName: newName })
+        setLastCheckedName(newName)
+      }
+    }
   }
 
   const handleImageSelect = (file: File) => {
@@ -62,6 +97,7 @@ export default function StepPurchased({
     }
     onChange([...items, newItem])
     setCurrentIndex(items.length)
+    setLastCheckedName('')
   }
 
   const removeItem = (index: number) => {
@@ -92,7 +128,7 @@ export default function StepPurchased({
         {items.map((item, index) => (
           <button
             key={index}
-            onClick={() => setCurrentIndex(index)}
+            onClick={() => handleTabSwitch(index)}
             className={`px-3 py-1 rounded text-sm ${
               index === currentIndex
                 ? 'bg-blue-500 text-white'
@@ -128,6 +164,7 @@ export default function StepPurchased({
               type="text"
               value={currentItem.productName}
               onChange={(e) => updateCurrentItem({ productName: e.target.value })}
+              onBlur={handleProductNameBlur}
               placeholder="请输入商品名称"
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />

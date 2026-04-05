@@ -235,8 +235,21 @@ export default function OrderItemEditor({
   }
 
   // Filter out products already used in edited items
-  const usedProductNames = new Set(editedItems.map(item => item.product.name.trim().toLowerCase()))
-  const availableExistingProducts = existingProducts.filter(
+  // For gifts, allow duplicates since same product can have different gift types
+  // For smallGift, merge duplicate products from existingProducts
+  const usedProductNames = category === 'gift'
+    ? new Set<string>() // Don't filter for gifts
+    : new Set(editedItems.map(item => item.product.name.trim().toLowerCase()))
+
+  // Deduplicate existingProducts for small gifts
+  const deduplicatedExistingProducts = category === 'smallGift'
+    ? existingProducts.filter((product, index, self) => {
+        const productNameLower = product.productName.trim().toLowerCase()
+        return index === self.findIndex(t => t.productName.trim().toLowerCase() === productNameLower)
+      })
+    : existingProducts
+
+  const availableExistingProducts = deduplicatedExistingProducts.filter(
     product => !usedProductNames.has(product.productName.trim().toLowerCase())
   )
   const availableShopProducts = shopProducts.filter(

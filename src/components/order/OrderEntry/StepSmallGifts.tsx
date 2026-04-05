@@ -33,6 +33,7 @@ export default function StepSmallGifts({
   const [currentIndex, setCurrentIndex] = useState(0)
   const [shopProducts, setShopProducts] = useState<Product[]>([])
   const [isLoadingShopProducts, setIsLoadingShopProducts] = useState(false)
+  const [lastCheckedName, setLastCheckedName] = useState('')
 
   const emptyItem: SmallGiftItemData = {
     productName: '',
@@ -42,6 +43,43 @@ export default function StepSmallGifts({
   }
 
   const currentItem = items[currentIndex] || emptyItem
+
+  const handleTabSwitch = (index: number) => {
+    setCurrentIndex(index)
+    setLastCheckedName('')
+  }
+
+  const handleProductNameBlur = () => {
+    const trimmedName = currentItem.productName.trim()
+    if (!trimmedName || trimmedName === lastCheckedName) return
+
+    setLastCheckedName(trimmedName)
+
+    // Check for duplicates in all previous items and current items (excluding current item)
+    const allExistingNames = [
+      ...previousItems.map(item => item.productName.trim().toLowerCase()),
+      ...items.filter((_, idx) => idx !== currentIndex).map(item => item.productName.trim().toLowerCase())
+    ]
+
+    const duplicateCount = allExistingNames.filter(name => name === trimmedName.toLowerCase()).length
+
+    if (duplicateCount > 0) {
+      const userConfirmed = window.confirm(
+        `商品名"${trimmedName}"与之前录入的商品重名。\n\n` +
+        `是否为相同商品？\n\n` +
+        `- 点击"确定"：这是相同商品\n` +
+        `- 点击"取消"：这是不同商品，将自动添加序号区分`
+      )
+
+      if (!userConfirmed) {
+        // Count all occurrences including current to get next sequence number
+        const totalCount = allExistingNames.filter(name => name === trimmedName.toLowerCase()).length + 1
+        const newName = `${trimmedName} (${totalCount})`
+        updateCurrentItem({ productName: newName })
+        setLastCheckedName(newName)
+      }
+    }
+  }
 
   // Load shop products
   useEffect(() => {
@@ -124,6 +162,7 @@ export default function StepSmallGifts({
     }
     onChange([...items, newItem])
     setCurrentIndex(items.length)
+    setLastCheckedName('')
   }
 
   const removeItem = (index: number) => {
@@ -141,9 +180,17 @@ export default function StepSmallGifts({
         item.productName.trim() && (item.image || item.imagePreview) && item.specifications.length > 0
     )
 
-  // Filter out products already used in current items
+  // Filter out products already used in current items AND merge duplicates from previousItems
   const usedProductNames = new Set(items.map(item => item.productName.trim().toLowerCase()))
-  const availablePreviousItems = previousItems.filter(
+
+  // Deduplicate previousItems by product name (case-insensitive)
+  const uniquePreviousItems = previousItems.filter((item, index, self) => {
+    const itemNameLower = item.productName.trim().toLowerCase()
+    // Keep only first occurrence of each product name
+    return index === self.findIndex(t => t.productName.trim().toLowerCase() === itemNameLower)
+  })
+
+  const availablePreviousItems = uniquePreviousItems.filter(
     item => !usedProductNames.has(item.productName.trim().toLowerCase())
   )
   const availableShopProducts = shopProducts.filter(
@@ -165,7 +212,7 @@ export default function StepSmallGifts({
           {items.map((item, index) => (
             <button
               key={index}
-              onClick={() => setCurrentIndex(index)}
+              onClick={() => handleTabSwitch(index)}
               className={`px-3 py-1 rounded text-sm ${
                 index === currentIndex
                   ? 'bg-blue-500 text-white'
@@ -245,6 +292,7 @@ export default function StepSmallGifts({
                 type="text"
                 value={currentItem.productName}
                 onChange={(e) => updateCurrentItem({ productName: e.target.value })}
+                onBlur={handleProductNameBlur}
                 placeholder="请输入商品名称或从上方选择"
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
