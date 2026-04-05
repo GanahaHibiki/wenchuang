@@ -13,7 +13,8 @@
       "Bash(pkill -f \"vite\\\\|tsx\\\\|node.*server\")",
       "Bash(kill -9 37045 37052)",
       "Bash(git reset:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(ping:*)"
     ]
   }
 }

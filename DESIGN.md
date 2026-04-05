@@ -3,8 +3,8 @@
 ## Document Metadata
 - **System Name**: 文创商品订单管理系统 (Wenchuang Order Management System)
 - **Document Type**: Technical Design Specification
-- **Version**: 1.1
-- **Last Updated**: 2026-04-04
+- **Version**: 1.2
+- **Last Updated**: 2026-04-05
 
 ---
 
@@ -49,7 +49,7 @@ A **local desktop application** for Windows that manages merchandise orders, gif
 │  │              Local Storage                        │ │
 │  │  - ./data/db.json (all data)                     │ │
 │  │  - ./data/images/original/ (full images)         │ │
-│  │  - ./data/images/thumbnails/ (480×640 thumbs)    │ │
+│  │  - ./data/images/thumbnails/ (640×480 thumbs)    │ │
 │  └───────────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────┘
 ```
@@ -137,7 +137,8 @@ type SpecificationType =
 
 interface Specification {
   type: SpecificationType;
-  sequenceNumber?: number;  // For 卡头/封口贴/长贴 multi-entry (1, 2, 3...)
+  customType?: string;       // Custom type name when type is '其他衍生'
+  sequenceNumber?: number;   // For 卡头/封口贴/长贴 multi-entry (1, 2, 3...)
   quantity: number;          // 数量
   purchasePrice?: number;    // 购入价 (only for purchased items)
   originalPrice: number;     // 原价
@@ -165,7 +166,7 @@ interface OrderItem {
 ```typescript
 interface Order {
   id: string;
-  sequenceNumber: number;    // 录入顺序
+  sequenceNumber: number;    // 录入顺序 (auto-reordered on deletion)
   shopId: string;
   items: OrderItem[];
   
@@ -269,17 +270,17 @@ function calculateGiftRatio(order: Order): number {
 **1.3 Product Gallery**
 - Grid Layout: 5 columns × 10 rows = 50 items per page
 - Each Product Card:
-  - Thumbnail: 480×640 image
+  - Thumbnail: 640×480 fixed size image
   - Product Name (clickable → Product Detail Page)
-- Default: Show all purchased products
+- Default: Show all purchased products (deduplicated by name, keep most recent)
 - Display: "总 xx 件商品"
 
 **1.4 Image Viewer**
 - Trigger: Click on thumbnail
 - Features:
   - Display original resolution
-  - Support zoom in/out
-  - Support drag/pan
+  - Click outside image or press Esc to close
+  - No zoom/pan functionality (simplified)
 
 **1.5 Pagination**
 - Display: "第 x 页，共 x 页"
@@ -309,16 +310,18 @@ function calculateGiftRatio(order: Order): number {
 ├─────────────────────────────────────────────────┤
 │ 商品名: [_________________]                      │
 │ 上传图片: [Choose File] [Preview]                │
+│ 💡 点击图片区域后可直接 Ctrl+V 粘贴              │
 │                                                 │
-│ 规格选择:                                        │
+│ 规格选择: (下拉框或列表，可添加多条)             │
 │ ☐ 试吃set      ☐ 小食量set    ☐ 大食量set        │
 │ ☐ 折页         ☐ 异形折页     ☐ 卡背             │
 │ ☐ 卡头         ☐ 封口贴       ☐ 长贴             │
 │ ☐ 贴纸包       ☐ 封箱贴       ☐ 售后卡           │
 │ ☐ 豆丁贴       ☐ gift贴       ☐ 磨砂盒           │
-│ ☐ 其他衍生                                       │
+│ ☐ 其他衍生 [自定义类别名: _________]             │
 │                                                 │
 │ For each selected specification:                │
+│ - 类型: [下拉选择]                               │
 │ - 数量: [____]                                   │
 │ - 购入价: [____]                                 │
 │ - 原价: [____]                                   │
@@ -386,19 +389,19 @@ function calculateGiftRatio(order: Order): number {
 
 #### Table Layout
 ```
-┌─────┬──────────┬──────────┬────────────┬────────────┬────────┐
-│ 序号 │ 店铺名称  │ 订单金额  │ 小礼物总价  │ 小礼物占比  │        │
-├─────┼──────────┼──────────┼────────────┼────────────┼────────┤
-│  1  │ Shop A   │ ¥1000.00 │ ¥150.00    │ 15.0%      │ [详情] │
-│  2  │ Shop B   │ ¥800.00  │ ¥80.00     │ 10.0%      │ [详情] │
-└─────┴──────────┴──────────┴────────────┴────────────┴────────┘
+┌─────┬──────────┬──────────┬────────────┬────────────┐
+│ 序号 │ 店铺名称  │ 订单金额  │ 小礼物总价  │ 小礼物占比  │
+├─────┼──────────┼──────────┼────────────┼────────────┤
+│  1  │ Shop A   │ ¥1000.00 │ ¥150.00    │ 15.0%      │  ← Entire row clickable
+│  2  │ Shop B   │ ¥800.00  │ ¥80.00     │ 10.0%      │  ← Entire row clickable
+└─────┴──────────┴──────────┴────────────┴────────────┘
 
 Sort by: [订单金额 ↕] [小礼物占比 ↕]
 ```
 
 #### Columns
-1. **序号**: Sequence number (order of entry), clickable → Order Detail Page
-2. **店铺名称**: Shop name
+1. **序号**: Sequence number (auto-reordered on deletion), entire row clickable → Order Detail Page
+2. **店铺名称**: Shop name (read-only, cannot be edited)
 3. **订单金额**: Sum of (quantity × purchasePrice) for all purchased items
 4. **小礼物总价**: Sum of (quantity × originalPrice) for all small gifts
 5. **小礼物占比**: (小礼物总价 ÷ 订单金额) × 100%, rounded to 1 decimal
@@ -414,15 +417,20 @@ Sort by: [订单金额 ↕] [小礼物占比 ↕]
 #### Layout
 ```
 ┌─────────────────────────────────────────────────────────┐
-│ 订单详情 - Shop Name                                     │
+│ 订单详情 - Shop Name (不可编辑)                          │
 ├─────────────────────────────────────────────────────────┤
+│ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
+│ 订单金额: ¥xxx.xx                                       │
+│ 小礼物总价: ¥xxx.xx                                     │
+│ 小礼物占比: xx.x%                                       │
+│ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
 │                                                         │
 │ ━━━ 已购商品 ━━━                          [编辑]        │
 │                                                         │
 │ ┌────────────┬──────────────────────────────────────┐  │
 │ │            │ Product Name                         │  │
 │ │  [Thumb]   │ 规格1: 数量 × 购入价 = 小计           │  │
-│ │  480×640   │ 规格2: 数量 × 购入价 = 小计           │  │
+│ │  640×480   │ 规格2: 数量 × 购入价 = 小计           │  │
 │ │            │ 总计: ¥xxx.xx                        │  │
 │ └────────────┴──────────────────────────────────────┘  │
 │                                                         │
@@ -431,40 +439,45 @@ Sort by: [订单金额 ↕] [小礼物占比 ↕]
 │ [满赠礼]                                                │
 │ ┌────────────┬──────────────────────────────────────┐  │
 │ │  [Thumb]   │ Product Name                         │  │
-│ │            │ 规格1: 数量 × 原价 = 小计             │  │
+│ │  640×480   │ 规格1: 数量 × 原价 = 小计             │  │
 │ └────────────┴──────────────────────────────────────┘  │
 │                                                         │
 │ ━━━ 小礼物 ━━━                            [编辑]        │
 │                                                         │
 │ ┌────────────┬──────────────────────────────────────┐  │
 │ │  [Thumb]   │ Product Name                         │  │
-│ │            │ 规格1: 数量 × 原价 = 小计             │  │
+│ │  640×480   │ 规格1: 数量 × 原价 = 小计             │  │
 │ └────────────┴──────────────────────────────────────┘  │
 │                                                         │
-│ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
-│ 订单金额: ¥xxx.xx                                       │
-│ 小礼物总价: ¥xxx.xx                                     │
-│ 小礼物占比: xx.x%                                       │
+│ 💡 编辑提示: 点击图片上传区域使其获得焦点后可 Ctrl+V   │
 └─────────────────────────────────────────────────────────┘
 ```
 
 #### Sections
-1. **已购商品** (Purchased Items)
-   - Display: Thumbnail (480×640) + Specifications with 购入价
+1. **Summary Section** (Top, after header)
+   - Display: 订单金额, 小礼物总价, 小礼物占比
+
+2. **已购商品** (Purchased Items)
+   - Display: Thumbnail (640×480) + Specifications with 购入价
+   - Sequence numbers only shown when multiple entries of same type exist in this order
    - [编辑] button to modify
 
-2. **礼品** (Gifts)
+3. **礼品** (Gifts)
    - Grouped by gift type (满赠礼, 宣传礼, 手速礼, 高消礼)
    - Display: Thumbnail + Specifications with 原价
+   - Sequence numbers only shown when multiple entries of same type exist in this order
    - [编辑] button to modify
 
-3. **小礼物** (Small Gifts)
+4. **小礼物** (Small Gifts)
    - Display: Thumbnail + Specifications with 原价
+   - Sequence numbers only shown when multiple entries of same type exist in this order
    - [编辑] button to modify
 
 #### Interactions
 - Click product name → Navigate to Product Detail Page
 - Click [编辑] → Enter edit mode for that category
+  - In edit mode, click image upload area to focus it, then Ctrl+V to paste image
+- Shop name is display-only, cannot be edited
 
 ---
 
@@ -506,14 +519,15 @@ Sort by: [订单金额 ↕] [小礼物占比 ↕]
 ```
 
 #### Content Rules
-1. **Display Original Image**: Full resolution, not thumbnail
+1. **Display Original Image**: Full resolution, not thumbnail; click outside or Esc to close
 2. **Group by Category**: 已购商品, 礼品, 小礼物
 3. **Multiple Entries**: Same product can appear multiple times in same category
 4. **Show Non-Zero Specs Only**: Only display specifications with quantity > 0
-5. **Price Display**:
+5. **Sequence Number Display**: Only show sequence numbers (e.g., "封口贴1", "封口贴2") when multiple entries of the same spec type exist in that order
+6. **Price Display**:
    - 已购商品: Show both 购入价 and 原价
    - 礼品/小礼物: Show only 原价
-6. **Order Links**: Each entry is clickable, navigates to corresponding order detail page
+7. **Order Links**: Each entry is clickable, navigates to corresponding order detail page
 
 ---
 
@@ -545,6 +559,12 @@ function ImageUploader({ onImageSelect }: Props) {
 ```
 
 **Method B: Clipboard Paste (剪贴板粘贴 - Ctrl+V)**
+
+**Important**: Clipboard paste is focus-based. When multiple image upload areas exist on a page:
+1. Click on the specific upload area to give it focus (blue ring indicator appears)
+2. Then press Ctrl+V to paste the image to that specific uploader
+3. This prevents accidental pasting to the wrong image field
+
 ```typescript
 // React hook for clipboard paste
 function useClipboardPaste(onImagePaste: (file: File) => void) {
@@ -571,13 +591,16 @@ function useClipboardPaste(onImagePaste: (file: File) => void) {
 }
 
 // Usage in component
-function ImageUploadArea({ onImageSelect }: Props) {
+function ImageUploadArea({ onImageSelect, enableClipboard = false }: Props) {
   const [isDragOver, setIsDragOver] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
+  const [isFocused, setIsFocused] = useState(false);
 
-  // Handle clipboard paste
+  // Handle clipboard paste - only when focused
   useClipboardPaste((file) => {
-    handleImage(file);
+    if (enableClipboard && isFocused) {
+      handleImage(file);
+    }
   });
 
   const handleImage = (file: File) => {
@@ -598,7 +621,10 @@ function ImageUploadArea({ onImageSelect }: Props) {
 
   return (
     <div 
-      className={`upload-area ${isDragOver ? 'drag-over' : ''}`}
+      className={`upload-area ${isDragOver ? 'drag-over' : ''} ${isFocused ? 'focused' : ''}`}
+      tabIndex={enableClipboard ? 0 : -1}
+      onFocus={() => setIsFocused(true)}
+      onBlur={() => setIsFocused(false)}
       onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
       onDragLeave={() => setIsDragOver(false)}
       onDrop={(e) => {
@@ -613,7 +639,9 @@ function ImageUploadArea({ onImageSelect }: Props) {
       ) : (
         <div className="upload-placeholder">
           <p>点击选择图片 或 拖拽图片到此处</p>
-          <p className="hint">也可以直接 Ctrl+V 粘贴剪贴板图片</p>
+          {enableClipboard && (
+            <p className="hint">点击此区域后可直接 Ctrl+V 粘贴图片</p>
+          )}
         </div>
       )}
       <input 
@@ -641,9 +669,11 @@ function ImageUploadArea({ onImageSelect }: Props) {
 │         │   📷 点击选择图片            │            │
 │         │      或 拖拽到此处           │            │
 │         │                             │            │
-│         │   💡 Ctrl+V 粘贴剪贴板图片   │            │
+│         │ 💡 点击此区域后可 Ctrl+V     │            │
+│         │    (需启用 enableClipboard)  │            │
 │         │                             │            │
 │         └─────────────────────────────┘            │
+│         Blue ring appears when focused              │
 │                                                     │
 │   支持格式: JPG, PNG, WebP | 最大 10MB              │
 │                                                     │
@@ -657,7 +687,7 @@ class ImageService {
   private originalDir = './data/images/original';
   private thumbnailDir = './data/images/thumbnails';
 
-  async saveImage(file: File, productId: string): Promise<{
+  async saveImage(file: File, productId: string, shopName?: string, productName?: string): Promise<{
     imagePath: string;
     thumbnailPath: string;
     resolution: { width: number; height: number };
@@ -665,21 +695,31 @@ class ImageService {
     // Get file extension
     const ext = this.getExtension(file.type);
     
+    // Generate filename with shop and product name if provided
+    let filename: string;
+    if (shopName && productName) {
+      const sanitizedShop = shopName.replace(/[/\\?%*:|"<>\s]/g, '_');
+      const sanitizedProduct = productName.replace(/[/\\?%*:|"<>\s]/g, '_');
+      filename = `${sanitizedShop}_${sanitizedProduct}.${ext}`;
+    } else {
+      filename = `${productId}.${ext}`;
+    }
+    
     // Save original
-    const originalPath = `${this.originalDir}/${productId}.${ext}`;
+    const originalPath = `${this.originalDir}/${filename}`;
     const buffer = await file.arrayBuffer();
     await fs.writeFile(originalPath, Buffer.from(buffer));
     
     // Get dimensions
     const dimensions = await this.getImageDimensions(originalPath);
     
-    // Generate thumbnail (480×640)
-    const thumbnailPath = `${this.thumbnailDir}/${productId}_thumb.${ext}`;
-    await this.createThumbnail(originalPath, thumbnailPath, 480, 640);
+    // Generate thumbnail (640×480)
+    const thumbnailPath = `${this.thumbnailDir}/${filename.replace(/\.\w+$/, '_thumb.jpg')}`;
+    await this.createThumbnail(originalPath, thumbnailPath, 640, 480);
     
     return {
-      imagePath: `images/original/${productId}.${ext}`,
-      thumbnailPath: `images/thumbnails/${productId}_thumb.${ext}`,
+      imagePath: `images/original/${filename}`,
+      thumbnailPath: `images/thumbnails/${filename.replace(/\.\w+$/, '_thumb.jpg')}`,
       resolution: dimensions
     };
   }
@@ -733,14 +773,13 @@ class ImageService {
 ```
 
 #### 3. Display
-- Thumbnail: 480×640 in galleries and lists
+- Thumbnail: 640×480 in galleries and lists
 - Original: Full resolution in lightbox/detail view
 
 #### 4. Lightbox Features
-- Zoom in/out (scroll wheel or buttons)
-- Pan/drag when zoomed
-- Close button (Esc key or click outside)
-- Background overlay
+- Click to view original image
+- Close: Click outside image or press Esc key
+- Simple overlay (no zoom/pan functionality)
 
 ### Form Validation
 - Real-time validation on blur
@@ -771,7 +810,7 @@ function searchByProductName(keyword: string, products: Product[]): Product[] {
 
 #### 2. By Shop Name (店铺名)
 ```typescript
-function searchByShopName(keyword: string, orders: Order[], shops: Shop[]): Product[] {
+function searchByShopName(keyword: string, orders: Order[], shops: Shop[], products: Product[]): Product[] {
   const lowerKeyword = keyword.toLowerCase().trim();
   
   // Find matching shops
@@ -791,7 +830,20 @@ function searchByShopName(keyword: string, orders: Order[], shops: Shop[]): Prod
       .forEach(item => productIds.add(item.productId));
   });
   
-  return Array.from(productIds).map(id => getProductById(id));
+  const matchingProducts = Array.from(productIds)
+    .map(id => products.find(p => p.id === id))
+    .filter(p => p !== undefined);
+  
+  // Deduplicate by product name, keep most recent
+  const productsByName = new Map<string, Product>();
+  for (const product of matchingProducts) {
+    const existing = productsByName.get(product.name);
+    if (!existing || product.createdAt > existing.createdAt) {
+      productsByName.set(product.name, product);
+    }
+  }
+  
+  return Array.from(productsByName.values());
 }
 ```
 
@@ -948,8 +1000,13 @@ export const orderService = {
 
 ### Specification Multi-Entry Rules
 - **Types supporting multiple entries**: 卡头, 封口贴, 长贴
-- **Naming convention**: "封口贴1", "封口贴2", "封口贴3"...
+- **Naming convention**: Display as "封口贴1", "封口贴2", "封口贴3"... only when multiple entries exist
 - **Storage**: Use `sequenceNumber` field (1, 2, 3...)
+- **Display Logic**: Check count of each spec type in order; only show sequence number if count > 1
+
+### Custom Specification Types
+- **其他衍生** type supports custom names via `customType` field
+- When displaying: show `customType` value if present, otherwise show type name
 
 ### Price Rules
 - **购入价 (Purchase Price)**: Only for "已购商品" category, required
@@ -958,10 +1015,13 @@ export const orderService = {
 ### Display Rules
 - **Only show non-zero specifications**: Filter out specifications with quantity = 0
 - **Decimal precision**: All monetary values to 2 decimal places, ratios to 1 decimal place
+- **Product deduplication**: In product galleries, same product name only shows once (keep most recent)
+- **Sequence number visibility**: Only display sequence numbers when multiple entries of same spec type exist in that order
 
 ### Order Sequencing
 - **Sequence number**: Auto-increment based on order creation time
-- **Immutable**: Once assigned, sequence number does not change
+- **Auto-reordering**: When an order is deleted, all remaining orders are reordered sequentially (1, 2, 3...)
+- **No gaps**: Ensures sequence numbers are always consecutive
 
 ---
 
@@ -1188,6 +1248,7 @@ WenChuang/
 |---------|------|---------|--------|
 | 1.0 | 2026-04-04 | Initial design document | AI Assistant |
 | 1.1 | 2026-04-04 | Added: Windows local app, JSON storage, local images, clipboard paste | AI Assistant |
+| 1.2 | 2026-04-05 | Updated: Image size to 640×480, simplified ImageViewer (click-to-close), focus-based clipboard paste, clickable order rows, custom spec types, sequence number display logic, auto-reorder on deletion, product deduplication | AI Assistant |
 
 ---
 
