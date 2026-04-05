@@ -261,7 +261,7 @@ export default function OrderItemEditor({ items, category, onSave, onCancel }: O
                                 </div>
                               )}
 
-                              {spec.type === '其他衍生' && (
+                              {(spec.type === '其他衍生' || spec.type === '其他贴纸') && (
                                 <div className={isMultiEntry ? '' : 'col-span-2'}>
                                   <label className="text-xs text-gray-600">自定义名称</label>
                                   <input
