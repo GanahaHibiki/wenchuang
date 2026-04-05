@@ -75,7 +75,7 @@ export default function StepPurchased({
 
   const canProceed = items.every(
     (item) =>
-      item.productName.trim() && item.image && item.specifications.length > 0
+      item.productName.trim() && (item.image || item.imagePreview) && item.specifications.length > 0
   )
 
   return (

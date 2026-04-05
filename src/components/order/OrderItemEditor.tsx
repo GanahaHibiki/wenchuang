@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import type { OrderItem, Product, Specification, GiftType } from '@/types'
 import { SPECIFICATION_TYPES, GIFT_TYPES, MULTI_ENTRY_TYPES } from '@/types'
+import { productApi } from '@/api/client'
 import ImageUploader from '@/components/common/ImageUploader'
 
 interface OrderItemEditorProps {
@@ -8,12 +9,23 @@ interface OrderItemEditorProps {
   category: 'purchased' | 'gift' | 'smallGift'
   onSave: (items: (OrderItem & { product: Product })[], newImages: Map<string, File>) => void
   onCancel: () => void
+  shopName: string
+  existingProducts: { productName: string; imagePreview: string }[]
 }
 
-export default function OrderItemEditor({ items, category, onSave, onCancel }: OrderItemEditorProps) {
+export default function OrderItemEditor({
+  items,
+  category,
+  onSave,
+  onCancel,
+  shopName,
+  existingProducts
+}: OrderItemEditorProps) {
   const [editedItems, setEditedItems] = useState(items)
   const [newImages, setNewImages] = useState<Map<string, File>>(new Map())
   const [imagePreviews, setImagePreviews] = useState<Map<string, string>>(new Map())
+  const [shopProducts, setShopProducts] = useState<Product[]>([])
+  const [isLoadingShopProducts, setIsLoadingShopProducts] = useState(false)
 
   // Cleanup preview URLs on unmount
   useEffect(() => {
@@ -21,6 +33,62 @@ export default function OrderItemEditor({ items, category, onSave, onCancel }: O
       imagePreviews.forEach(url => URL.revokeObjectURL(url))
     }
   }, [imagePreviews])
+
+  // Load shop products
+  useEffect(() => {
+    const loadShopProducts = async () => {
+      if (!shopName) return
+
+      setIsLoadingShopProducts(true)
+      try {
+        const products = await productApi.search('shopName', shopName)
+        setShopProducts(products)
+      } catch (error) {
+        console.error('Failed to load shop products:', error)
+      } finally {
+        setIsLoadingShopProducts(false)
+      }
+    }
+
+    loadShopProducts()
+  }, [shopName])
+
+  const handleSelectProduct = (index: number, selection: string) => {
+    if (selection === 'manual') {
+      // Don't change anything, user will input manually
+      return
+    }
+
+    // Check if it's from existing products
+    const existingProduct = existingProducts.find((item, idx) => `existing-${idx}` === selection)
+    if (existingProduct) {
+      const newItems = [...editedItems]
+      newItems[index] = {
+        ...newItems[index],
+        product: { ...newItems[index].product, name: existingProduct.productName }
+      }
+      setEditedItems(newItems)
+
+      // Set image preview (but not a new image file, so validation passes with imagePreview)
+      const itemId = newItems[index].id
+      setImagePreviews(prev => new Map(prev).set(itemId, existingProduct.imagePreview))
+      return
+    }
+
+    // Check if it's from shop products
+    const product = shopProducts.find(p => p.id === selection)
+    if (product) {
+      const newItems = [...editedItems]
+      newItems[index] = {
+        ...newItems[index],
+        product: { ...newItems[index].product, name: product.name }
+      }
+      setEditedItems(newItems)
+
+      const itemId = newItems[index].id
+      setImagePreviews(prev => new Map(prev).set(itemId, `/images/original/${product.imagePath}`))
+    }
+  }
 
   const updateItemName = (index: number, name: string) => {
     const newItems = [...editedItems]
@@ -167,6 +235,38 @@ export default function OrderItemEditor({ items, category, onSave, onCancel }: O
             <div key={item.id} className="border rounded-lg p-4 space-y-4">
               <div className="flex justify-between items-start gap-4">
                 <div className="flex-1 space-y-3">
+                  {/* Product Selection */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      选择商品
+                    </label>
+                    <select
+                      onChange={(e) => handleSelectProduct(itemIndex, e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      defaultValue="manual"
+                    >
+                      <option value="manual">手动输入商品名和图片</option>
+                      {existingProducts.length > 0 && (
+                        <optgroup label="本订单已录入商品">
+                          {existingProducts.map((product, idx) => (
+                            <option key={`existing-${idx}`} value={`existing-${idx}`}>
+                              {product.productName}
+                            </option>
+                          ))}
+                        </optgroup>
+                      )}
+                      {shopProducts.length > 0 && (
+                        <optgroup label="同店铺商品">
+                          {shopProducts.map((product) => (
+                            <option key={product.id} value={product.id}>
+                              {product.name}
+                            </option>
+                          ))}
+                        </optgroup>
+                      )}
+                    </select>
+                  </div>
+
                   {/* Product Image */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">

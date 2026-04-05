@@ -109,7 +109,7 @@ export default function StepGifts({
     if (items.length === 0) return true // Allow skipping
     return (
       currentItem.productName.trim() &&
-      currentItem.image &&
+      (currentItem.image || currentItem.imagePreview) &&
       currentItem.specifications.length > 0
     )
   }
@@ -140,7 +140,7 @@ export default function StepGifts({
     items.length === 0 ||
     items.every(
       (item) =>
-        item.productName.trim() && item.image && item.specifications.length > 0
+        item.productName.trim() && (item.image || item.imagePreview) && item.specifications.length > 0
     )
 
   return (

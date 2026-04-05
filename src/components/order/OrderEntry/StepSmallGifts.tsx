@@ -108,7 +108,7 @@ export default function StepSmallGifts({
     if (items.length === 0) return true
     return (
       currentItem.productName.trim() &&
-      currentItem.image &&
+      (currentItem.image || currentItem.imagePreview) &&
       currentItem.specifications.length > 0
     )
   }
@@ -138,7 +138,7 @@ export default function StepSmallGifts({
     items.length === 0 ||
     items.every(
       (item) =>
-        item.productName.trim() && item.image && item.specifications.length > 0
+        item.productName.trim() && (item.image || item.imagePreview) && item.specifications.length > 0
     )
 
   return (

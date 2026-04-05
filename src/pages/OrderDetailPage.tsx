@@ -446,6 +446,21 @@ export default function OrderDetailPage() {
           category={editingCategory}
           onSave={(items, images) => handleSaveItems(editingCategory, items, images)}
           onCancel={() => setEditingCategory(null)}
+          shopName={order.shopName}
+          existingProducts={[
+            ...order.purchasedItems.map(item => ({
+              productName: item.product.name,
+              imagePreview: `/images/original/${item.product.imagePath}`
+            })),
+            ...(editingCategory !== 'purchased' ? order.gifts.map(item => ({
+              productName: item.product.name,
+              imagePreview: `/images/original/${item.product.imagePath}`
+            })) : []),
+            ...(editingCategory === 'smallGift' ? order.smallGifts.map(item => ({
+              productName: item.product.name,
+              imagePreview: `/images/original/${item.product.imagePath}`
+            })) : [])
+          ]}
         />
       )}
 
