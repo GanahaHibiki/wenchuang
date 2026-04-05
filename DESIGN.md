@@ -3,7 +3,7 @@
 ## Document Metadata
 - **System Name**: 文创商品订单管理系统 (Wenchuang Order Management System)
 - **Document Type**: Technical Design Specification
-- **Version**: 1.8
+- **Version**: 1.9
 - **Last Updated**: 2026-04-05
 
 ---
@@ -434,27 +434,28 @@ Sort by: [订单金额 ↕] [小礼物占比 ↕]
 │                                                         │
 │ ━━━ 已购商品 ━━━                          [编辑]        │
 │                                                         │
-│ ┌────────────┬──────────────────────────────────────┐  │
-│ │            │ Product Name                         │  │
-│ │  [Thumb]   │ 规格1: 数量 × 购入价 = 小计           │  │
-│ │  640×480   │ 规格2: 数量 × 购入价 = 小计           │  │
-│ │            │ 总计: ¥xxx.xx                        │  │
-│ └────────────┴──────────────────────────────────────┘  │
+│ ┌─────┬─────┬─────┬─────┬─────┐  (Responsive Grid)    │
+│ │[IMG]│[IMG]│[IMG]│[IMG]│[IMG]│  5 cols on xl screens │
+│ │Name │Name │Name │Name │Name │  4 cols on lg         │
+│ │Spec │Spec │Spec │Spec │Spec │  3 cols on md         │
+│ └─────┴─────┴─────┴─────┴─────┘  2 cols on sm         │
 │                                                         │
 │ ━━━ 礼品 ━━━                              [编辑]        │
 │                                                         │
 │ [满赠礼]                                                │
-│ ┌────────────┬──────────────────────────────────────┐  │
-│ │  [Thumb]   │ Product Name                         │  │
-│ │  640×480   │ 规格1: 数量 × 原价 = 小计             │  │
-│ └────────────┴──────────────────────────────────────┘  │
+│ ┌─────┬─────┬─────┬─────┬─────┐                        │
+│ │[IMG]│[IMG]│[IMG]│[IMG]│[IMG]│                        │
+│ │Name │Name │Name │Name │Name │                        │
+│ │Spec │Spec │Spec │Spec │Spec │                        │
+│ └─────┴─────┴─────┴─────┴─────┘                        │
 │                                                         │
 │ ━━━ 小礼物 ━━━                            [编辑]        │
 │                                                         │
-│ ┌────────────┬──────────────────────────────────────┐  │
-│ │  [Thumb]   │ Product Name                         │  │
-│ │  640×480   │ 规格1: 数量 × 原价 = 小计             │  │
-│ └────────────┴──────────────────────────────────────┘  │
+│ ┌─────┬─────┬─────┬─────┬─────┐                        │
+│ │[IMG]│[IMG]│[IMG]│[IMG]│[IMG]│                        │
+│ │Name │Name │Name │Name │Name │                        │
+│ │Spec │Spec │Spec │Spec │Spec │                        │
+│ └─────┴─────┴─────┴─────┴─────┘                        │
 │                                                         │
 │ 💡 编辑提示: 点击图片上传区域使其获得焦点后可 Ctrl+V   │
 └─────────────────────────────────────────────────────────┘
@@ -465,20 +466,29 @@ Sort by: [订单金额 ↕] [小礼物占比 ↕]
    - Display: 订单金额, 小礼物总价, 小礼物占比
 
 2. **已购商品** (Purchased Items)
-   - Display: Thumbnail (640×480) + Specifications with 购入价
+   - Display: Responsive grid layout (2/3/4/5 columns based on screen width)
+   - Each item card: Image (4:3 aspect ratio) + Name + Specifications with 购入价
    - Sequence numbers only shown when multiple entries of same type exist in this order
    - [编辑] button to modify
 
 3. **礼品** (Gifts)
    - Grouped by gift type (满赠礼, 宣传礼, 手速礼, 高消礼)
-   - Display: Thumbnail + Specifications with 原价
+   - Display: Responsive grid layout per group
+   - Each item card: Image + Name + Specifications with 原价
    - Sequence numbers only shown when multiple entries of same type exist in this order
    - [编辑] button to modify
 
 4. **小礼物** (Small Gifts)
-   - Display: Thumbnail + Specifications with 原价
+   - Display: Responsive grid layout
+   - Each item card: Image + Name + Specifications with 原价
    - Sequence numbers only shown when multiple entries of same type exist in this order
    - [编辑] button to modify
+
+#### Responsive Grid Breakpoints
+- Small screens (sm): 2 columns (`grid-cols-2`)
+- Medium screens (md): 3 columns (`md:grid-cols-3`)
+- Large screens (lg): 4 columns (`lg:grid-cols-4`)
+- Extra large screens (xl): 5 columns (`xl:grid-cols-5`)
 
 #### Interactions
 - Click product name → Navigate to Product Detail Page
@@ -1263,6 +1273,7 @@ WenChuang/
 | 1.6 | 2026-04-05 | Fixed: ProductCard image centering using absolute positioning (top/left 50% with translate) | AI Assistant |
 | 1.7 | 2026-04-05 | Updated: ProductCard responsive with aspect-[4/3] and object-cover fill, ProductDetailPage left-right layout (image 1/3, info 2/3) | AI Assistant |
 | 1.8 | 2026-04-05 | Fixed: ProductDetailPage left-right layout (image 640px fixed, records flexible) - records now alongside image | AI Assistant |
+| 1.9 | 2026-04-05 | Updated: OrderDetailPage items to responsive grid layout (2/3/4/5 columns) with card-style display, reduces whitespace | AI Assistant |
 
 ---
 
