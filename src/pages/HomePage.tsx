@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { productApi } from '@/api/client'
 import type { Product } from '@/types'
@@ -17,25 +17,46 @@ export default function HomePage() {
   const [searchKeyword, setSearchKeyword] = useState('')
   const [searchType, setSearchType] = useState<'productName' | 'shopName'>('productName')
 
-  // Initialize from URL params and update when URL changes
+  // Initialize from URL params and load products when URL changes
   useEffect(() => {
     const shopName = searchParams.get('shop')
+    let type: 'productName' | 'shopName' = 'productName'
+    let keyword = ''
+
     if (shopName) {
-      setSearchType('shopName')
-      setSearchKeyword(shopName)
-    } else {
-      // Clear search when no shop param
-      setSearchType('productName')
-      setSearchKeyword('')
+      type = 'shopName'
+      keyword = shopName
     }
+
+    setSearchType(type)
+    setSearchKeyword(keyword)
+
+    // Load products with new parameters
+    setIsLoading(true)
+    setError(null)
+
+    productApi.search(type, keyword)
+      .then(data => {
+        setProducts(data)
+        setCurrentPage(1)
+      })
+      .catch(err => {
+        setError(err instanceof Error ? err.message : '加载失败')
+      })
+      .finally(() => {
+        setIsLoading(false)
+      })
   }, [searchParams])
 
-  const loadProducts = useCallback(async () => {
+  const handleSearch = async (type: 'productName' | 'shopName', keyword: string) => {
+    setSearchType(type)
+    setSearchKeyword(keyword)
+
     setIsLoading(true)
     setError(null)
 
     try {
-      const data = await productApi.search(searchType, searchKeyword)
+      const data = await productApi.search(type, keyword)
       setProducts(data)
       setCurrentPage(1)
     } catch (err) {
@@ -43,15 +64,6 @@ export default function HomePage() {
     } finally {
       setIsLoading(false)
     }
-  }, [searchType, searchKeyword])
-
-  useEffect(() => {
-    loadProducts()
-  }, [loadProducts])
-
-  const handleSearch = (type: 'productName' | 'shopName', keyword: string) => {
-    setSearchType(type)
-    setSearchKeyword(keyword)
   }
 
   // Pagination
