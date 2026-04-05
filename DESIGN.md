@@ -3,7 +3,7 @@
 ## Document Metadata
 - **System Name**: 文创商品订单管理系统 (Wenchuang Order Management System)
 - **Document Type**: Technical Design Specification
-- **Version**: 1.6
+- **Version**: 1.7
 - **Last Updated**: 2026-04-05
 
 ---
@@ -270,10 +270,11 @@ function calculateGiftRatio(order: Order): number {
 **1.3 Product Gallery**
 - Grid Layout: 5 columns × 10 rows = 50 items per page
 - Each Product Card:
-  - Container: 640×480 fixed size
-  - Image: Original image with object-contain (complete display, no crop)
-  - Positioning: Centered both horizontally and vertically using absolute positioning
-  - Note: Uses original images, not thumbnails, for consistency with order detail page
+  - Container: Responsive width with aspect-[4/3] (4:3 aspect ratio)
+  - Image: Original image with object-cover (center crop to fill container)
+  - Responsive behavior: Container width adjusts to page width, maintaining 4:3 ratio
+  - Image scaling: Fills container completely via center crop at any size
+  - Note: Uses original images, not thumbnails
   - Product Name (clickable → Product Detail Page)
 - Default: Show all purchased products (deduplicated by name, keep most recent)
 - Display: "总 xx 件商品"
@@ -493,15 +494,18 @@ Sort by: [订单金额 ↕] [小礼物占比 ↕]
 #### Layout
 ```
 ┌─────────────────────────────────────────────────────────┐
-│ 商品详情 - Product Name                                  │
+│ 商品详情 - Product Name                    [返回首页]    │
 ├─────────────────────────────────────────────────────────┤
 │                                                         │
-│ ┌─────────────────────┐                                │
-│ │                     │                                │
-│ │   [Product Image]   │                                │
-│ │   (Original Size)   │                                │
-│ │                     │                                │
-│ └─────────────────────┘                                │
+│ ┌──────────────────┬──────────────────────────────────┐ │
+│ │                  │                                  │ │
+│ │                  │  商品信息                         │ │
+│ │  [Product Image] │                                  │ │
+│ │   (1/3 width)    │  查看下方各类别的订单记录          │ │
+│ │                  │                                  │ │
+│ │  点击查看大图     │  (2/3 width)                     │ │
+│ │                  │                                  │ │
+│ └──────────────────┴──────────────────────────────────┘ │
 │                                                         │
 │ ━━━ 已购商品 ━━━                                        │
 │                                                         │
@@ -526,15 +530,16 @@ Sort by: [订单金额 ↕] [小礼物占比 ↕]
 ```
 
 #### Content Rules
-1. **Display Original Image**: Full resolution, not thumbnail; click outside or Esc to close
-2. **Group by Category**: 已购商品, 礼品, 小礼物
-3. **Multiple Entries**: Same product can appear multiple times in same category
-4. **Show Non-Zero Specs Only**: Only display specifications with quantity > 0
-5. **Sequence Number Display**: Only show sequence numbers (e.g., "封口贴1", "封口贴2") when multiple entries of the same spec type exist in that order
-6. **Price Display**:
+1. **Layout**: Left-right split - Image (1/3) + Info (2/3)
+2. **Display Original Image**: Full resolution, not thumbnail; click to open viewer with zoom/pan
+3. **Group by Category**: 已购商品, 礼品, 小礼物
+4. **Multiple Entries**: Same product can appear multiple times in same category
+5. **Show Non-Zero Specs Only**: Only display specifications with quantity > 0
+6. **Sequence Number Display**: Only show sequence numbers (e.g., "封口贴1", "封口贴2") when multiple entries of the same spec type exist in that order
+7. **Price Display**:
    - 已购商品: Show both 购入价 and 原价
    - 礼品/小礼物: Show only 原价
-7. **Order Links**: Each entry is clickable, navigates to corresponding order detail page
+8. **Order Links**: Each entry is clickable, navigates to corresponding order detail page
 
 ---
 
@@ -780,7 +785,7 @@ class ImageService {
 ```
 
 #### 3. Display
-- Product Gallery: Original images with object-contain (no crop, complete display)
+- Product Gallery: Original images with object-cover (responsive 4:3 aspect ratio, center crop fill)
 - Order Detail Thumbnails: 640×480 with object-cover
 - Original: Full resolution in lightbox/detail view
 
@@ -1263,6 +1268,7 @@ WenChuang/
 | 1.4 | 2026-04-05 | Updated: ProductCard to object-cover for center-crop fill (no empty space) | AI Assistant |
 | 1.5 | 2026-04-05 | Updated: Product gallery uses original images with object-contain (consistent with order detail), shop name editable in order detail page | AI Assistant |
 | 1.6 | 2026-04-05 | Fixed: ProductCard image centering using absolute positioning (top/left 50% with translate) | AI Assistant |
+| 1.7 | 2026-04-05 | Updated: ProductCard responsive with aspect-[4/3] and object-cover fill, ProductDetailPage left-right layout (image 1/3, info 2/3) | AI Assistant |
 
 ---
 
