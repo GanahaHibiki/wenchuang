@@ -5,6 +5,7 @@ interface ImageUploaderProps {
   onImageSelect: (file: File) => void
   preview?: string | null
   className?: string
+  enableClipboard?: boolean
 }
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp']
@@ -14,9 +15,11 @@ export default function ImageUploader({
   onImageSelect,
   preview,
   className = '',
+  enableClipboard = false,
 }: ImageUploaderProps) {
   const [isDragOver, setIsDragOver] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [isFocused, setIsFocused] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const validateAndSelect = useCallback(
@@ -38,8 +41,12 @@ export default function ImageUploader({
     [onImageSelect]
   )
 
-  // Handle clipboard paste
-  useClipboardPaste(validateAndSelect)
+  // Handle clipboard paste - only if this uploader is focused
+  useClipboardPaste((file) => {
+    if (enableClipboard && isFocused) {
+      validateAndSelect(file)
+    }
+  })
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -78,11 +85,16 @@ export default function ImageUploader({
         onDrop={handleDrop}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
+        onFocus={() => setIsFocused(true)}
+        onBlur={() => setIsFocused(false)}
+        tabIndex={enableClipboard ? 0 : -1}
         className={`
           relative border-2 border-dashed rounded-lg p-4 text-center cursor-pointer
           transition-colors min-h-[200px] flex flex-col items-center justify-center
           ${isDragOver ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'}
           ${preview ? 'border-solid border-green-500' : ''}
+          ${enableClipboard && isFocused ? 'ring-2 ring-blue-400 ring-offset-2' : ''}
+          ${enableClipboard ? 'focus:outline-none' : ''}
         `}
       >
         {preview ? (
@@ -95,7 +107,9 @@ export default function ImageUploader({
           <>
             <div className="text-4xl mb-2">📷</div>
             <p className="text-gray-600 mb-1">点击选择图片 或 拖拽到此处</p>
-            <p className="text-sm text-gray-400">也可以直接 Ctrl+V 粘贴剪贴板图片</p>
+            {enableClipboard && (
+              <p className="text-sm text-gray-400">点击此区域后可直接 Ctrl+V 粘贴图片</p>
+            )}
           </>
         )}
 

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { orderApi } from '@/api/client'
 import type { OrderSummary } from '@/types'
 
@@ -7,6 +7,7 @@ type SortField = 'totalAmount' | 'giftRatio'
 type SortOrder = 'asc' | 'desc'
 
 export default function OrderListPage() {
+  const navigate = useNavigate()
   const [orders, setOrders] = useState<OrderSummary[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -94,14 +95,13 @@ export default function OrderListPage() {
             </thead>
             <tbody className="divide-y divide-gray-200">
               {orders.map((order) => (
-                <tr key={order.id} className="hover:bg-gray-50">
+                <tr
+                  key={order.id}
+                  className="hover:bg-gray-50 cursor-pointer"
+                  onClick={() => navigate(`/orders/${order.id}`)}
+                >
                   <td className="px-4 py-3">
-                    <Link
-                      to={`/orders/${order.id}`}
-                      className="text-blue-500 hover:underline"
-                    >
-                      {order.sequenceNumber}
-                    </Link>
+                    {order.sequenceNumber}
                   </td>
                   <td className="px-4 py-3">{order.shopName}</td>
                   <td className="px-4 py-3">¥{order.totalAmount.toFixed(2)}</td>
@@ -110,12 +110,9 @@ export default function OrderListPage() {
                     {order.totalAmount > 0 ? `${order.giftRatio.toFixed(1)}%` : '-'}
                   </td>
                   <td className="px-4 py-3">
-                    <Link
-                      to={`/orders/${order.id}`}
-                      className="text-blue-500 hover:underline text-sm"
-                    >
+                    <span className="text-blue-500 text-sm">
                       查看详情
-                    </Link>
+                    </span>
                   </td>
                 </tr>
               ))}

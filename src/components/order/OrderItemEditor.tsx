@@ -178,6 +178,7 @@ export default function OrderItemEditor({ items, category, onSave, onCancel }: O
                         imagePreviews.get(item.id) ||
                         (item.product.imagePath ? `/images/original/${item.product.imagePath}` : null)
                       }
+                      enableClipboard={true}
                     />
                   </div>
 
