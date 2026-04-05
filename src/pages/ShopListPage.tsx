@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { shopApi } from '@/api/client'
 import type { Shop } from '@/types'
 
 export default function ShopListPage() {
+  const navigate = useNavigate()
   const [shops, setShops] = useState<Shop[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -59,7 +61,11 @@ export default function ShopListPage() {
             </thead>
             <tbody className="divide-y divide-gray-200">
               {shops.map((shop, index) => (
-                <tr key={shop.id} className="hover:bg-gray-50">
+                <tr
+                  key={shop.id}
+                  className="hover:bg-gray-50 cursor-pointer"
+                  onClick={() => navigate(`/?shop=${encodeURIComponent(shop.name)}`)}
+                >
                   <td className="px-4 py-3 text-gray-500">{index + 1}</td>
                   <td className="px-4 py-3 font-medium">{shop.name}</td>
                   <td className="px-4 py-3 text-gray-500">

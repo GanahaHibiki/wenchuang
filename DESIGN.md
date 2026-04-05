@@ -3,7 +3,7 @@
 ## Document Metadata
 - **System Name**: 文创商品订单管理系统 (Wenchuang Order Management System)
 - **Document Type**: Technical Design Specification
-- **Version**: 1.17
+- **Version**: 1.18
 - **Last Updated**: 2026-04-06
 
 ---
@@ -1282,6 +1282,7 @@ WenChuang/
 | 1.15 | 2026-04-05 | Fixed: OrderItemEditor now supports custom name input for "其他贴纸" specification | AI Assistant |
 | 1.16 | 2026-04-06 | Added: (1) New gift type "小时礼" (2) Gift total price display in order detail page | AI Assistant |
 | 1.17 | 2026-04-06 | Added: Gift total price column in order list page with sort support (asc/desc) | AI Assistant |
+| 1.18 | 2026-04-06 | Added: Click shop row in shop list page to navigate to home page and filter products by shop name | AI Assistant |
 
 ---
 
