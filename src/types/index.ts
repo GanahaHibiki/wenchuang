@@ -91,9 +91,9 @@ export interface Specification {
 
 export type ItemCategory = 'purchased' | 'gift' | 'smallGift'
 
-export type GiftType = '满赠礼' | '宣传礼' | '手速礼' | '高消礼'
+export type GiftType = '满赠礼' | '宣传礼' | '手速礼' | '高消礼' | '小时礼'
 
-export const GIFT_TYPES: GiftType[] = ['满赠礼', '宣传礼', '手速礼', '高消礼']
+export const GIFT_TYPES: GiftType[] = ['满赠礼', '宣传礼', '手速礼', '高消礼', '小时礼']
 
 export interface OrderItem {
   id: string
@@ -109,6 +109,7 @@ export interface Order {
   shopId: string
   items: OrderItem[]
   totalAmount: number
+  giftTotal: number
   smallGiftTotal: number
   giftRatio: number
   createdAt: string
@@ -172,6 +173,7 @@ export interface OrderSummary {
   sequenceNumber: number
   shopName: string
   totalAmount: number
+  giftTotal: number
   smallGiftTotal: number
   giftRatio: number
 }

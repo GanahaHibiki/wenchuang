@@ -321,11 +321,17 @@ export default function OrderDetailPage() {
 
       {/* Summary */}
       <section className="bg-blue-50 rounded-lg p-6">
-        <div className="grid grid-cols-3 gap-4 text-center">
+        <div className="grid grid-cols-4 gap-4 text-center">
           <div>
             <div className="text-sm text-gray-600">订单金额</div>
             <div className="text-xl font-bold text-blue-600">
               ¥{order.totalAmount.toFixed(2)}
+            </div>
+          </div>
+          <div>
+            <div className="text-sm text-gray-600">礼品总价</div>
+            <div className="text-xl font-bold text-orange-600">
+              ¥{order.giftTotal.toFixed(2)}
             </div>
           </div>
           <div>

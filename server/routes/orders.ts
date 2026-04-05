@@ -42,6 +42,7 @@ router.get('/', async (req, res, next) => {
           sequenceNumber: o.sequenceNumber,
           shopName: shop?.name || '未知店铺',
           totalAmount: o.totalAmount,
+          giftTotal: o.giftTotal,
           smallGiftTotal: o.smallGiftTotal,
           giftRatio: o.giftRatio,
         }
@@ -92,6 +93,7 @@ router.get('/:id', async (req, res, next) => {
       sequenceNumber: order.sequenceNumber,
       shopId: order.shopId,
       totalAmount: order.totalAmount,
+      giftTotal: order.giftTotal,
       smallGiftTotal: order.smallGiftTotal,
       giftRatio: order.giftRatio,
       createdAt: order.createdAt,
@@ -128,6 +130,7 @@ router.post('/', upload.any(), async (req, res, next) => {
     // Process items and calculate totals
     const orderItems: OrderItem[] = []
     let totalAmount = 0
+    let giftTotal = 0
     let smallGiftTotal = 0
 
     // Helper to find file by field name
@@ -173,6 +176,13 @@ router.post('/', upload.any(), async (req, res, next) => {
       const { imagePath, thumbnailPath } = await saveImage(file.buffer, file.originalname, shopName, item.productName)
       const product = await findOrCreateProduct(item.productName, uuidv4(), imagePath, thumbnailPath)
 
+      const specs: Specification[] = item.specifications || []
+      const itemTotal = specs.reduce(
+        (sum: number, s: Specification) => sum + s.quantity * s.originalPrice,
+        0
+      )
+      giftTotal += itemTotal
+
       orderItems.push({
         id: uuidv4(),
         productId: product.id,
@@ -217,6 +227,7 @@ router.post('/', upload.any(), async (req, res, next) => {
       shopId: shop.id,
       items: orderItems,
       totalAmount,
+      giftTotal,
       smallGiftTotal,
       giftRatio,
       createdAt: new Date().toISOString(),
@@ -266,6 +277,7 @@ router.put('/:id', upload.any(), async (req, res, next) => {
 
     const orderItems: OrderItem[] = []
     let totalAmount = 0
+    let giftTotal = 0
     let smallGiftTotal = 0
 
     const findFile = (fieldName: string) =>
@@ -350,6 +362,13 @@ router.put('/:id', upload.any(), async (req, res, next) => {
         productId = product.id
       }
 
+      const specs: Specification[] = item.specifications || []
+      const itemTotal = specs.reduce(
+        (sum: number, s: Specification) => sum + s.quantity * s.originalPrice,
+        0
+      )
+      giftTotal += itemTotal
+
       orderItems.push({
         id: item.id || uuidv4(),
         productId,
@@ -412,6 +431,7 @@ router.put('/:id', upload.any(), async (req, res, next) => {
       shopId,
       items: orderItems,
       totalAmount,
+      giftTotal,
       smallGiftTotal,
       giftRatio,
     })
