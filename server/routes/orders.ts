@@ -28,7 +28,7 @@ const upload = multer({ storage: multer.memoryStorage() })
 // GET /api/orders
 router.get('/', async (req, res, next) => {
   try {
-    const sortBy = req.query.sortBy as 'totalAmount' | 'giftRatio' | undefined
+    const sortBy = req.query.sortBy as 'totalAmount' | 'giftTotal' | 'giftRatio' | undefined
     const order = req.query.order as 'asc' | 'desc' | undefined
 
     const orders = await getAllOrders(sortBy, order)

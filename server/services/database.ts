@@ -237,7 +237,7 @@ export async function searchProducts(
 // ==================== Order Operations ====================
 
 export async function getAllOrders(
-  sortBy?: 'totalAmount' | 'giftRatio',
+  sortBy?: 'totalAmount' | 'giftTotal' | 'giftRatio',
   order?: 'asc' | 'desc'
 ): Promise<Order[]> {
   const db = await loadDatabase()

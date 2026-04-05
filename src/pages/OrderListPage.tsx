@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { orderApi } from '@/api/client'
 import type { OrderSummary } from '@/types'
 
-type SortField = 'totalAmount' | 'giftRatio'
+type SortField = 'totalAmount' | 'giftTotal' | 'giftRatio'
 type SortOrder = 'asc' | 'desc'
 
 export default function OrderListPage() {
@@ -79,6 +79,12 @@ export default function OrderListPage() {
                 >
                   订单金额 {getSortIcon('totalAmount')}
                 </th>
+                <th
+                  className="px-4 py-3 text-left text-sm font-medium text-gray-700 cursor-pointer hover:bg-gray-100"
+                  onClick={() => handleSort('giftTotal')}
+                >
+                  礼品总价 {getSortIcon('giftTotal')}
+                </th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">
                   小礼物总价
                 </th>
@@ -105,6 +111,7 @@ export default function OrderListPage() {
                   </td>
                   <td className="px-4 py-3">{order.shopName}</td>
                   <td className="px-4 py-3">¥{order.totalAmount.toFixed(2)}</td>
+                  <td className="px-4 py-3">¥{(order.giftTotal || 0).toFixed(2)}</td>
                   <td className="px-4 py-3">¥{order.smallGiftTotal.toFixed(2)}</td>
                   <td className="px-4 py-3">
                     {order.totalAmount > 0 ? `${order.giftRatio.toFixed(1)}%` : '-'}
