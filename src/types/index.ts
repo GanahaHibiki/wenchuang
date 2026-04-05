@@ -91,9 +91,9 @@ export interface Specification {
 
 export type ItemCategory = 'purchased' | 'gift' | 'smallGift'
 
-export type GiftType = '满赠礼' | '宣传礼' | '手速礼' | '高消礼' | '小时礼'
+export type GiftType = '满赠礼' | '宣传礼' | '手速礼' | '高消礼' | '小时礼' | '新客礼' | '回购礼'
 
-export const GIFT_TYPES: GiftType[] = ['满赠礼', '宣传礼', '手速礼', '高消礼', '小时礼']
+export const GIFT_TYPES: GiftType[] = ['满赠礼', '宣传礼', '手速礼', '高消礼', '小时礼', '新客礼', '回购礼']
 
 export interface OrderItem {
   id: string
