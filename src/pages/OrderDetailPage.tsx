@@ -240,11 +240,6 @@ export default function OrderDetailPage() {
       </div>
     )
   }
-          </div>
-        </div>
-      </div>
-    )
-  }
 
   // Group gifts by type
   const giftsByType = order.gifts.reduce((acc, gift) => {
