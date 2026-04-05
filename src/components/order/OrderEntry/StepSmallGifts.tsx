@@ -141,6 +141,15 @@ export default function StepSmallGifts({
         item.productName.trim() && (item.image || item.imagePreview) && item.specifications.length > 0
     )
 
+  // Filter out products already used in current items
+  const usedProductNames = new Set(items.map(item => item.productName.trim().toLowerCase()))
+  const availablePreviousItems = previousItems.filter(
+    item => !usedProductNames.has(item.productName.trim().toLowerCase())
+  )
+  const availableShopProducts = shopProducts.filter(
+    product => !usedProductNames.has(product.name.trim().toLowerCase())
+  )
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -204,18 +213,21 @@ export default function StepSmallGifts({
                 defaultValue="manual"
               >
                 <option value="manual">手动输入商品名和图片</option>
-                {previousItems.length > 0 && (
+                {availablePreviousItems.length > 0 && (
                   <optgroup label="本订单已录入商品">
-                    {previousItems.map((item, idx) => (
-                      <option key={`previous-${idx}`} value={`previous-${idx}`}>
-                        {item.productName}
-                      </option>
-                    ))}
+                    {availablePreviousItems.map((item, idx) => {
+                      const originalIdx = previousItems.indexOf(item)
+                      return (
+                        <option key={`previous-${originalIdx}`} value={`previous-${originalIdx}`}>
+                          {item.productName}
+                        </option>
+                      )
+                    })}
                   </optgroup>
                 )}
-                {shopProducts.length > 0 && (
+                {availableShopProducts.length > 0 && (
                   <optgroup label="同店铺商品">
-                    {shopProducts.map((product) => (
+                    {availableShopProducts.map((product) => (
                       <option key={product.id} value={product.id}>
                         {product.name}
                       </option>

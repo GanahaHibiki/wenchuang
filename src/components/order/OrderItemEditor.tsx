@@ -234,6 +234,15 @@ export default function OrderItemEditor({
     setEditedItems([...editedItems, newItem])
   }
 
+  // Filter out products already used in edited items
+  const usedProductNames = new Set(editedItems.map(item => item.product.name.trim().toLowerCase()))
+  const availableExistingProducts = existingProducts.filter(
+    product => !usedProductNames.has(product.productName.trim().toLowerCase())
+  )
+  const availableShopProducts = shopProducts.filter(
+    product => !usedProductNames.has(product.name.trim().toLowerCase())
+  )
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
@@ -265,18 +274,21 @@ export default function OrderItemEditor({
                       defaultValue="manual"
                     >
                       <option value="manual">手动输入商品名和图片</option>
-                      {existingProducts.length > 0 && (
+                      {availableExistingProducts.length > 0 && (
                         <optgroup label="本订单已录入商品">
-                          {existingProducts.map((product, idx) => (
-                            <option key={`existing-${idx}`} value={`existing-${idx}`}>
-                              {product.productName}
-                            </option>
-                          ))}
+                          {availableExistingProducts.map((product, idx) => {
+                            const originalIdx = existingProducts.indexOf(product)
+                            return (
+                              <option key={`existing-${originalIdx}`} value={`existing-${originalIdx}`}>
+                                {product.productName}
+                              </option>
+                            )
+                          })}
                         </optgroup>
                       )}
-                      {shopProducts.length > 0 && (
+                      {availableShopProducts.length > 0 && (
                         <optgroup label="同店铺商品">
-                          {shopProducts.map((product) => (
+                          {availableShopProducts.map((product) => (
                             <option key={product.id} value={product.id}>
                               {product.name}
                             </option>
