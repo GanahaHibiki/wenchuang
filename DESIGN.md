@@ -3,7 +3,7 @@
 ## Document Metadata
 - **System Name**: 文创商品订单管理系统 (Wenchuang Order Management System)
 - **Document Type**: Technical Design Specification
-- **Version**: 1.4
+- **Version**: 1.5
 - **Last Updated**: 2026-04-05
 
 ---
@@ -270,8 +270,9 @@ function calculateGiftRatio(order: Order): number {
 **1.3 Product Gallery**
 - Grid Layout: 5 columns × 10 rows = 50 items per page
 - Each Product Card:
-  - Thumbnail: 640×480 fixed size container
-  - Image: object-cover (center crop to fill entire container)
+  - Container: 640×480 fixed size
+  - Image: Original image with object-contain (complete display, no crop)
+  - Note: Uses original images, not thumbnails, for consistency with order detail page
   - Product Name (clickable → Product Detail Page)
 - Default: Show all purchased products (deduplicated by name, keep most recent)
 - Display: "总 xx 件商品"
@@ -405,7 +406,7 @@ Sort by: [订单金额 ↕] [小礼物占比 ↕]
 
 #### Columns
 1. **序号**: Sequence number (auto-reordered on deletion), entire row clickable → Order Detail Page
-2. **店铺名称**: Shop name (read-only, cannot be edited)
+2. **店铺名称**: Shop name (editable in order detail page)
 3. **订单金额**: Sum of (quantity × purchasePrice) for all purchased items
 4. **小礼物总价**: Sum of (quantity × originalPrice) for all small gifts
 5. **小礼物占比**: (小礼物总价 ÷ 订单金额) × 100%, rounded to 1 decimal
@@ -421,7 +422,7 @@ Sort by: [订单金额 ↕] [小礼物占比 ↕]
 #### Layout
 ```
 ┌─────────────────────────────────────────────────────────┐
-│ 订单详情 - Shop Name (不可编辑)                          │
+│ 订单详情 #1 - Shop Name [编辑]                          │
 ├─────────────────────────────────────────────────────────┤
 │ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
 │ 订单金额: ¥xxx.xx                                       │
@@ -479,9 +480,10 @@ Sort by: [订单金额 ↕] [小礼物占比 ↕]
 
 #### Interactions
 - Click product name → Navigate to Product Detail Page
-- Click [编辑] → Enter edit mode for that category
+- Click [编辑] next to shop name → Enter edit mode with input field and Save/Cancel buttons
+- Click [编辑] on item category → Enter edit mode for that category
   - In edit mode, click image upload area to focus it, then Ctrl+V to paste image
-- Shop name is display-only, cannot be edited
+- Shop name changes are saved via PUT /api/orders/:id with shopName parameter
 
 ---
 
@@ -777,7 +779,8 @@ class ImageService {
 ```
 
 #### 3. Display
-- Thumbnail: 640×480 container with object-cover (center crop to fill)
+- Product Gallery: Original images with object-contain (no crop, complete display)
+- Order Detail Thumbnails: 640×480 with object-cover
 - Original: Full resolution in lightbox/detail view
 
 #### 4. Lightbox Features
@@ -1257,6 +1260,7 @@ WenChuang/
 | 1.2 | 2026-04-05 | Updated: Image size to 640×480, simplified ImageViewer (click-to-close), focus-based clipboard paste, clickable order rows, custom spec types, sequence number display logic, auto-reorder on deletion, product deduplication | AI Assistant |
 | 1.3 | 2026-04-05 | Updated: ProductCard to object-contain for complete image display, ImageViewer with wheel zoom (0.5x-5x) and drag pan (no visible buttons) | AI Assistant |
 | 1.4 | 2026-04-05 | Updated: ProductCard to object-cover for center-crop fill (no empty space) | AI Assistant |
+| 1.5 | 2026-04-05 | Updated: Product gallery uses original images with object-contain (consistent with order detail), shop name editable in order detail page | AI Assistant |
 
 ---
 
