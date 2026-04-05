@@ -3,7 +3,7 @@
 ## Document Metadata
 - **System Name**: 文创商品订单管理系统 (Wenchuang Order Management System)
 - **Document Type**: Technical Design Specification
-- **Version**: 1.19
+- **Version**: 1.20
 - **Last Updated**: 2026-04-06
 
 ---
@@ -1284,6 +1284,7 @@ WenChuang/
 | 1.17 | 2026-04-06 | Added: Gift total price column in order list page with sort support (asc/desc) | AI Assistant |
 | 1.18 | 2026-04-06 | Added: Click shop row in shop list page to navigate to home page and filter products by shop name | AI Assistant |
 | 1.19 | 2026-04-06 | Added: Two new gift types "新客礼" and "回购礼" (高消礼 already existed) | AI Assistant |
+| 1.20 | 2026-04-06 | Added: Product selection dropdown in gift and small gift entry steps - can select from purchased items or shop products, auto-fills name and image | AI Assistant |
 
 ---
 

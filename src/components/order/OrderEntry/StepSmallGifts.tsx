@@ -1,5 +1,6 @@
-import { useState } from 'react'
-import type { Specification } from '@/types'
+import { useState, useEffect } from 'react'
+import type { Specification, Product } from '@/types'
+import { productApi } from '@/api/client'
 import ImageUploader from '@/components/common/ImageUploader'
 import SpecificationForm from './SpecificationForm'
 
@@ -16,6 +17,8 @@ interface StepSmallGiftsProps {
   onSubmit: () => void
   onBack: () => void
   isSubmitting: boolean
+  shopName: string
+  purchasedItems: { productName: string; imagePreview: string | null }[]
 }
 
 export default function StepSmallGifts({
@@ -24,8 +27,12 @@ export default function StepSmallGifts({
   onSubmit,
   onBack,
   isSubmitting,
+  shopName,
+  purchasedItems,
 }: StepSmallGiftsProps) {
   const [currentIndex, setCurrentIndex] = useState(0)
+  const [shopProducts, setShopProducts] = useState<Product[]>([])
+  const [isLoadingShopProducts, setIsLoadingShopProducts] = useState(false)
 
   const emptyItem: SmallGiftItemData = {
     productName: '',
@@ -35,6 +42,52 @@ export default function StepSmallGifts({
   }
 
   const currentItem = items[currentIndex] || emptyItem
+
+  // Load shop products
+  useEffect(() => {
+    const loadShopProducts = async () => {
+      if (!shopName) return
+
+      setIsLoadingShopProducts(true)
+      try {
+        const products = await productApi.search('shopName', shopName)
+        setShopProducts(products)
+      } catch (error) {
+        console.error('Failed to load shop products:', error)
+      } finally {
+        setIsLoadingShopProducts(false)
+      }
+    }
+
+    loadShopProducts()
+  }, [shopName])
+
+  const handleSelectProduct = async (selection: string) => {
+    if (selection === 'manual') {
+      // Clear selection for manual input
+      updateCurrentItem({ productName: '', image: null, imagePreview: null })
+      return
+    }
+
+    // Check if it's from purchased items
+    const purchasedItem = purchasedItems.find((item, idx) => `purchased-${idx}` === selection)
+    if (purchasedItem) {
+      updateCurrentItem({
+        productName: purchasedItem.productName,
+        imagePreview: purchasedItem.imagePreview
+      })
+      return
+    }
+
+    // Check if it's from shop products
+    const product = shopProducts.find(p => p.id === selection)
+    if (product) {
+      updateCurrentItem({
+        productName: product.name,
+        imagePreview: `/images/original/${product.imagePath}`
+      })
+    }
+  }
 
   const updateCurrentItem = (updates: Partial<SmallGiftItemData>) => {
     const newItems = [...items]
@@ -143,15 +196,47 @@ export default function StepSmallGifts({
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
+                选择商品
+              </label>
+              <select
+                onChange={(e) => handleSelectProduct(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                defaultValue="manual"
+              >
+                <option value="manual">手动输入商品名和图片</option>
+                {purchasedItems.length > 0 && (
+                  <optgroup label="本订单已购商品">
+                    {purchasedItems.map((item, idx) => (
+                      <option key={`purchased-${idx}`} value={`purchased-${idx}`}>
+                        {item.productName}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+                {shopProducts.length > 0 && (
+                  <optgroup label="同店铺商品">
+                    {shopProducts.map((product) => (
+                      <option key={product.id} value={product.id}>
+                        {product.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 商品名 <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 value={currentItem.productName}
                 onChange={(e) => updateCurrentItem({ productName: e.target.value })}
-                placeholder="请输入商品名称"
+                placeholder="请输入商品名称或从上方选择"
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
+            </div>
             </div>
 
             <div>

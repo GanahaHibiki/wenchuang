@@ -152,6 +152,11 @@ export default function OrderEntry() {
             onChange={setGiftItems}
             onNext={() => setCurrentStep('smallGifts')}
             onBack={() => setCurrentStep('purchased')}
+            shopName={shopName}
+            purchasedItems={purchasedItems.map(item => ({
+              productName: item.productName,
+              imagePreview: item.imagePreview
+            }))}
           />
         )}
 
@@ -162,6 +167,11 @@ export default function OrderEntry() {
             onSubmit={handleSubmit}
             onBack={() => setCurrentStep('gifts')}
             isSubmitting={isSubmitting}
+            shopName={shopName}
+            purchasedItems={purchasedItems.map(item => ({
+              productName: item.productName,
+              imagePreview: item.imagePreview
+            }))}
           />
         )}
       </div>
