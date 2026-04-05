@@ -3,7 +3,7 @@
 ## Document Metadata
 - **System Name**: 文创商品订单管理系统 (Wenchuang Order Management System)
 - **Document Type**: Technical Design Specification
-- **Version**: 1.12
+- **Version**: 1.13
 - **Last Updated**: 2026-04-05
 
 ---
@@ -1277,6 +1277,7 @@ WenChuang/
 | 1.10 | 2026-04-05 | Updated: OrderDetailPage items to auto-fill grid (max 200px item width) with original images (not thumbnails) | AI Assistant |
 | 1.11 | 2026-04-05 | Updated: OrderDetailPage item max width increased from 200px to 215px | AI Assistant |
 | 1.12 | 2026-04-05 | Fixed: OrderEntry steps (StepPurchased, StepGifts, StepSmallGifts) now support clipboard paste with enableClipboard={true} | AI Assistant |
+| 1.13 | 2026-04-05 | Updated: (1) Order entry pages support global clipboard paste without focus requirement (2) New item creation clears specification selections (3) Fixed specification display order in OrderDetailPage and ProductDetailPage | AI Assistant |
 
 ---
 

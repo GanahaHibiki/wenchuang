@@ -4,6 +4,7 @@ import { orderApi } from '@/api/client'
 import type { OrderDetail, OrderItem, Product } from '@/types'
 import ImageViewer from '@/components/common/ImageViewer'
 import OrderItemEditor from '@/components/order/OrderItemEditor'
+import { sortSpecifications } from '@/utils/specificationSort'
 
 export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -192,9 +193,12 @@ export default function OrderDetailPage() {
   }
 
   const renderItem = (item: OrderItem & { product: Product }, showPurchasePrice: boolean) => {
+    // Sort specifications by display order
+    const sortedSpecs = sortSpecifications(item.specifications)
+
     // Check which spec types have multiple entries
     const specTypeCounts = new Map<string, number>()
-    item.specifications.forEach(spec => {
+    sortedSpecs.forEach(spec => {
       const typeName = getSpecTypeName(spec)
       specTypeCounts.set(typeName, (specTypeCounts.get(typeName) || 0) + 1)
     })
@@ -218,7 +222,7 @@ export default function OrderDetailPage() {
           {item.product.name}
         </Link>
         <div className="space-y-1">
-          {item.specifications.map((spec, index) => {
+          {sortedSpecs.map((spec, index) => {
             const typeName = getSpecTypeName(spec)
             const hasMultiple = (specTypeCounts.get(typeName) || 0) > 1
 

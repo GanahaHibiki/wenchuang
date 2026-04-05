@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import type { Specification, SpecificationType, GiftType } from '@/types'
 import { SPECIFICATION_TYPES, MULTI_ENTRY_TYPES } from '@/types'
 
@@ -16,6 +16,11 @@ export default function SpecificationForm({
   const [selectedTypes, setSelectedTypes] = useState<Set<SpecificationType>>(
     new Set(specifications.map((s) => s.type))
   )
+
+  // Sync selectedTypes when specifications change (e.g., when switching to a new item)
+  useEffect(() => {
+    setSelectedTypes(new Set(specifications.map((s) => s.type)))
+  }, [specifications])
 
   // Group specs by type
   const specsByType = new Map<SpecificationType, Specification[]>()

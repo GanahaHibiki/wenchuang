@@ -6,6 +6,7 @@ interface ImageUploaderProps {
   preview?: string | null
   className?: string
   enableClipboard?: boolean
+  alwaysListenClipboard?: boolean // For pages with single product (order entry)
 }
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp']
@@ -16,6 +17,7 @@ export default function ImageUploader({
   preview,
   className = '',
   enableClipboard = false,
+  alwaysListenClipboard = false,
 }: ImageUploaderProps) {
   const [isDragOver, setIsDragOver] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -41,9 +43,9 @@ export default function ImageUploader({
     [onImageSelect]
   )
 
-  // Handle clipboard paste - only if this uploader is focused
+  // Handle clipboard paste - always if alwaysListenClipboard, or only when focused if enableClipboard
   useClipboardPaste((file) => {
-    if (enableClipboard && isFocused) {
+    if (alwaysListenClipboard || (enableClipboard && isFocused)) {
       validateAndSelect(file)
     }
   })
@@ -107,7 +109,10 @@ export default function ImageUploader({
           <>
             <div className="text-4xl mb-2">📷</div>
             <p className="text-gray-600 mb-1">点击选择图片 或 拖拽到此处</p>
-            {enableClipboard && (
+            {alwaysListenClipboard && (
+              <p className="text-sm text-gray-400">可直接使用 Ctrl+V 粘贴图片</p>
+            )}
+            {enableClipboard && !alwaysListenClipboard && (
               <p className="text-sm text-gray-400">点击此区域后可直接 Ctrl+V 粘贴图片</p>
             )}
           </>

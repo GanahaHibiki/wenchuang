@@ -161,7 +161,7 @@ export default function StepSmallGifts({
               <ImageUploader
                 onImageSelect={handleImageSelect}
                 preview={currentItem.imagePreview}
-                enableClipboard={true}
+                alwaysListenClipboard={true}
               />
             </div>
 

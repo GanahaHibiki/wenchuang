@@ -140,7 +140,7 @@ export default function StepPurchased({
             <ImageUploader
               onImageSelect={handleImageSelect}
               preview={currentItem.imagePreview}
-              enableClipboard={true}
+              alwaysListenClipboard={true}
             />
           </div>
 

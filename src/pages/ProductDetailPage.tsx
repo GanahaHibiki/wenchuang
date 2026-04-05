@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { productApi } from '@/api/client'
 import type { ProductDetail } from '@/types'
 import ImageViewer from '@/components/common/ImageViewer'
+import { sortSpecifications } from '@/utils/specificationSort'
 
 export default function ProductDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -86,9 +87,12 @@ export default function ProductDetailPage() {
               <h2 className="text-lg font-bold mb-4">已购商品记录</h2>
               <div className="space-y-4">
                 {entries.purchased.map((entry, index) => {
+                  // Sort specifications by display order
+                  const sortedSpecs = sortSpecifications(entry.specifications)
+
                   // Check which spec types have multiple entries in this order
                   const specTypeCounts = new Map<string, number>()
-                  entry.specifications.forEach(spec => {
+                  sortedSpecs.forEach(spec => {
                     const typeName = getSpecTypeName(spec)
                     specTypeCounts.set(typeName, (specTypeCounts.get(typeName) || 0) + 1)
                   })
@@ -102,7 +106,7 @@ export default function ProductDetailPage() {
                         订单 {entry.orderSequence} - {entry.shopName}
                       </Link>
                       <div className="mt-2 space-y-1">
-                        {entry.specifications
+                        {sortedSpecs
                           .filter((s) => s.quantity > 0)
                           .map((spec, i) => {
                             const typeName = getSpecTypeName(spec)
@@ -132,9 +136,12 @@ export default function ProductDetailPage() {
               <h2 className="text-lg font-bold mb-4">礼品记录</h2>
               <div className="space-y-4">
                 {entries.gifts.map((entry, index) => {
+                  // Sort specifications by display order
+                  const sortedSpecs = sortSpecifications(entry.specifications)
+
                   // Check which spec types have multiple entries in this order
                   const specTypeCounts = new Map<string, number>()
-                  entry.specifications.forEach(spec => {
+                  sortedSpecs.forEach(spec => {
                     const typeName = getSpecTypeName(spec)
                     specTypeCounts.set(typeName, (specTypeCounts.get(typeName) || 0) + 1)
                   })
@@ -151,7 +158,7 @@ export default function ProductDetailPage() {
                         {entry.giftType}
                       </span>
                       <div className="mt-2 space-y-1">
-                        {entry.specifications
+                        {sortedSpecs
                           .filter((s) => s.quantity > 0)
                           .map((spec, i) => {
                             const typeName = getSpecTypeName(spec)
@@ -180,9 +187,12 @@ export default function ProductDetailPage() {
               <h2 className="text-lg font-bold mb-4">小礼物记录</h2>
               <div className="space-y-4">
                 {entries.smallGifts.map((entry, index) => {
+                  // Sort specifications by display order
+                  const sortedSpecs = sortSpecifications(entry.specifications)
+
                   // Check which spec types have multiple entries in this order
                   const specTypeCounts = new Map<string, number>()
-                  entry.specifications.forEach(spec => {
+                  sortedSpecs.forEach(spec => {
                     const typeName = getSpecTypeName(spec)
                     specTypeCounts.set(typeName, (specTypeCounts.get(typeName) || 0) + 1)
                   })
@@ -196,7 +206,7 @@ export default function ProductDetailPage() {
                         订单 {entry.orderSequence} - {entry.shopName}
                       </Link>
                       <div className="mt-2 space-y-1">
-                        {entry.specifications
+                        {sortedSpecs
                           .filter((s) => s.quantity > 0)
                           .map((spec, i) => {
                             const typeName = getSpecTypeName(spec)

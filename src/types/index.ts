@@ -51,6 +51,26 @@ export const SPECIFICATION_TYPES: SpecificationType[] = [
   '其他衍生',
 ]
 
+// Display order for specifications (different from input order)
+export const SPECIFICATION_DISPLAY_ORDER: SpecificationType[] = [
+  '大食量set',
+  '小食量set',
+  '试吃set',
+  '折页',
+  '异形折页',
+  '卡背',
+  '卡头',
+  '封口贴',
+  '长贴',
+  '贴纸包',
+  '封箱贴',
+  '售后卡',
+  '豆丁贴',
+  'gift贴',
+  '磨砂盒',
+  '其他衍生',
+]
+
 // Types that support multiple entries
 export const MULTI_ENTRY_TYPES: SpecificationType[] = ['卡头', '封口贴', '长贴']
 
