@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "Bash(npm install:*)",
+      "Bash(npm run:*)",
+      "Bash(curl -s http://localhost:5173)",
+      "Bash(pkill -f \"vite\\\\|tsx\")",
+      "Bash(git remote:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(pkill -f \"vite\\\\|tsx\\\\|node.*server\")",
+      "Bash(kill -9 37045 37052)",
+      "Bash(git reset:*)",
+      "Bash(npx tsc:*)"
+    ]
+  }
+}

@@ -7,8 +7,8 @@ import { DATA_DIR } from './database.js'
 const ORIGINAL_DIR = path.join(DATA_DIR, 'images', 'original')
 const THUMBNAIL_DIR = path.join(DATA_DIR, 'images', 'thumbnails')
 
-const THUMBNAIL_WIDTH = 270
-const THUMBNAIL_HEIGHT = 360
+const THUMBNAIL_WIDTH = 640
+const THUMBNAIL_HEIGHT = 480
 
 export async function saveImage(
   buffer: Buffer,

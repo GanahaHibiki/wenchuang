@@ -14,7 +14,7 @@ export default function ProductCard({ product }: ProductCardProps) {
     <>
       <div className="bg-white rounded-lg shadow overflow-hidden hover:shadow-lg transition-shadow">
         <div
-          className="aspect-[3/4] bg-gray-100 cursor-pointer overflow-hidden"
+          className="w-[640px] h-[480px] bg-gray-100 cursor-pointer overflow-hidden"
           onClick={() => setShowViewer(true)}
         >
           <img
