@@ -15,6 +15,8 @@ export default function OrderDetailPage() {
   const [editingCategory, setEditingCategory] = useState<'purchased' | 'gift' | 'smallGift' | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [isEditingShopName, setIsEditingShopName] = useState(false)
+  const [editedShopName, setEditedShopName] = useState('')
 
   useEffect(() => {
     if (!id) return
@@ -101,6 +103,54 @@ export default function OrderDetailPage() {
       const refreshedOrder = await orderApi.getDetail(id)
       setOrder(refreshedOrder)
       setEditingCategory(null)
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '保存失败')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleSaveShopName = async () => {
+    if (!order || !id || !editedShopName.trim()) return
+
+    setIsSaving(true)
+    try {
+      const formData = new FormData()
+      formData.append('shopName', editedShopName.trim())
+
+      // Keep existing items
+      const purchasedData = order.purchasedItems.map((item) => ({
+        id: item.id,
+        productId: item.productId,
+        productName: item.product.name,
+        specifications: item.specifications,
+      }))
+
+      const giftsData = order.gifts.map((item) => ({
+        id: item.id,
+        productId: item.productId,
+        productName: item.product.name,
+        giftType: item.giftType,
+        specifications: item.specifications,
+      }))
+
+      const smallGiftsData = order.smallGifts.map((item) => ({
+        id: item.id,
+        productId: item.productId,
+        productName: item.product.name,
+        specifications: item.specifications,
+      }))
+
+      formData.append('purchasedItems', JSON.stringify(purchasedData))
+      formData.append('gifts', JSON.stringify(giftsData))
+      formData.append('smallGifts', JSON.stringify(smallGiftsData))
+
+      await orderApi.update(id, formData)
+
+      // Reload order data
+      const refreshedOrder = await orderApi.getDetail(id)
+      setOrder(refreshedOrder)
+      setIsEditingShopName(false)
     } catch (err) {
       alert(err instanceof Error ? err.message : '保存失败')
     } finally {
@@ -205,9 +255,51 @@ export default function OrderDetailPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">
-          订单 #{order.sequenceNumber} - {order.shop.name}
-        </h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-bold">
+            订单 #{order.sequenceNumber} -
+          </h1>
+          {isEditingShopName ? (
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={editedShopName}
+                onChange={(e) => setEditedShopName(e.target.value)}
+                className="px-3 py-1 border rounded-md text-xl font-bold"
+                autoFocus
+              />
+              <button
+                onClick={handleSaveShopName}
+                disabled={isSaving || !editedShopName.trim()}
+                className="px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 text-sm"
+              >
+                保存
+              </button>
+              <button
+                onClick={() => {
+                  setIsEditingShopName(false)
+                  setEditedShopName(order.shop.name)
+                }}
+                className="px-3 py-1 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 text-sm"
+              >
+                取消
+              </button>
+            </div>
+          ) : (
+            <>
+              <span className="text-2xl font-bold">{order.shop.name}</span>
+              <button
+                onClick={() => {
+                  setIsEditingShopName(true)
+                  setEditedShopName(order.shop.name)
+                }}
+                className="text-sm text-blue-600 hover:text-blue-700"
+              >
+                编辑
+              </button>
+            </>
+          )}
+        </div>
         <div className="flex items-center gap-3">
           <button
             onClick={handleDeleteOrder}

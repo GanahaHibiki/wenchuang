@@ -238,8 +238,21 @@ router.put('/:id', upload.any(), async (req, res, next) => {
       return res.status(404).json({ message: '订单不存在' })
     }
 
+    // Check if shop name is being updated
+    const newShopName = req.body.shopName
+    let shopId = existingOrder.shopId
+
+    if (newShopName && newShopName.trim()) {
+      const existingShop = await getShopById(existingOrder.shopId)
+      if (!existingShop || existingShop.name !== newShopName.trim()) {
+        // Shop name changed, find or create new shop
+        const shop = await findOrCreateShop(newShopName.trim())
+        shopId = shop.id
+      }
+    }
+
     // Get shop name for image naming
-    const shop = await getShopById(existingOrder.shopId)
+    const shop = await getShopById(shopId)
     const shopName = shop?.name || 'Unknown'
 
     // Similar logic to POST, but update existing order
@@ -396,6 +409,7 @@ router.put('/:id', upload.any(), async (req, res, next) => {
     const giftRatio = totalAmount > 0 ? Math.round((smallGiftTotal / totalAmount) * 1000) / 10 : 0
 
     const updated = await updateOrder(id, {
+      shopId,
       items: orderItems,
       totalAmount,
       smallGiftTotal,
