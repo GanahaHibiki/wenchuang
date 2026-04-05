@@ -441,41 +441,52 @@ export default function OrderDetailPage() {
       )}
 
       {/* Order Item Editor */}
-      {editingCategory && order && (
-        <OrderItemEditor
-          items={
-            editingCategory === 'purchased'
-              ? order.purchasedItems
-              : editingCategory === 'gift'
-              ? order.gifts
-              : order.smallGifts
-          }
-          category={editingCategory}
-          onSave={(items, images) => handleSaveItems(editingCategory, items, images)}
-          onCancel={() => setEditingCategory(null)}
-          shopName={order.shopName}
-          existingProducts={[
-            ...order.purchasedItems.map(item => ({
-              productId: item.productId,
-              productName: item.product.name,
-              imagePath: item.product.imagePath,
-              thumbnailPath: item.product.thumbnailPath
-            })),
-            ...(editingCategory !== 'purchased' ? order.gifts.map(item => ({
-              productId: item.productId,
-              productName: item.product.name,
-              imagePath: item.product.imagePath,
-              thumbnailPath: item.product.thumbnailPath
-            })) : []),
-            ...(editingCategory === 'smallGift' ? order.smallGifts.map(item => ({
-              productId: item.productId,
-              productName: item.product.name,
-              imagePath: item.product.imagePath,
-              thumbnailPath: item.product.thumbnailPath
-            })) : [])
-          ]}
-        />
-      )}
+      {editingCategory && order && (() => {
+        // Build and deduplicate existing products list
+        const allProducts = [
+          ...order.purchasedItems.map(item => ({
+            productId: item.productId,
+            productName: item.product.name,
+            imagePath: item.product.imagePath,
+            thumbnailPath: item.product.thumbnailPath
+          })),
+          ...(editingCategory !== 'purchased' ? order.gifts.map(item => ({
+            productId: item.productId,
+            productName: item.product.name,
+            imagePath: item.product.imagePath,
+            thumbnailPath: item.product.thumbnailPath
+          })) : []),
+          ...(editingCategory === 'smallGift' ? order.smallGifts.map(item => ({
+            productId: item.productId,
+            productName: item.product.name,
+            imagePath: item.product.imagePath,
+            thumbnailPath: item.product.thumbnailPath
+          })) : [])
+        ]
+
+        // Deduplicate by product name (case-insensitive)
+        const uniqueProducts = allProducts.filter((product, index, self) => {
+          const productNameLower = product.productName.trim().toLowerCase()
+          return index === self.findIndex(p => p.productName.trim().toLowerCase() === productNameLower)
+        })
+
+        return (
+          <OrderItemEditor
+            items={
+              editingCategory === 'purchased'
+                ? order.purchasedItems
+                : editingCategory === 'gift'
+                ? order.gifts
+                : order.smallGifts
+            }
+            category={editingCategory}
+            onSave={(items, images) => handleSaveItems(editingCategory, items, images)}
+            onCancel={() => setEditingCategory(null)}
+            shopName={order.shopName}
+            existingProducts={uniqueProducts}
+          />
+        )
+      })()}
 
       {/* Saving Overlay */}
       {isSaving && (
