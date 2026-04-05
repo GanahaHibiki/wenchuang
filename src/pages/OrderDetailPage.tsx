@@ -200,9 +200,9 @@ export default function OrderDetailPage() {
     })
 
     return (
-      <div key={item.id} className="flex gap-4 p-4 bg-gray-50 rounded-lg">
+      <div key={item.id} className="bg-gray-50 rounded-lg p-3 flex flex-col">
         <div
-          className="w-24 h-32 bg-gray-200 rounded overflow-hidden cursor-pointer flex-shrink-0"
+          className="w-full aspect-[4/3] bg-gray-200 rounded overflow-hidden cursor-pointer mb-2"
           onClick={() => setViewingImage(`/images/original/${item.product.imagePath}`)}
         >
           <img
@@ -211,32 +211,35 @@ export default function OrderDetailPage() {
             className="w-full h-full object-cover"
           />
         </div>
-        <div className="flex-1">
-          <Link
-            to={`/products/${item.product.id}`}
-            className="font-medium text-blue-600 hover:underline"
-          >
-            {item.product.name}
-          </Link>
-          <div className="mt-2 space-y-1">
-            {item.specifications.map((spec, index) => {
-              const typeName = getSpecTypeName(spec)
-              const hasMultiple = (specTypeCounts.get(typeName) || 0) > 1
+        <Link
+          to={`/products/${item.product.id}`}
+          className="font-medium text-blue-600 hover:underline text-sm mb-2 line-clamp-2"
+        >
+          {item.product.name}
+        </Link>
+        <div className="space-y-1">
+          {item.specifications.map((spec, index) => {
+            const typeName = getSpecTypeName(spec)
+            const hasMultiple = (specTypeCounts.get(typeName) || 0) > 1
 
-              return (
-                <div key={index} className="text-sm text-gray-600">
-                  {typeName}
-                  {hasMultiple && spec.sequenceNumber}:
-                  {' '}{spec.quantity} 个
-                  {showPurchasePrice && spec.purchasePrice !== undefined && (
-                    <> × ¥{spec.purchasePrice.toFixed(2)} = ¥{(spec.quantity * spec.purchasePrice).toFixed(2)}</>
-                  )}
-                  {!showPurchasePrice && (
-                    <> × ¥{spec.originalPrice.toFixed(2)} = ¥{(spec.quantity * spec.originalPrice).toFixed(2)}</>
-                  )}
-                </div>
-              )
-            })}
+            return (
+              <div key={index} className="text-xs text-gray-600">
+                {typeName}
+                {hasMultiple && spec.sequenceNumber}:
+                {' '}{spec.quantity} 个
+                {showPurchasePrice && spec.purchasePrice !== undefined && (
+                  <> × ¥{spec.purchasePrice.toFixed(2)} = ¥{(spec.quantity * spec.purchasePrice).toFixed(2)}</>
+                )}
+                {!showPurchasePrice && (
+                  <> × ¥{spec.originalPrice.toFixed(2)} = ¥{(spec.quantity * spec.originalPrice).toFixed(2)}</>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
           </div>
         </div>
       </div>
@@ -355,9 +358,9 @@ export default function OrderDetailPage() {
             </button>
           </div>
         </div>
-        <div className="space-y-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
           {order.purchasedItems.length === 0 ? (
-            <p className="text-gray-500">暂无已购商品</p>
+            <p className="text-gray-500 col-span-full">暂无已购商品</p>
           ) : (
             order.purchasedItems.map((item) => renderItem(item, true))
           )}
@@ -385,7 +388,7 @@ export default function OrderDetailPage() {
             {Object.entries(giftsByType).map(([type, gifts]) => (
               <div key={type}>
                 <h3 className="text-md font-medium text-gray-700 mb-2">[{type}]</h3>
-                <div className="space-y-4">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                   {gifts.map((item) => renderItem(item, false))}
                 </div>
               </div>
@@ -408,9 +411,9 @@ export default function OrderDetailPage() {
             </button>
           </div>
         </div>
-        <div className="space-y-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
           {order.smallGifts.length === 0 ? (
-            <p className="text-gray-500">暂无小礼物</p>
+            <p className="text-gray-500 col-span-full">暂无小礼物</p>
           ) : (
             order.smallGifts.map((item) => renderItem(item, false))
           )}
