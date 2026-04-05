@@ -363,7 +363,7 @@ export default function OrderDetailPage() {
             </button>
           </div>
         </div>
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,215px))] gap-4 justify-center">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,225px))] gap-4 justify-center">
           {order.purchasedItems.length === 0 ? (
             <p className="text-gray-500 col-span-full">暂无已购商品</p>
           ) : (
@@ -393,7 +393,7 @@ export default function OrderDetailPage() {
             {Object.entries(giftsByType).map(([type, gifts]) => (
               <div key={type}>
                 <h3 className="text-md font-medium text-gray-700 mb-2">[{type}]</h3>
-                <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,215px))] gap-4 justify-center">
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,225px))] gap-4 justify-center">
                   {gifts.map((item) => renderItem(item, false))}
                 </div>
               </div>
@@ -416,7 +416,7 @@ export default function OrderDetailPage() {
             </button>
           </div>
         </div>
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,215px))] gap-4 justify-center">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,225px))] gap-4 justify-center">
           {order.smallGifts.length === 0 ? (
             <p className="text-gray-500 col-span-full">暂无小礼物</p>
           ) : (
