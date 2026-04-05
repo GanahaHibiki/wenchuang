@@ -3,7 +3,7 @@
 ## Document Metadata
 - **System Name**: 文创商品订单管理系统 (Wenchuang Order Management System)
 - **Document Type**: Technical Design Specification
-- **Version**: 1.7
+- **Version**: 1.8
 - **Last Updated**: 2026-04-05
 
 ---
@@ -493,46 +493,39 @@ Sort by: [订单金额 ↕] [小礼物占比 ↕]
 
 #### Layout
 ```
-┌─────────────────────────────────────────────────────────┐
-│ 商品详情 - Product Name                    [返回首页]    │
-├─────────────────────────────────────────────────────────┤
-│                                                         │
-│ ┌──────────────────┬──────────────────────────────────┐ │
-│ │                  │                                  │ │
-│ │                  │  商品信息                         │ │
-│ │  [Product Image] │                                  │ │
-│ │   (1/3 width)    │  查看下方各类别的订单记录          │ │
-│ │                  │                                  │ │
-│ │  点击查看大图     │  (2/3 width)                     │ │
-│ │                  │                                  │ │
-│ └──────────────────┴──────────────────────────────────┘ │
-│                                                         │
-│ ━━━ 已购商品 ━━━                                        │
-│                                                         │
-│ 订单1 - Shop A (点击跳转订单详情)                        │
-│ - 规格1: 数量 x 个, 购入价 ¥xx.xx, 原价 ¥xx.xx         │
-│ - 规格2: 数量 x 个, 购入价 ¥xx.xx, 原价 ¥xx.xx         │
-│                                                         │
-│ 订单2 - Shop B (点击跳转订单详情)                        │
-│ - 规格1: 数量 x 个, 购入价 ¥xx.xx, 原价 ¥xx.xx         │
-│                                                         │
-│ ━━━ 礼品 ━━━                                            │
-│                                                         │
-│ 订单3 - Shop C [满赠礼] (点击跳转订单详情)               │
-│ - 规格1: 数量 x 个, 原价 ¥xx.xx                         │
-│                                                         │
-│ ━━━ 小礼物 ━━━                                          │
-│                                                         │
-│ 订单1 - Shop A (点击跳转订单详情)                        │
-│ - 规格1: 数量 x 个, 原价 ¥xx.xx                         │
-│                                                         │
-└─────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│ 商品详情 - Product Name                              [返回首页]      │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│ ┌──────────────┬────────────────────────────────────────────────┐  │
+│ │              │  ━━━ 已购商品记录 ━━━                          │  │
+│ │              │                                                │  │
+│ │              │  订单1 - Shop A (点击跳转)                     │  │
+│ │              │  - 规格1: 数量 x 个, 购入价¥xx.xx, 原价¥xx.xx  │  │
+│ │  [Product    │  - 规格2: 数量 x 个, 购入价¥xx.xx, 原价¥xx.xx  │  │
+│ │   Image]     │                                                │  │
+│ │              │  订单2 - Shop B (点击跳转)                     │  │
+│ │  640px       │  - 规格1: 数量 x 个, 购入价¥xx.xx, 原价¥xx.xx  │  │
+│ │  fixed       │                                                │  │
+│ │              │  ━━━ 礼品记录 ━━━                              │  │
+│ │  点击查看    │                                                │  │
+│ │  大图        │  订单3 - Shop C [满赠礼] (点击跳转)            │  │
+│ │              │  - 规格1: 数量 x 个, 原价¥xx.xx                │  │
+│ │              │                                                │  │
+│ │              │  ━━━ 小礼物记录 ━━━                            │  │
+│ │              │                                                │  │
+│ │              │  订单1 - Shop A (点击跳转)                     │  │
+│ │              │  - 规格1: 数量 x 个, 原价¥xx.xx                │  │
+│ │              │                                                │  │
+│ └──────────────┴────────────────────────────────────────────────┘  │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
 #### Content Rules
-1. **Layout**: Left-right split - Image (1/3) + Info (2/3)
+1. **Layout**: Left-right split - Image (640px fixed) + Records (flexible width)
 2. **Display Original Image**: Full resolution, not thumbnail; click to open viewer with zoom/pan
-3. **Group by Category**: 已购商品, 礼品, 小礼物
+3. **Group by Category**: 已购商品, 礼品, 小礼物 (all in right column)
 4. **Multiple Entries**: Same product can appear multiple times in same category
 5. **Show Non-Zero Specs Only**: Only display specifications with quantity > 0
 6. **Sequence Number Display**: Only show sequence numbers (e.g., "封口贴1", "封口贴2") when multiple entries of the same spec type exist in that order
@@ -1269,6 +1262,7 @@ WenChuang/
 | 1.5 | 2026-04-05 | Updated: Product gallery uses original images with object-contain (consistent with order detail), shop name editable in order detail page | AI Assistant |
 | 1.6 | 2026-04-05 | Fixed: ProductCard image centering using absolute positioning (top/left 50% with translate) | AI Assistant |
 | 1.7 | 2026-04-05 | Updated: ProductCard responsive with aspect-[4/3] and object-cover fill, ProductDetailPage left-right layout (image 1/3, info 2/3) | AI Assistant |
+| 1.8 | 2026-04-05 | Fixed: ProductDetailPage left-right layout (image 640px fixed, records flexible) - records now alongside image | AI Assistant |
 
 ---
 
