@@ -3,7 +3,7 @@
 ## Document Metadata
 - **System Name**: 文创商品订单管理系统 (Wenchuang Order Management System)
 - **Document Type**: Technical Design Specification
-- **Version**: 1.2
+- **Version**: 1.3
 - **Last Updated**: 2026-04-05
 
 ---
@@ -270,7 +270,8 @@ function calculateGiftRatio(order: Order): number {
 **1.3 Product Gallery**
 - Grid Layout: 5 columns × 10 rows = 50 items per page
 - Each Product Card:
-  - Thumbnail: 640×480 fixed size image
+  - Thumbnail: 640×480 fixed size container
+  - Image: object-contain (complete display without cropping)
   - Product Name (clickable → Product Detail Page)
 - Default: Show all purchased products (deduplicated by name, keep most recent)
 - Display: "总 xx 件商品"
@@ -279,8 +280,11 @@ function calculateGiftRatio(order: Order): number {
 - Trigger: Click on thumbnail
 - Features:
   - Display original resolution
+  - Mouse wheel zoom: 0.5x to 5x scale
+  - Drag to pan when zoomed in (cursor changes to grab/grabbing)
   - Click outside image or press Esc to close
-  - No zoom/pan functionality (simplified)
+  - No visible buttons or controls
+  - Instructions shown at bottom: "滚轮缩放 | 拖动平移 | 点击外部或按 Esc 关闭"
 
 **1.5 Pagination**
 - Display: "第 x 页，共 x 页"
@@ -773,13 +777,15 @@ class ImageService {
 ```
 
 #### 3. Display
-- Thumbnail: 640×480 in galleries and lists
+- Thumbnail: 640×480 container with object-contain (complete image display)
 - Original: Full resolution in lightbox/detail view
 
 #### 4. Lightbox Features
 - Click to view original image
+- Mouse wheel zoom: 0.5x to 5x scale range
+- Drag to pan when zoomed (grab cursor)
 - Close: Click outside image or press Esc key
-- Simple overlay (no zoom/pan functionality)
+- No visible UI buttons or controls
 
 ### Form Validation
 - Real-time validation on blur
@@ -1249,6 +1255,7 @@ WenChuang/
 | 1.0 | 2026-04-04 | Initial design document | AI Assistant |
 | 1.1 | 2026-04-04 | Added: Windows local app, JSON storage, local images, clipboard paste | AI Assistant |
 | 1.2 | 2026-04-05 | Updated: Image size to 640×480, simplified ImageViewer (click-to-close), focus-based clipboard paste, clickable order rows, custom spec types, sequence number display logic, auto-reorder on deletion, product deduplication | AI Assistant |
+| 1.3 | 2026-04-05 | Updated: ProductCard to object-contain for complete image display, ImageViewer with wheel zoom (0.5x-5x) and drag pan (no visible buttons) | AI Assistant |
 
 ---
 
