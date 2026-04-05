@@ -14,13 +14,13 @@ export default function ProductCard({ product }: ProductCardProps) {
     <>
       <div className="bg-white rounded-lg shadow overflow-hidden hover:shadow-lg transition-shadow">
         <div
-          className="w-[640px] h-[480px] bg-gray-100 cursor-pointer relative"
+          className="w-full aspect-[4/3] bg-gray-100 cursor-pointer overflow-hidden"
           onClick={() => setShowViewer(true)}
         >
           <img
             src={`/images/original/${product.imagePath}`}
             alt={product.name}
-            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 max-w-full max-h-full object-contain hover:opacity-90 transition-opacity"
+            className="w-full h-full object-cover hover:opacity-90 transition-opacity"
           />
         </div>
         <div className="p-3">

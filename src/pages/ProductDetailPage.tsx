@@ -59,18 +59,29 @@ export default function ProductDetailPage() {
         </Link>
       </div>
 
-      {/* Product Image */}
+      {/* Product Image and Info - Left-Right Layout */}
       <div className="bg-white rounded-lg shadow p-6">
-        <div
-          className="max-w-md mx-auto cursor-pointer"
-          onClick={() => setShowViewer(true)}
-        >
-          <img
-            src={`/images/original/${product.imagePath}`}
-            alt={product.name}
-            className="w-full rounded-lg hover:opacity-90 transition-opacity"
-          />
-          <p className="text-center text-sm text-gray-500 mt-2">点击查看大图</p>
+        <div className="flex gap-6">
+          {/* Left: Image */}
+          <div
+            className="w-1/3 flex-shrink-0 cursor-pointer"
+            onClick={() => setShowViewer(true)}
+          >
+            <img
+              src={`/images/original/${product.imagePath}`}
+              alt={product.name}
+              className="w-full rounded-lg hover:opacity-90 transition-opacity"
+            />
+            <p className="text-center text-sm text-gray-500 mt-2">点击查看大图</p>
+          </div>
+
+          {/* Right: Product Info Placeholder */}
+          <div className="flex-1">
+            <div className="text-gray-600">
+              <p className="mb-2">商品信息</p>
+              <p className="text-sm text-gray-500">查看下方各类别的订单记录</p>
+            </div>
+          </div>
         </div>
       </div>
 
