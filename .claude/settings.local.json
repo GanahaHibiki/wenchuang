@@ -14,7 +14,12 @@
       "Bash(kill -9 37045 37052)",
       "Bash(git reset:*)",
       "Bash(npx tsc:*)",
-      "Bash(ping:*)"
+      "Bash(ping:*)",
+      "Bash(curl -s http://localhost:5173/)",
+      "Bash(curl:*)",
+      "Bash(lsof -ti:3001)",
+      "Bash(xargs kill:*)",
+      "Bash(lsof -ti:3000)"
     ]
   }
 }

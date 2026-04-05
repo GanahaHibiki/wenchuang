@@ -243,6 +243,14 @@ export async function getAllOrders(
   const db = await loadDatabase()
   let orders = [...db.orders]
 
+  // Migrate old orders that don't have giftTotal field
+  orders = orders.map(o => {
+    if (o.giftTotal === undefined) {
+      return { ...o, giftTotal: 0 }
+    }
+    return o
+  })
+
   if (sortBy) {
     orders.sort((a, b) => {
       const aVal = a[sortBy]
@@ -259,7 +267,14 @@ export async function getAllOrders(
 
 export async function getOrderById(id: string): Promise<Order | undefined> {
   const db = await loadDatabase()
-  return db.orders.find((o) => o.id === id)
+  const order = db.orders.find((o) => o.id === id)
+
+  // Migrate old orders that don't have giftTotal field
+  if (order && order.giftTotal === undefined) {
+    order.giftTotal = 0
+  }
+
+  return order
 }
 
 export async function createOrder(order: Omit<Order, 'sequenceNumber'>): Promise<Order> {

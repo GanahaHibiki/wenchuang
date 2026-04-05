@@ -331,7 +331,7 @@ export default function OrderDetailPage() {
           <div>
             <div className="text-sm text-gray-600">礼品总价</div>
             <div className="text-xl font-bold text-orange-600">
-              ¥{order.giftTotal.toFixed(2)}
+              ¥{(order.giftTotal || 0).toFixed(2)}
             </div>
           </div>
           <div>
