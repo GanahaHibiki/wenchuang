@@ -245,13 +245,25 @@ export default function OrderDetailPage() {
     )
   }
 
-  // Group gifts by type
+  // Group gifts by type and maintain order
   const giftsByType = order.gifts.reduce((acc, gift) => {
     const type = gift.giftType || '其他'
     if (!acc[type]) acc[type] = []
     acc[type].push(gift)
     return acc
   }, {} as Record<string, typeof order.gifts>)
+
+  // Render gift item with type label if it's the first of its type
+  const renderGiftWithLabel = (item: OrderItem & { product: Product }, isFirstOfType: boolean, giftType: string) => {
+    return (
+      <div key={item.id} className="flex flex-col">
+        {isFirstOfType && (
+          <div className="text-md font-medium text-gray-700 mb-2">[{giftType}]</div>
+        )}
+        {renderItem(item, false)}
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -389,15 +401,10 @@ export default function OrderDetailPage() {
         {order.gifts.length === 0 ? (
           <p className="text-gray-500">暂无礼品</p>
         ) : (
-          <div className="space-y-6">
-            {Object.entries(giftsByType).map(([type, gifts]) => (
-              <div key={type}>
-                <h3 className="text-md font-medium text-gray-700 mb-2">[{type}]</h3>
-                <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,230px))] gap-4 justify-center">
-                  {gifts.map((item) => renderItem(item, false))}
-                </div>
-              </div>
-            ))}
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,230px))] gap-4 justify-center">
+            {Object.entries(giftsByType).flatMap(([type, gifts]) =>
+              gifts.map((item, index) => renderGiftWithLabel(item, index === 0, type))
+            )}
           </div>
         )}
       </section>
