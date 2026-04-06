@@ -39,6 +39,13 @@ export default function GroupOrderItemEditor({ shopGroups, onSave, onCancel, exi
     setExpandedShops(newExpanded)
   }
 
+  const updateShopName = (shopId: string, newName: string) => {
+    setEditedGroups(prev => prev.map(group => {
+      if (group.shopId !== shopId) return group
+      return { ...group, shopName: newName }
+    }))
+  }
+
   const updateItem = (shopId: string, itemIndex: number, updates: Partial<OrderItem & { product: Product }>) => {
     setEditedGroups(prev => prev.map(group => {
       if (group.shopId !== shopId) return group
@@ -193,15 +200,26 @@ export default function GroupOrderItemEditor({ shopGroups, onSave, onCancel, exi
           {editedGroups.map((group) => (
             <div key={group.shopId} className="border rounded-lg overflow-hidden">
               <div
-                className="bg-gray-100 px-4 py-3 flex items-center justify-between cursor-pointer"
-                onClick={() => toggleShop(group.shopId)}
+                className="bg-gray-100 px-4 py-3 flex items-center justify-between"
               >
-                <h3 className="text-lg font-medium">
-                  店铺：{group.shopName} ({group.items.length} 件商品)
-                </h3>
-                <span className="text-gray-600">
+                <div className="flex items-center gap-3 flex-1">
+                  <span className="text-sm text-gray-600">店铺：</span>
+                  <input
+                    type="text"
+                    value={group.shopName}
+                    onChange={(e) => updateShopName(group.shopId, e.target.value)}
+                    onClick={(e) => e.stopPropagation()}
+                    className="px-3 py-1 border rounded-md text-md font-medium flex-1"
+                    placeholder="店铺名称"
+                  />
+                  <span className="text-sm text-gray-600">({group.items.length} 件商品)</span>
+                </div>
+                <button
+                  onClick={() => toggleShop(group.shopId)}
+                  className="text-gray-600 hover:text-gray-800 px-2"
+                >
                   {expandedShops.has(group.shopId) ? '▼' : '▶'}
-                </span>
+                </button>
               </div>
 
               {expandedShops.has(group.shopId) && (

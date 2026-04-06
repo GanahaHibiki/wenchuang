@@ -130,7 +130,10 @@ export default function OrderDetailPage() {
 
       // Flatten items from all shops
       const allItems: any[] = []
+      const shopNameMap: Record<string, string> = {}
+
       for (const group of updatedGroups) {
+        shopNameMap[group.shopId] = group.shopName
         for (const item of group.items) {
           allItems.push({
             id: item.id,
@@ -144,6 +147,7 @@ export default function OrderDetailPage() {
 
       formData.append('items', JSON.stringify(allItems))
       formData.append('shopIds', JSON.stringify(updatedGroups.map(g => g.shopId)))
+      formData.append('shopNames', JSON.stringify(shopNameMap))
 
       // Add images with naming: item_{itemId}
       for (const [itemId, file] of newImages.entries()) {
@@ -432,7 +436,14 @@ export default function OrderDetailPage() {
           <h2 className="text-lg font-bold">已购商品</h2>
           <div className="flex items-center gap-3">
             <span className="text-sm text-gray-500">{order.purchasedItems.length} 件</span>
-            {order.orderType !== 'group' && (
+            {order.orderType === 'group' ? (
+              <button
+                onClick={() => setEditingCategory('groupOrder')}
+                className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+              >
+                编辑
+              </button>
+            ) : (
               <button
                 onClick={() => setEditingCategory('purchased')}
                 className="text-sm text-blue-600 hover:text-blue-700 font-medium"
@@ -463,12 +474,6 @@ export default function OrderDetailPage() {
                 </div>
               )
             })}
-            <button
-              onClick={() => setEditingCategory('groupOrder')}
-              className="mt-4 text-sm text-blue-600 hover:text-blue-700 font-medium"
-            >
-              编辑拼单订单
-            </button>
           </div>
         ) : (
           // Regular shop order

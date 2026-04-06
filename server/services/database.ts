@@ -116,12 +116,28 @@ export async function createShop(shop: Shop): Promise<Shop> {
   return shop
 }
 
-export async function findOrCreateShop(name: string, id: string): Promise<Shop> {
+export async function findOrCreateShop(name: string, id?: string): Promise<Shop> {
   const db = await loadDatabase()
+
+  // If id is provided, check if shop with this id exists
+  if (id) {
+    let shop = db.shops.find((s) => s.id === id)
+    if (shop) {
+      // Shop exists, update name if different
+      if (shop.name !== name) {
+        shop.name = name
+        await saveDatabase(db)
+      }
+      return shop
+    }
+  }
+
+  // Check if shop with this name exists
   let shop = db.shops.find((s) => s.name === name)
 
   if (!shop) {
-    shop = { id, name, createdAt: new Date().toISOString() }
+    // Create new shop
+    shop = { id: id || '', name, createdAt: new Date().toISOString() }
     db.shops.push(shop)
     await saveDatabase(db)
   }

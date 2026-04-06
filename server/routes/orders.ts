@@ -384,9 +384,22 @@ router.put('/:id', upload.any(), async (req, res, next) => {
 
     // Handle group order updates
     if (req.body.orderType === 'group') {
-      const { items: itemsData, shopIds: shopIdsData } = req.body
+      const { items: itemsData, shopIds: shopIdsData, shopNames: shopNamesData } = req.body
       const parsedItems = JSON.parse(itemsData)
       const parsedShopIds = JSON.parse(shopIdsData)
+      const parsedShopNames = shopNamesData ? JSON.parse(shopNamesData) : {}
+
+      // Update shop names if provided
+      for (const shopId of parsedShopIds) {
+        if (parsedShopNames[shopId]) {
+          const shop = await getShopById(shopId)
+          if (shop && shop.name !== parsedShopNames[shopId]) {
+            // Shop name changed, need to update it
+            // Find or create shop with new name
+            const updatedShop = await findOrCreateShop(parsedShopNames[shopId], shopId)
+          }
+        }
+      }
 
       const orderItems: OrderItem[] = []
       let totalAmount = 0
