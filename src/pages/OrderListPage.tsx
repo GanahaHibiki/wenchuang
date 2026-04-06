@@ -162,14 +162,14 @@ export default function OrderListPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {orderList.map((order) => (
+              {orderList.map((order, index) => (
                 <tr
                   key={order.id}
                   className="hover:bg-gray-50 cursor-pointer"
                   onClick={() => navigate(`/orders/${order.id}`)}
                 >
                   <td className="px-4 py-3">
-                    {order.sequenceNumber}
+                    {index + 1}
                   </td>
                   <td className="px-4 py-3">{order.shopName}</td>
                   <td className="px-4 py-3">¥{order.totalAmount.toFixed(2)}</td>
