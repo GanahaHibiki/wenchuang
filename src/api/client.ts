@@ -55,7 +55,7 @@ export const productApi = {
 // ==================== Order API ====================
 
 export const orderApi = {
-  getAll: (sortBy?: 'totalAmount' | 'giftRatio', order?: 'asc' | 'desc') => {
+  getAll: (sortBy?: 'totalAmount' | 'giftRatio' | 'giftTotal', order?: 'asc' | 'desc') => {
     const params = new URLSearchParams()
     if (sortBy) params.append('sortBy', sortBy)
     if (order) params.append('order', order)
@@ -67,6 +67,12 @@ export const orderApi = {
 
   create: (formData: FormData) =>
     request<Order>('/orders', {
+      method: 'POST',
+      body: formData,
+    }),
+
+  createGroupOrder: (formData: FormData) =>
+    request<Order>('/orders/group', {
       method: 'POST',
       body: formData,
     }),

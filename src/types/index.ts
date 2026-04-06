@@ -95,18 +95,23 @@ export type GiftType = '满赠礼' | '宣传礼' | '手速礼' | '高消礼' | '
 
 export const GIFT_TYPES: GiftType[] = ['满赠礼', '宣传礼', '手速礼', '高消礼', '小时礼', '新客礼', '回购礼']
 
+export type OrderType = 'shop' | 'group'
+
 export interface OrderItem {
   id: string
   productId: string
   category: ItemCategory
   giftType?: GiftType
   specifications: Specification[]
+  shopId?: string // For group orders, track which shop this item belongs to
 }
 
 export interface Order {
   id: string
   sequenceNumber: number
-  shopId: string
+  orderType: OrderType
+  shopId: string // For group orders, this can be a special "GROUP" id
+  shopIds?: string[] // For group orders, list of all shop IDs
   items: OrderItem[]
   totalAmount: number
   giftTotal: number
@@ -163,6 +168,7 @@ export interface ProductEntry {
 
 export interface OrderDetail extends Omit<Order, 'items'> {
   shop: Shop
+  shops?: Shop[] // For group orders, all shops involved
   purchasedItems: (OrderItem & { product: Product })[]
   gifts: (OrderItem & { product: Product })[]
   smallGifts: (OrderItem & { product: Product })[]
@@ -171,6 +177,7 @@ export interface OrderDetail extends Omit<Order, 'items'> {
 export interface OrderSummary {
   id: string
   sequenceNumber: number
+  orderType: OrderType
   shopName: string
   totalAmount: number
   giftTotal: number

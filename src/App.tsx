@@ -2,6 +2,7 @@ import { Routes, Route } from 'react-router-dom'
 import MainLayout from './components/layout/MainLayout'
 import HomePage from './pages/HomePage'
 import OrderEntryPage from './pages/OrderEntryPage'
+import GroupOrderEntryPage from './pages/GroupOrderEntryPage'
 import OrderListPage from './pages/OrderListPage'
 import OrderDetailPage from './pages/OrderDetailPage'
 import ProductDetailPage from './pages/ProductDetailPage'
@@ -13,6 +14,7 @@ function App() {
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/order-entry" element={<OrderEntryPage />} />
+        <Route path="/group-order-entry" element={<GroupOrderEntryPage />} />
         <Route path="/orders" element={<OrderListPage />} />
         <Route path="/orders/:id" element={<OrderDetailPage />} />
         <Route path="/products/:id" element={<ProductDetailPage />} />
