@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import type { OrderItem, Product, Specification } from '@/types'
 import { SPECIFICATION_TYPES } from '@/types'
+import ImageUploader from '@/components/common/ImageUploader'
 
 interface ShopItemsGroup {
   shopId: string
@@ -228,8 +229,8 @@ export default function GroupOrderItemEditor({ shopGroups, onSave, onCancel, exi
                     <div key={item.id} className="border rounded-lg p-4 space-y-3">
                       <div className="flex items-start gap-4">
                         {/* Image */}
-                        <div className="flex-shrink-0">
-                          <div className="w-32 h-24 bg-gray-200 rounded overflow-hidden">
+                        <div className="flex-shrink-0 w-32">
+                          <div className="w-32 h-24 bg-gray-200 rounded overflow-hidden mb-2">
                             {(newImages.has(item.id) || item.product.imagePath) && (
                               <img
                                 src={
@@ -242,14 +243,11 @@ export default function GroupOrderItemEditor({ shopGroups, onSave, onCancel, exi
                               />
                             )}
                           </div>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0]
-                              handleImageChange(item.id, file || null)
-                            }}
-                            className="mt-2 text-xs"
+                          <ImageUploader
+                            onImageSelect={(file) => handleImageChange(item.id, file)}
+                            preview={null}
+                            enableClipboard={true}
+                            compact={true}
                           />
                         </div>
 

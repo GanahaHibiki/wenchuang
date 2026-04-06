@@ -301,6 +301,7 @@ export default function OrderItemEditor({
                     onImageSelect={(file) => updateItemImage(itemIndex, file)}
                     preview={null}
                     enableClipboard={true}
+                    compact={true}
                   />
                 </div>
 

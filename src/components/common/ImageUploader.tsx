@@ -7,6 +7,7 @@ interface ImageUploaderProps {
   className?: string
   enableClipboard?: boolean
   alwaysListenClipboard?: boolean // For pages with single product (order entry)
+  compact?: boolean // Compact mode for inline editing
 }
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp']
@@ -18,6 +19,7 @@ export default function ImageUploader({
   className = '',
   enableClipboard = false,
   alwaysListenClipboard = false,
+  compact = false,
 }: ImageUploaderProps) {
   const [isDragOver, setIsDragOver] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -91,8 +93,9 @@ export default function ImageUploader({
         onBlur={() => setIsFocused(false)}
         tabIndex={enableClipboard ? 0 : -1}
         className={`
-          relative border-2 border-dashed rounded-lg p-4 text-center cursor-pointer
-          transition-colors min-h-[200px] flex flex-col items-center justify-center
+          relative border-2 border-dashed rounded-lg text-center cursor-pointer
+          transition-colors flex flex-col items-center justify-center
+          ${compact ? 'p-2 min-h-[60px]' : 'p-4 min-h-[200px]'}
           ${isDragOver ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'}
           ${preview ? 'border-solid border-green-500' : ''}
           ${enableClipboard && isFocused ? 'ring-2 ring-blue-400 ring-offset-2' : ''}
@@ -103,16 +106,18 @@ export default function ImageUploader({
           <img
             src={preview}
             alt="预览"
-            className="max-h-48 max-w-full object-contain"
+            className={compact ? 'max-h-12 max-w-full object-contain' : 'max-h-48 max-w-full object-contain'}
           />
         ) : (
           <>
-            <div className="text-4xl mb-2">📷</div>
-            <p className="text-gray-600 mb-1">点击选择图片 或 拖拽到此处</p>
-            {alwaysListenClipboard && (
+            <div className={compact ? 'text-xl' : 'text-4xl mb-2'}>📷</div>
+            <p className={`text-gray-600 ${compact ? 'text-xs mb-0' : 'mb-1'}`}>
+              {compact ? '点击或粘贴' : '点击选择图片 或 拖拽到此处'}
+            </p>
+            {!compact && alwaysListenClipboard && (
               <p className="text-sm text-gray-400">可直接使用 Ctrl+V 粘贴图片</p>
             )}
-            {enableClipboard && !alwaysListenClipboard && (
+            {!compact && enableClipboard && !alwaysListenClipboard && (
               <p className="text-sm text-gray-400">点击此区域后可直接 Ctrl+V 粘贴图片</p>
             )}
           </>
@@ -131,9 +136,11 @@ export default function ImageUploader({
         <p className="mt-2 text-sm text-red-500">{error}</p>
       )}
 
-      <p className="mt-2 text-xs text-gray-400">
-        支持格式: JPG, PNG, WebP | 最大 10MB
-      </p>
+      {!compact && (
+        <p className="mt-2 text-xs text-gray-400">
+          支持格式: JPG, PNG, WebP | 最大 10MB
+        </p>
+      )}
     </div>
   )
 }
