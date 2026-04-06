@@ -37,11 +37,13 @@ router.get('/', async (req, res, next) => {
     const summaries: OrderSummary[] = await Promise.all(
       orders.map(async (o) => {
         const shop = await getShopById(o.shopId)
+        // For group orders, always show "拼单" regardless of the actual shop
+        const displayName = o.orderType === 'group' ? '拼单' : (shop?.name || '未知店铺')
         return {
           id: o.id,
           sequenceNumber: o.sequenceNumber,
           orderType: o.orderType || 'shop',
-          shopName: shop?.name || '未知店铺',
+          shopName: displayName,
           totalAmount: o.totalAmount,
           giftTotal: o.giftTotal,
           smallGiftTotal: o.smallGiftTotal,

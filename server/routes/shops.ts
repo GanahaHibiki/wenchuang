@@ -8,7 +8,9 @@ const router = Router()
 router.get('/', async (req, res, next) => {
   try {
     const shops = await getAllShops()
-    res.json(shops)
+    // Filter out the special "拼单" shop used for group orders
+    const filteredShops = shops.filter(shop => shop.name !== '拼单')
+    res.json(filteredShops)
   } catch (err) {
     next(err)
   }
