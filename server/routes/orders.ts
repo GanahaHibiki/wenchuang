@@ -121,16 +121,6 @@ router.get('/:id', async (req, res, next) => {
     next(err)
   }
 })
-      purchasedItems,
-      gifts,
-      smallGifts,
-    }
-
-    res.json(detail)
-  } catch (err) {
-    next(err)
-  }
-})
 
 // POST /api/orders
 router.post('/', upload.any(), async (req, res, next) => {
