@@ -40,6 +40,7 @@ router.get('/', async (req, res, next) => {
         return {
           id: o.id,
           sequenceNumber: o.sequenceNumber,
+          orderType: o.orderType || 'shop',
           shopName: shop?.name || '未知店铺',
           totalAmount: o.totalAmount,
           giftTotal: o.giftTotal,
@@ -70,6 +71,15 @@ router.get('/:id', async (req, res, next) => {
       return res.status(404).json({ message: '店铺不存在' })
     }
 
+    // For group orders, get all shops
+    let shops: any[] | undefined
+    if (order.orderType === 'group' && order.shopIds) {
+      shops = await Promise.all(
+        order.shopIds.map(async (shopId) => await getShopById(shopId))
+      )
+      shops = shops.filter(Boolean) // Remove null values
+    }
+
     // Group items by category with product details
     const purchasedItems: (OrderItem & { product: any })[] = []
     const gifts: (OrderItem & { product: any })[] = []
@@ -91,13 +101,26 @@ router.get('/:id', async (req, res, next) => {
     const detail: OrderDetail = {
       id: order.id,
       sequenceNumber: order.sequenceNumber,
+      orderType: order.orderType || 'shop',
       shopId: order.shopId,
+      shopIds: order.shopIds,
       totalAmount: order.totalAmount,
       giftTotal: order.giftTotal,
       smallGiftTotal: order.smallGiftTotal,
       giftRatio: order.giftRatio,
       createdAt: order.createdAt,
       shop,
+      shops,
+      purchasedItems,
+      gifts,
+      smallGifts,
+    }
+
+    res.json(detail)
+  } catch (err) {
+    next(err)
+  }
+})
       purchasedItems,
       gifts,
       smallGifts,
@@ -230,6 +253,106 @@ router.post('/', upload.any(), async (req, res, next) => {
       giftTotal,
       smallGiftTotal,
       giftRatio,
+      createdAt: new Date().toISOString(),
+    })
+
+    res.status(201).json(order)
+  } catch (err) {
+    next(err)
+  }
+})
+
+// POST /api/orders/group - Create group order
+router.post('/group', upload.any(), async (req, res, next) => {
+  try {
+    const { shops: shopsData } = req.body
+    const files = req.files as Express.Multer.File[]
+
+    if (!shopsData) {
+      return res.status(400).json({ message: '店铺数据不能为空' })
+    }
+
+    const parsedShops = JSON.parse(shopsData)
+
+    if (!Array.isArray(parsedShops) || parsedShops.length === 0) {
+      return res.status(400).json({ message: '至少需要一个店铺' })
+    }
+
+    const orderItems: OrderItem[] = []
+    let totalAmount = 0
+    const shopIds: string[] = []
+
+    const findFile = (fieldName: string) =>
+      files?.find((f) => f.fieldname === fieldName)
+
+    // Process each shop
+    for (let shopIndex = 0; shopIndex < parsedShops.length; shopIndex++) {
+      const shopData = parsedShops[shopIndex]
+      const { shopName, items } = shopData
+
+      if (!shopName || !shopName.trim()) {
+        return res.status(400).json({ message: `店铺 ${shopIndex + 1} 名称不能为空` })
+      }
+
+      // Find or create shop
+      const shop = await findOrCreateShop(shopName.trim())
+      shopIds.push(shop.id)
+
+      // Process items for this shop
+      for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
+        const item = items[itemIndex]
+        const file = findFile(`shop${shopIndex}_item${itemIndex}`)
+
+        if (!file) {
+          return res.status(400).json({
+            message: `店铺 ${shopIndex + 1} 的商品 ${itemIndex + 1} 缺少图片`
+          })
+        }
+
+        const { imagePath, thumbnailPath } = await saveImage(
+          file.buffer,
+          file.originalname,
+          shopName.trim(),
+          item.productName
+        )
+
+        const product = await findOrCreateProduct(
+          item.productName,
+          uuidv4(),
+          imagePath,
+          thumbnailPath
+        )
+
+        const specs: Specification[] = item.specifications || []
+        const itemTotal = specs.reduce(
+          (sum: number, s: Specification) => sum + s.quantity * (s.purchasePrice || 0),
+          0
+        )
+        totalAmount += itemTotal
+
+        orderItems.push({
+          id: uuidv4(),
+          productId: product.id,
+          category: 'purchased',
+          specifications: specs,
+          shopId: shop.id, // Track which shop this item belongs to
+        })
+      }
+    }
+
+    // For group orders, create a special "GROUP" shop
+    const groupShop = await findOrCreateShop('拼单')
+
+    const order = await createOrder({
+      id: uuidv4(),
+      orderType: 'group',
+      shopId: groupShop.id,
+      shopIds,
+      items: orderItems,
+      totalAmount,
+      giftTotal: 0,
+      smallGiftTotal: 0,
+      giftRatio: 0,
       createdAt: new Date().toISOString(),
     })
 

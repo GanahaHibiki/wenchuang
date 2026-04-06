@@ -245,10 +245,19 @@ export async function getAllOrders(
 
   // Migrate old orders that don't have giftTotal field
   orders = orders.map(o => {
-    if (o.giftTotal === undefined) {
-      return { ...o, giftTotal: 0 }
+    const migrated: any = { ...o }
+
+    // Add giftTotal if missing
+    if (migrated.giftTotal === undefined) {
+      migrated.giftTotal = 0
     }
-    return o
+
+    // Add orderType if missing (default to 'shop')
+    if (!migrated.orderType) {
+      migrated.orderType = 'shop'
+    }
+
+    return migrated
   })
 
   if (sortBy) {
@@ -269,9 +278,19 @@ export async function getOrderById(id: string): Promise<Order | undefined> {
   const db = await loadDatabase()
   const order = db.orders.find((o) => o.id === id)
 
-  // Migrate old orders that don't have giftTotal field
-  if (order && order.giftTotal === undefined) {
-    order.giftTotal = 0
+  // Migrate old orders to new schema
+  if (order) {
+    const migrated: any = { ...order }
+
+    if (migrated.giftTotal === undefined) {
+      migrated.giftTotal = 0
+    }
+
+    if (!migrated.orderType) {
+      migrated.orderType = 'shop'
+    }
+
+    return migrated
   }
 
   return order
