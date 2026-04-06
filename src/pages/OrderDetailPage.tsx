@@ -249,7 +249,7 @@ export default function OrderDetailPage() {
     return spec.type
   }
 
-  const renderItem = (item: OrderItem & { product: Product }, showPurchasePrice: boolean, shopLabel?: string) => {
+  const renderItem = (item: OrderItem & { product: Product }, showPurchasePrice: boolean) => {
     // Sort specifications by display order
     const sortedSpecs = sortSpecifications(item.specifications)
 
@@ -262,11 +262,6 @@ export default function OrderDetailPage() {
 
     return (
       <div key={item.id} className="bg-gray-50 rounded-lg p-3 flex flex-col">
-        {shopLabel && (
-          <div className="text-xs font-medium text-gray-600 mb-2 -mt-1 px-1 py-1 bg-blue-50 rounded">
-            {shopLabel}
-          </div>
-        )}
         <div
           className="w-full aspect-[4/3] bg-gray-200 rounded overflow-hidden cursor-pointer mb-2"
           onClick={() => setViewingImage(`/images/original/${item.product.imagePath}`)}
@@ -331,6 +326,35 @@ export default function OrderDetailPage() {
               </div>
             )}
             {renderItem(item, false)}
+          </div>
+        )
+      })
+    })
+
+    return elements
+  }
+
+  // Render group order items with shop labels above first item of each shop
+  const renderGroupOrderItems = () => {
+    if (!order.shops) return []
+
+    const elements: JSX.Element[] = []
+
+    order.shops.forEach((shop) => {
+      const shopItems = order.purchasedItems.filter(
+        (item) => item.shopId === shop.id
+      )
+      if (shopItems.length === 0) return
+
+      shopItems.forEach((item, index) => {
+        elements.push(
+          <div key={item.id} className="relative">
+            {index === 0 && (
+              <div className="absolute -top-8 left-0 text-md font-medium text-gray-700">
+                店铺：{shop.name}
+              </div>
+            )}
+            {renderItem(item, true)}
           </div>
         )
       })
@@ -460,18 +484,9 @@ export default function OrderDetailPage() {
         </div>
 
         {order.orderType === 'group' && order.shops ? (
-          // Group order: display all items in one row with shop labels inside first item of each shop
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,230px))] gap-4 justify-center">
-            {order.shops.flatMap((shop) => {
-              const shopItems = order.purchasedItems.filter(
-                (item) => item.shopId === shop.id
-              )
-              if (shopItems.length === 0) return []
-
-              return shopItems.map((item, index) =>
-                renderItem(item, true, index === 0 ? `店铺：${shop.name}` : undefined)
-              )
-            })}
+          // Group order: display all items with shop labels above first item of each shop
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,230px))] gap-4 justify-center pt-8">
+            {renderGroupOrderItems()}
           </div>
         ) : (
           // Regular shop order
