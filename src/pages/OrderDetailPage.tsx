@@ -377,21 +377,48 @@ export default function OrderDetailPage() {
           <h2 className="text-lg font-bold">已购商品</h2>
           <div className="flex items-center gap-3">
             <span className="text-sm text-gray-500">{order.purchasedItems.length} 件</span>
-            <button
-              onClick={() => setEditingCategory('purchased')}
-              className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-            >
-              编辑
-            </button>
+            {order.orderType !== 'group' && (
+              <button
+                onClick={() => setEditingCategory('purchased')}
+                className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+              >
+                编辑
+              </button>
+            )}
           </div>
         </div>
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,230px))] gap-4 justify-center">
-          {order.purchasedItems.length === 0 ? (
-            <p className="text-gray-500 col-span-full">暂无已购商品</p>
-          ) : (
-            order.purchasedItems.map((item) => renderItem(item, true))
-          )}
-        </div>
+
+        {order.orderType === 'group' && order.shops ? (
+          // Group order: display by shop
+          <div className="space-y-6">
+            {order.shops.map((shop) => {
+              const shopItems = order.purchasedItems.filter(
+                (item) => item.shopId === shop.id
+              )
+              if (shopItems.length === 0) return null
+
+              return (
+                <div key={shop.id}>
+                  <h3 className="text-md font-medium text-gray-700 mb-3">
+                    店铺：{shop.name}
+                  </h3>
+                  <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,230px))] gap-4 justify-center">
+                    {shopItems.map((item) => renderItem(item, true))}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        ) : (
+          // Regular shop order
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,230px))] gap-4 justify-center">
+            {order.purchasedItems.length === 0 ? (
+              <p className="text-gray-500 col-span-full">暂无已购商品</p>
+            ) : (
+              order.purchasedItems.map((item) => renderItem(item, true))
+            )}
+          </div>
+        )}
       </section>
 
       {/* Gifts */}
