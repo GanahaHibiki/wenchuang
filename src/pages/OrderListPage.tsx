@@ -54,8 +54,7 @@ export default function OrderListPage() {
     setNoteValue(order.note || '')
   }
 
-  const handleNoteSave = async (orderId: string, e: React.MouseEvent) => {
-    e.stopPropagation()
+  const handleNoteSave = async (orderId: string) => {
     try {
       await fetch(`/api/orders/${orderId}/note`, {
         method: 'PATCH',
@@ -73,10 +72,19 @@ export default function OrderListPage() {
     }
   }
 
-  const handleNoteCancel = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    setEditingNoteId(null)
-    setNoteValue('')
+  const handleNoteKeyDown = (orderId: string, e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      handleNoteSave(orderId)
+    } else if (e.key === 'Escape') {
+      setEditingNoteId(null)
+      setNoteValue('')
+    }
+  }
+
+  const handleNoteBlur = (orderId: string) => {
+    // Auto-save when losing focus
+    handleNoteSave(orderId)
   }
 
   if (isLoading) {
@@ -151,29 +159,17 @@ export default function OrderListPage() {
                   </td>
                   <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                     {editingNoteId === order.id ? (
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="text"
-                          value={noteValue}
-                          onChange={(e) => setNoteValue(e.target.value)}
-                          className="px-2 py-1 border rounded text-sm w-full"
-                          placeholder="输入备注"
-                          autoFocus
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                        <button
-                          onClick={(e) => handleNoteSave(order.id, e)}
-                          className="text-green-600 hover:text-green-700 text-sm"
-                        >
-                          ✓
-                        </button>
-                        <button
-                          onClick={handleNoteCancel}
-                          className="text-red-600 hover:text-red-700 text-sm"
-                        >
-                          ✕
-                        </button>
-                      </div>
+                      <input
+                        type="text"
+                        value={noteValue}
+                        onChange={(e) => setNoteValue(e.target.value)}
+                        onKeyDown={(e) => handleNoteKeyDown(order.id, e)}
+                        onBlur={() => handleNoteBlur(order.id)}
+                        className="px-2 py-1 border rounded text-sm w-full"
+                        placeholder="输入备注后按回车"
+                        autoFocus
+                        onClick={(e) => e.stopPropagation()}
+                      />
                     ) : (
                       <div
                         onClick={(e) => handleNoteClick(order, e)}
