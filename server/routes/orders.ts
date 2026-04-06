@@ -50,6 +50,7 @@ router.get('/', async (req, res, next) => {
           smallGiftTotal: o.smallGiftTotal,
           giftRatio: o.giftRatio,
           note: o.note || '',
+          deliveryStatus: o.deliveryStatus || '未到货',
         }
       })
     )
@@ -685,6 +686,28 @@ router.patch('/:id/note', async (req, res, next) => {
     const { note } = req.body
 
     const updated = await updateOrder(id, { note: note || '' })
+
+    if (!updated) {
+      return res.status(404).json({ message: '订单不存在' })
+    }
+
+    res.json(updated)
+  } catch (err) {
+    next(err)
+  }
+})
+
+// PATCH /api/orders/:id/delivery-status - Update order delivery status
+router.patch('/:id/delivery-status', async (req, res, next) => {
+  try {
+    const { id } = req.params
+    const { deliveryStatus } = req.body
+
+    if (deliveryStatus && deliveryStatus !== '未到货' && deliveryStatus !== '已到货') {
+      return res.status(400).json({ message: '无效的到货状态' })
+    }
+
+    const updated = await updateOrder(id, { deliveryStatus: deliveryStatus || '未到货' })
 
     if (!updated) {
       return res.status(404).json({ message: '订单不存在' })

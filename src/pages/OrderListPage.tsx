@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { orderApi } from '@/api/client'
-import type { OrderSummary } from '@/types'
+import type { OrderSummary, DeliveryStatus } from '@/types'
 
 type SortField = 'totalAmount' | 'giftTotal' | 'giftRatio'
 type SortOrder = 'asc' | 'desc'
@@ -87,6 +87,23 @@ export default function OrderListPage() {
     handleNoteSave(orderId)
   }
 
+  const handleDeliveryStatusChange = async (orderId: string, status: DeliveryStatus) => {
+    try {
+      await fetch(`/api/orders/${orderId}/delivery-status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deliveryStatus: status })
+      })
+
+      // Update local state
+      setOrders(orders.map(o =>
+        o.id === orderId ? { ...o, deliveryStatus: status } : o
+      ))
+    } catch (err) {
+      alert('更新失败')
+    }
+  }
+
   if (isLoading) {
     return <div className="text-center py-12 text-gray-500">加载中...</div>
   }
@@ -136,6 +153,9 @@ export default function OrderListPage() {
                   小礼物占比 {getSortIcon('giftRatio')}
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">
+                  到货情况
+                </th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">
                   备注
                 </th>
               </tr>
@@ -156,6 +176,17 @@ export default function OrderListPage() {
                   <td className="px-4 py-3">¥{order.smallGiftTotal.toFixed(2)}</td>
                   <td className="px-4 py-3">
                     {order.totalAmount > 0 ? `${order.giftRatio.toFixed(1)}%` : '-'}
+                  </td>
+                  <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                    <select
+                      value={order.deliveryStatus || '未到货'}
+                      onChange={(e) => handleDeliveryStatusChange(order.id, e.target.value as DeliveryStatus)}
+                      className="px-2 py-1 border rounded text-sm"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <option value="未到货">未到货</option>
+                      <option value="已到货">已到货</option>
+                    </select>
                   </td>
                   <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                     {editingNoteId === order.id ? (

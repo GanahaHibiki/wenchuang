@@ -107,6 +107,8 @@ export interface OrderItem {
   shopId?: string // For group orders, track which shop this item belongs to
 }
 
+export type DeliveryStatus = '未到货' | '已到货'
+
 export interface Order {
   id: string
   sequenceNumber: number
@@ -119,6 +121,7 @@ export interface Order {
   smallGiftTotal: number
   giftRatio: number
   note?: string // User note for this order
+  deliveryStatus?: DeliveryStatus // Delivery status, defaults to '未到货'
   createdAt: string
 }
 
@@ -186,6 +189,7 @@ export interface OrderSummary {
   smallGiftTotal: number
   giftRatio: number
   note?: string
+  deliveryStatus?: DeliveryStatus
 }
 
 // ==================== Database Schema ====================
