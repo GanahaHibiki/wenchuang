@@ -181,7 +181,11 @@ export default function OrderListPage() {
                     <select
                       value={order.deliveryStatus || '未到货'}
                       onChange={(e) => handleDeliveryStatusChange(order.id, e.target.value as DeliveryStatus)}
-                      className="px-2 py-1 border rounded text-sm"
+                      className={`px-2 py-1 border rounded text-sm font-medium ${
+                        (order.deliveryStatus || '未到货') === '已到货'
+                          ? 'text-green-600'
+                          : 'text-red-600'
+                      }`}
                       onClick={(e) => e.stopPropagation()}
                     >
                       <option value="未到货">未到货</option>
