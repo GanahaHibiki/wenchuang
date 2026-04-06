@@ -75,12 +75,44 @@ export default function StepGifts({
       const userConfirmed = window.confirm(
         `商品名"${trimmedName}"与之前录入的同店铺商品重名。\n\n` +
         `是否为相同商品？\n\n` +
-        `- 点击"确定"：这是相同商品\n` +
+        `- 点击"确定"：这是相同商品，将自动填充图片\n` +
         `- 点击"取消"：这是不同商品，将自动添加序号区分`
       )
 
-      if (!userConfirmed) {
-        // Count all occurrences including current to get next sequence number
+      if (userConfirmed) {
+        // User confirmed it's the same product, find and auto-fill image
+        // First check shop products
+        const matchingShopProduct = shopProducts.find(
+          p => p.name.trim().toLowerCase() === trimmedName.toLowerCase()
+        )
+        if (matchingShopProduct) {
+          updateCurrentItem({
+            imagePreview: `/images/original/${matchingShopProduct.imagePath}`
+          })
+        } else {
+          // Check previous items
+          const matchingPreviousItem = previousItems.find(
+            item => item.productName.trim().toLowerCase() === trimmedName.toLowerCase()
+          )
+          if (matchingPreviousItem && matchingPreviousItem.imagePreview) {
+            updateCurrentItem({
+              imagePreview: matchingPreviousItem.imagePreview
+            })
+          } else {
+            // Check other items in current step
+            const matchingCurrentItem = items.find(
+              (item, idx) => idx !== currentIndex &&
+              item.productName.trim().toLowerCase() === trimmedName.toLowerCase()
+            )
+            if (matchingCurrentItem && matchingCurrentItem.imagePreview) {
+              updateCurrentItem({
+                imagePreview: matchingCurrentItem.imagePreview
+              })
+            }
+          }
+        }
+      } else {
+        // User says it's different product, add sequence number
         const newName = `${trimmedName} (${duplicateCount + 1})`
         updateCurrentItem({ productName: newName })
         setLastCheckedName(newName)
