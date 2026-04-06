@@ -26,7 +26,8 @@
       "Read(//private/tmp/**)",
       "Bash(kill 66540:*)",
       "Bash(npx eslint:*)",
-      "Bash(npx vite-node --eval ':*)"
+      "Bash(npx vite-node --eval ':*)",
+      "Bash(jq '.orders[] | select\\(.sequenceNumber == 19\\) | .id' -r)"
     ]
   }
 }

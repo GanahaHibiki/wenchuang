@@ -341,6 +341,40 @@ export async function deleteOrder(id: string): Promise<boolean> {
     order.sequenceNumber = idx + 1
   })
 
+  // Clean up orphaned shops and products
+  // Find all shop IDs and product IDs still referenced by remaining orders
+  const usedShopIds = new Set<string>()
+  const usedProductIds = new Set<string>()
+
+  for (const order of db.orders) {
+    // Add main shop ID
+    if (order.shopId) {
+      usedShopIds.add(order.shopId)
+    }
+    // Add group order shop IDs
+    if (order.shopIds) {
+      order.shopIds.forEach(shopId => {
+        if (shopId) usedShopIds.add(shopId)
+      })
+    }
+    // Add product IDs from items
+    order.items.forEach(item => {
+      if (item.productId) {
+        usedProductIds.add(item.productId)
+      }
+    })
+  }
+
+  // Remove orphaned shops (except the special "拼单" shop)
+  db.shops = db.shops.filter(shop =>
+    shop.name === '拼单' || usedShopIds.has(shop.id)
+  )
+
+  // Remove orphaned products
+  db.products = db.products.filter(product =>
+    usedProductIds.has(product.id)
+  )
+
   await saveDatabase(db)
 
   return true
