@@ -253,16 +253,28 @@ export default function OrderDetailPage() {
     return acc
   }, {} as Record<string, typeof order.gifts>)
 
-  // Render gift item with type label if it's the first of its type
-  const renderGiftWithLabel = (item: OrderItem & { product: Product }, isFirstOfType: boolean, giftType: string) => {
-    return (
-      <div key={item.id} className="flex flex-col">
-        {isFirstOfType && (
-          <div className="text-md font-medium text-gray-700 mb-2">[{giftType}]</div>
-        )}
-        {renderItem(item, false)}
-      </div>
-    )
+  // Render gift items with type labels spanning full width
+  const renderGiftsWithLabels = () => {
+    const elements: JSX.Element[] = []
+
+    Object.entries(giftsByType).forEach(([type, gifts]) => {
+      // Add type label as a full-width element
+      elements.push(
+        <div key={`label-${type}`} className="col-span-full text-md font-medium text-gray-700 mb-2">
+          [{type}]
+        </div>
+      )
+      // Add all gifts of this type
+      gifts.forEach((item) => {
+        elements.push(
+          <div key={item.id}>
+            {renderItem(item, false)}
+          </div>
+        )
+      })
+    })
+
+    return elements
   }
 
   return (
@@ -402,9 +414,7 @@ export default function OrderDetailPage() {
           <p className="text-gray-500">暂无礼品</p>
         ) : (
           <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,230px))] gap-4 justify-center">
-            {Object.entries(giftsByType).flatMap(([type, gifts]) =>
-              gifts.map((item, index) => renderGiftWithLabel(item, index === 0, type))
-            )}
+            {renderGiftsWithLabels()}
           </div>
         )}
       </section>
