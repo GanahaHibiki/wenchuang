@@ -58,17 +58,22 @@ export default function StepGifts({
 
     setLastCheckedName(trimmedName)
 
-    // Check for duplicates in all previous items and current items (excluding current item)
-    const allExistingNames = [
-      ...previousItems.map(item => item.productName.trim().toLowerCase()),
-      ...items.filter((_, idx) => idx !== currentIndex).map(item => item.productName.trim().toLowerCase())
-    ]
+    // Check for duplicates in:
+    // 1. Shop products from other orders (same shop)
+    // 2. Previous steps (purchased items)
+    // 3. Current step other items (excluding current item)
+    const shopProductNames = shopProducts.map(p => p.name.trim().toLowerCase())
+    const previousStepNames = previousItems.map(item => item.productName.trim().toLowerCase())
+    const currentStepNames = items
+      .filter((_, idx) => idx !== currentIndex)
+      .map(item => item.productName.trim().toLowerCase())
 
+    const allExistingNames = [...shopProductNames, ...previousStepNames, ...currentStepNames]
     const duplicateCount = allExistingNames.filter(name => name === trimmedName.toLowerCase()).length
 
     if (duplicateCount > 0) {
       const userConfirmed = window.confirm(
-        `商品名"${trimmedName}"与之前录入的商品重名。\n\n` +
+        `商品名"${trimmedName}"与之前录入的同店铺商品重名。\n\n` +
         `是否为相同商品？\n\n` +
         `- 点击"确定"：这是相同商品\n` +
         `- 点击"取消"：这是不同商品，将自动添加序号区分`
@@ -76,8 +81,7 @@ export default function StepGifts({
 
       if (!userConfirmed) {
         // Count all occurrences including current to get next sequence number
-        const totalCount = allExistingNames.filter(name => name === trimmedName.toLowerCase()).length + 1
-        const newName = `${trimmedName} (${totalCount})`
+        const newName = `${trimmedName} (${duplicateCount + 1})`
         updateCurrentItem({ productName: newName })
         setLastCheckedName(newName)
       }

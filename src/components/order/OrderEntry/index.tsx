@@ -144,6 +144,7 @@ export default function OrderEntry() {
             onChange={setPurchasedItems}
             onNext={() => setCurrentStep('gifts')}
             onBack={() => setCurrentStep('shop')}
+            shopName={shopName}
           />
         )}
 

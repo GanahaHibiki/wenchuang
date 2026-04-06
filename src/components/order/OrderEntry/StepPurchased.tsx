@@ -1,5 +1,6 @@
-import { useState } from 'react'
-import type { Specification } from '@/types'
+import { useState, useEffect } from 'react'
+import type { Specification, Product } from '@/types'
+import { productApi } from '@/api/client'
 import ImageUploader from '@/components/common/ImageUploader'
 import SpecificationForm from './SpecificationForm'
 
@@ -15,6 +16,7 @@ interface StepPurchasedProps {
   onChange: (items: PurchasedItemData[]) => void
   onNext: () => void
   onBack: () => void
+  shopName: string
 }
 
 export default function StepPurchased({
@@ -22,9 +24,31 @@ export default function StepPurchased({
   onChange,
   onNext,
   onBack,
+  shopName,
 }: StepPurchasedProps) {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [lastCheckedName, setLastCheckedName] = useState('')
+  const [shopProducts, setShopProducts] = useState<Product[]>([])
+  const [isLoadingShopProducts, setIsLoadingShopProducts] = useState(false)
+
+  // Load shop products for duplicate checking
+  useEffect(() => {
+    const loadShopProducts = async () => {
+      if (!shopName) return
+
+      setIsLoadingShopProducts(true)
+      try {
+        const products = await productApi.search('shopName', shopName)
+        setShopProducts(products)
+      } catch (error) {
+        console.error('Failed to load shop products:', error)
+      } finally {
+        setIsLoadingShopProducts(false)
+      }
+    }
+
+    loadShopProducts()
+  }, [shopName])
 
   const currentItem = items[currentIndex] || {
     productName: '',
@@ -50,15 +74,20 @@ export default function StepPurchased({
 
     setLastCheckedName(trimmedName)
 
-    // Check for duplicates in other items (excluding current item)
-    const otherItems = items.filter((_, idx) => idx !== currentIndex)
-    const duplicateCount = otherItems.filter(
-      item => item.productName.trim().toLowerCase() === trimmedName.toLowerCase()
-    ).length
+    // Check for duplicates in:
+    // 1. Shop products from other orders (same shop)
+    // 2. Other items in current step (excluding current item)
+    const shopProductNames = shopProducts.map(p => p.name.trim().toLowerCase())
+    const currentStepNames = items
+      .filter((_, idx) => idx !== currentIndex)
+      .map(item => item.productName.trim().toLowerCase())
+
+    const allExistingNames = [...shopProductNames, ...currentStepNames]
+    const duplicateCount = allExistingNames.filter(name => name === trimmedName.toLowerCase()).length
 
     if (duplicateCount > 0) {
       const userConfirmed = window.confirm(
-        `商品名"${trimmedName}"与之前录入的商品重名。\n\n` +
+        `商品名"${trimmedName}"与之前录入的同店铺商品重名。\n\n` +
         `是否为相同商品？\n\n` +
         `- 点击"确定"：这是相同商品\n` +
         `- 点击"取消"：这是不同商品，将自动添加序号区分`
