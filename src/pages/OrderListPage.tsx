@@ -112,15 +112,16 @@ export default function OrderListPage() {
     return <div className="text-center py-12 text-red-500">{error}</div>
   }
 
-  return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold">订单详情</h1>
+  // Separate shop orders and group orders
+  const shopOrders = orders.filter(order => order.orderType !== 'group')
+  const groupOrders = orders.filter(order => order.orderType === 'group')
 
-      {orders.length === 0 ? (
-        <div className="text-center py-12 text-gray-500">
-          暂无订单，请先<Link to="/order-entry" className="text-blue-500 hover:underline">录入订单</Link>
-        </div>
-      ) : (
+  const renderOrderTable = (orderList: OrderSummary[], title: string) => {
+    if (orderList.length === 0) return null
+
+    return (
+      <div className="space-y-4">
+        <h2 className="text-xl font-bold">{title}</h2>
         <div className="bg-white rounded-lg shadow overflow-hidden">
           <table className="w-full">
             <thead className="bg-gray-50">
@@ -161,7 +162,7 @@ export default function OrderListPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {orders.map((order) => (
+              {orderList.map((order) => (
                 <tr
                   key={order.id}
                   className="hover:bg-gray-50 cursor-pointer"
@@ -218,6 +219,23 @@ export default function OrderListPage() {
               ))}
             </tbody>
           </table>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      <h1 className="text-2xl font-bold">订单详情</h1>
+
+      {orders.length === 0 ? (
+        <div className="text-center py-12 text-gray-500">
+          暂无订单，请先<Link to="/order-entry" className="text-blue-500 hover:underline">录入订单</Link>
+        </div>
+      ) : (
+        <div className="space-y-8">
+          {renderOrderTable(shopOrders, '店铺订单')}
+          {renderOrderTable(groupOrders, '拼单订单')}
         </div>
       )}
     </div>
