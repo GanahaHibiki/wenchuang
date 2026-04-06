@@ -118,6 +118,7 @@ export interface Order {
   giftTotal: number
   smallGiftTotal: number
   giftRatio: number
+  note?: string // User note for this order
   createdAt: string
 }
 
@@ -184,6 +185,7 @@ export interface OrderSummary {
   giftTotal: number
   smallGiftTotal: number
   giftRatio: number
+  note?: string
 }
 
 // ==================== Database Schema ====================

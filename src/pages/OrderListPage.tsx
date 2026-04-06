@@ -13,6 +13,8 @@ export default function OrderListPage() {
   const [error, setError] = useState<string | null>(null)
   const [sortField, setSortField] = useState<SortField | null>(null)
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc')
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
+  const [noteValue, setNoteValue] = useState('')
 
   useEffect(() => {
     loadOrders()
@@ -44,6 +46,37 @@ export default function OrderListPage() {
   const getSortIcon = (field: SortField) => {
     if (sortField !== field) return '↕️'
     return sortOrder === 'asc' ? '⬆️' : '⬇️'
+  }
+
+  const handleNoteClick = (order: OrderSummary, e: React.MouseEvent) => {
+    e.stopPropagation()
+    setEditingNoteId(order.id)
+    setNoteValue(order.note || '')
+  }
+
+  const handleNoteSave = async (orderId: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    try {
+      await fetch(`/api/orders/${orderId}/note`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ note: noteValue })
+      })
+
+      // Update local state
+      setOrders(orders.map(o =>
+        o.id === orderId ? { ...o, note: noteValue } : o
+      ))
+      setEditingNoteId(null)
+    } catch (err) {
+      alert('保存失败')
+    }
+  }
+
+  const handleNoteCancel = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    setEditingNoteId(null)
+    setNoteValue('')
   }
 
   if (isLoading) {
@@ -95,7 +128,7 @@ export default function OrderListPage() {
                   小礼物占比 {getSortIcon('giftRatio')}
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">
-                  操作
+                  备注
                 </th>
               </tr>
             </thead>
@@ -116,10 +149,39 @@ export default function OrderListPage() {
                   <td className="px-4 py-3">
                     {order.totalAmount > 0 ? `${order.giftRatio.toFixed(1)}%` : '-'}
                   </td>
-                  <td className="px-4 py-3">
-                    <span className="text-blue-500 text-sm">
-                      查看详情
-                    </span>
+                  <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                    {editingNoteId === order.id ? (
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={noteValue}
+                          onChange={(e) => setNoteValue(e.target.value)}
+                          className="px-2 py-1 border rounded text-sm w-full"
+                          placeholder="输入备注"
+                          autoFocus
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                        <button
+                          onClick={(e) => handleNoteSave(order.id, e)}
+                          className="text-green-600 hover:text-green-700 text-sm"
+                        >
+                          ✓
+                        </button>
+                        <button
+                          onClick={handleNoteCancel}
+                          className="text-red-600 hover:text-red-700 text-sm"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ) : (
+                      <div
+                        onClick={(e) => handleNoteClick(order, e)}
+                        className="text-blue-500 text-sm hover:underline cursor-pointer"
+                      >
+                        {order.note || '点击添加备注'}
+                      </div>
+                    )}
                   </td>
                 </tr>
               ))}

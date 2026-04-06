@@ -48,6 +48,7 @@ router.get('/', async (req, res, next) => {
           giftTotal: o.giftTotal,
           smallGiftTotal: o.smallGiftTotal,
           giftRatio: o.giftRatio,
+          note: o.note || '',
         }
       })
     )
@@ -642,6 +643,24 @@ router.delete('/:id', async (req, res, next) => {
     }
 
     res.json({ success: true, message: '订单已删除' })
+  } catch (err) {
+    next(err)
+  }
+})
+
+// PATCH /api/orders/:id/note - Update order note
+router.patch('/:id/note', async (req, res, next) => {
+  try {
+    const { id } = req.params
+    const { note } = req.body
+
+    const updated = await updateOrder(id, { note: note || '' })
+
+    if (!updated) {
+      return res.status(404).json({ message: '订单不存在' })
+    }
+
+    res.json(updated)
   } catch (err) {
     next(err)
   }
