@@ -455,24 +455,24 @@ export default function OrderDetailPage() {
         </div>
 
         {order.orderType === 'group' && order.shops ? (
-          // Group order: display by shop
-          <div className="space-y-6">
+          // Group order: display all items in one row with shop labels above first item of each shop
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,230px))] gap-4 justify-center">
             {order.shops.map((shop) => {
               const shopItems = order.purchasedItems.filter(
                 (item) => item.shopId === shop.id
               )
               if (shopItems.length === 0) return null
 
-              return (
-                <div key={shop.id}>
-                  <h3 className="text-md font-medium text-gray-700 mb-3">
-                    店铺：{shop.name}
-                  </h3>
-                  <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,230px))] gap-4 justify-center">
-                    {shopItems.map((item) => renderItem(item, true))}
-                  </div>
+              return shopItems.map((item, index) => (
+                <div key={item.id} className="flex flex-col">
+                  {index === 0 && (
+                    <div className="text-sm font-medium text-gray-700 mb-2 px-1">
+                      店铺：{shop.name}
+                    </div>
+                  )}
+                  {renderItem(item, true)}
                 </div>
-              )
+              ))
             })}
           </div>
         ) : (
