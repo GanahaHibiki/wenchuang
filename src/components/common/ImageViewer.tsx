@@ -13,6 +13,14 @@ export default function ImageViewer({ src, alt = '图片', onClose }: ImageViewe
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
   const imageRef = useRef<HTMLImageElement>(null)
 
+  // Prevent body scroll when viewer is open
+  useEffect(() => {
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [])
+
   // Handle escape key
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

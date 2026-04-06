@@ -10,7 +10,7 @@ const menuItems = [
 
 export default function Sidebar() {
   return (
-    <aside className="w-48 bg-gray-800 text-white min-h-screen">
+    <aside className="w-48 bg-gray-800 text-white min-h-screen fixed left-0 top-0 bottom-0 overflow-y-auto">
       <div className="p-4 border-b border-gray-700">
         <h1 className="text-lg font-bold">文创订单管理</h1>
       </div>

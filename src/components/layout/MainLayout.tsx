@@ -9,7 +9,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
   return (
     <div className="flex min-h-screen bg-gray-100">
       <Sidebar />
-      <main className="flex-1 p-6 overflow-auto">
+      <main className="flex-1 p-6 overflow-auto ml-48">
         {children}
       </main>
     </div>
