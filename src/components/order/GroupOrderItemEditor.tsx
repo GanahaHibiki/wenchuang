@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import type { OrderItem, Product, Specification } from '@/types'
-import { SPEC_TYPES } from '@/utils/specificationSort'
+import { SPECIFICATION_TYPES } from '@/types'
 
 interface ShopItemsGroup {
   shopId: string
@@ -277,7 +277,7 @@ export default function GroupOrderItemEditor({ shopGroups, onSave, onCancel, exi
                                     })}
                                     className="px-2 py-1 border rounded"
                                   >
-                                    {SPEC_TYPES.map(type => (
+                                    {SPECIFICATION_TYPES.map(type => (
                                       <option key={type} value={type}>{type}</option>
                                     ))}
                                   </select>

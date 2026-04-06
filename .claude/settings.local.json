@@ -23,7 +23,10 @@
       "Bash(grep:*)",
       "Read(//tmp/**)",
       "Bash(pkill -f \"npm run dev\")",
-      "Read(//private/tmp/**)"
+      "Read(//private/tmp/**)",
+      "Bash(kill 66540:*)",
+      "Bash(npx eslint:*)",
+      "Bash(npx vite-node --eval ':*)"
     ]
   }
 }
