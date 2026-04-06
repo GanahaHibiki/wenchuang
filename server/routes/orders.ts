@@ -288,7 +288,7 @@ router.post('/group', upload.any(), async (req, res, next) => {
       }
 
       // Find or create shop
-      const shop = await findOrCreateShop(shopName.trim())
+      const shop = await findOrCreateShop(shopName.trim(), uuidv4())
       shopIds.push(shop.id)
 
       // Process items for this shop
@@ -334,7 +334,7 @@ router.post('/group', upload.any(), async (req, res, next) => {
     }
 
     // For group orders, create a special "GROUP" shop
-    const groupShop = await findOrCreateShop('拼单')
+    const groupShop = await findOrCreateShop('拼单', uuidv4())
 
     const order = await createOrder({
       id: uuidv4(),
@@ -449,7 +449,7 @@ router.put('/:id', upload.any(), async (req, res, next) => {
       const existingShop = await getShopById(existingOrder.shopId)
       if (!existingShop || existingShop.name !== newShopName.trim()) {
         // Shop name changed, find or create new shop
-        const shop = await findOrCreateShop(newShopName.trim())
+        const shop = await findOrCreateShop(newShopName.trim(), uuidv4())
         shopId = shop.id
       }
     }
