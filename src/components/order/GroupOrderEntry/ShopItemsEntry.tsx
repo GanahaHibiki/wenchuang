@@ -24,6 +24,8 @@ export default function ShopItemsEntry({
   const [shops, setShops] = useState<Shop[]>([])
   const [shopProducts, setShopProducts] = useState<Product[]>([])
   const [showShopInput, setShowShopInput] = useState(false)
+  const [lastCheckedShopName, setLastCheckedShopName] = useState('')
+  const [lastCheckedProductName, setLastCheckedProductName] = useState('')
 
   // Reset currentIndex when items change from parent (e.g., switching shops)
   useEffect(() => {
@@ -75,11 +77,101 @@ export default function ShopItemsEntry({
     if (selection === 'new') {
       setShowShopInput(true)
       onShopNameChange('')
+      setLastCheckedShopName('')
     } else if (selection) {
       const shop = shops.find(s => s.id === selection)
       if (shop) {
         onShopNameChange(shop.name)
         setShowShopInput(false)
+        setLastCheckedShopName('')
+      }
+    }
+  }
+
+  const handleShopNameBlur = () => {
+    const trimmedName = shopName.trim()
+    if (!trimmedName || trimmedName === lastCheckedShopName) return
+
+    setLastCheckedShopName(trimmedName)
+
+    // Check for duplicates in existing shops and other shops in current group order
+    const existingShopNames = shops.map(s => s.name.trim().toLowerCase())
+    const otherShopsInGroup = allShopNames
+      .filter(name => name.trim().toLowerCase() !== trimmedName.toLowerCase())
+      .map(name => name.trim().toLowerCase())
+
+    const allExistingNames = [...existingShopNames, ...otherShopsInGroup]
+    const duplicateCount = allExistingNames.filter(name => name === trimmedName.toLowerCase()).length
+
+    if (duplicateCount > 0) {
+      const userConfirmed = window.confirm(
+        `店铺名"${trimmedName}"与之前录入的店铺重名。\n\n` +
+        `是否为相同店铺？\n\n` +
+        `- 点击"确定"：这是相同店铺\n` +
+        `- 点击"取消"：这是不同店铺，将自动添加序号区分`
+      )
+
+      if (!userConfirmed) {
+        // User says it's different shop, add sequence number
+        const newName = `${trimmedName} (${duplicateCount + 1})`
+        onShopNameChange(newName)
+        setLastCheckedShopName(newName)
+      }
+    }
+  }
+
+  const handleProductNameBlur = () => {
+    const trimmedName = currentItem.productName.trim()
+    if (!trimmedName || trimmedName === lastCheckedProductName) return
+
+    setLastCheckedProductName(trimmedName)
+
+    // Check for duplicates in:
+    // 1. Shop products from other orders (same shop)
+    // 2. Current shop other items (excluding current item)
+    const shopProductNames = shopProducts.map(p => p.name.trim().toLowerCase())
+    const currentShopNames = items
+      .filter((_, idx) => idx !== currentIndex)
+      .map(item => item.productName.trim().toLowerCase())
+
+    const allExistingNames = [...shopProductNames, ...currentShopNames]
+    const duplicateCount = allExistingNames.filter(name => name === trimmedName.toLowerCase()).length
+
+    if (duplicateCount > 0) {
+      const userConfirmed = window.confirm(
+        `商品名"${trimmedName}"与之前录入的同店铺商品重名。\n\n` +
+        `是否为相同商品？\n\n` +
+        `- 点击"确定"：这是相同商品，将自动填充图片\n` +
+        `- 点击"取消"：这是不同商品，将自动添加序号区分`
+      )
+
+      if (userConfirmed) {
+        // User confirmed it's the same product, find and auto-fill image
+        // First check shop products
+        const matchingShopProduct = shopProducts.find(
+          p => p.name.trim().toLowerCase() === trimmedName.toLowerCase()
+        )
+        if (matchingShopProduct) {
+          updateCurrentItem({
+            imagePreview: `/images/original/${matchingShopProduct.imagePath}`
+          })
+        } else {
+          // Check other items in current shop
+          const matchingCurrentItem = items.find(
+            (item, idx) => idx !== currentIndex &&
+            item.productName.trim().toLowerCase() === trimmedName.toLowerCase()
+          )
+          if (matchingCurrentItem && matchingCurrentItem.imagePreview) {
+            updateCurrentItem({
+              imagePreview: matchingCurrentItem.imagePreview
+            })
+          }
+        }
+      } else {
+        // User says it's different product, add sequence number
+        const newName = `${trimmedName} (${duplicateCount + 1})`
+        updateCurrentItem({ productName: newName })
+        setLastCheckedProductName(newName)
       }
     }
   }
@@ -87,6 +179,7 @@ export default function ShopItemsEntry({
   const handleSelectProduct = (selection: string) => {
     if (selection === 'manual') {
       updateCurrentItem({ productName: '', image: null, imagePreview: null })
+      setLastCheckedProductName('')
       return
     }
 
@@ -96,6 +189,7 @@ export default function ShopItemsEntry({
         productName: product.name,
         imagePreview: `/images/original/${product.imagePath}`
       })
+      setLastCheckedProductName('')
     }
   }
 
@@ -125,6 +219,7 @@ export default function ShopItemsEntry({
     }
     onItemsChange([...items, newItem])
     setCurrentIndex(items.length)
+    setLastCheckedProductName('')
   }
 
   const removeItem = (index: number) => {
@@ -168,6 +263,7 @@ export default function ShopItemsEntry({
               type="text"
               value={shopName}
               onChange={(e) => onShopNameChange(e.target.value)}
+              onBlur={handleShopNameBlur}
               placeholder="请输入店铺名称"
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               required
@@ -252,6 +348,7 @@ export default function ShopItemsEntry({
               type="text"
               value={currentItem.productName}
               onChange={(e) => updateCurrentItem({ productName: e.target.value })}
+              onBlur={handleProductNameBlur}
               placeholder="请输入商品名称"
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
