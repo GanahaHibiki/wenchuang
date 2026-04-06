@@ -102,6 +102,23 @@ export default function StepPurchased({
     }
   }
 
+  const handleSelectProduct = async (selection: string) => {
+    if (selection === 'manual') {
+      // Clear selection for manual input
+      updateCurrentItem({ productName: '', image: null, imagePreview: null })
+      return
+    }
+
+    // Check if it's from shop products
+    const product = shopProducts.find(p => p.id === selection)
+    if (product) {
+      updateCurrentItem({
+        productName: product.name,
+        imagePreview: `/images/original/${product.imagePath}`
+      })
+    }
+  }
+
   const handleImageSelect = (file: File) => {
     const preview = URL.createObjectURL(file)
     updateCurrentItem({ image: file, imagePreview: preview })
@@ -141,6 +158,16 @@ export default function StepPurchased({
   const canProceed = items.every(
     (item) =>
       item.productName.trim() && (item.image || item.imagePreview) && item.specifications.length > 0
+  )
+
+  // Filter out products already used in other items
+  const usedProductNames = new Set(
+    items
+      .filter((_, idx) => idx !== currentIndex)
+      .map(item => item.productName.trim().toLowerCase())
+  )
+  const availableShopProducts = shopProducts.filter(
+    product => !usedProductNames.has(product.name.trim().toLowerCase())
   )
 
   return (
@@ -185,6 +212,28 @@ export default function StepPurchased({
         </div>
 
         <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              选择商品
+            </label>
+            <select
+              onChange={(e) => handleSelectProduct(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              defaultValue="manual"
+            >
+              <option value="manual">手动输入商品名和图片</option>
+              {availableShopProducts.length > 0 && (
+                <optgroup label="同店铺商品">
+                  {availableShopProducts.map((product) => (
+                    <option key={product.id} value={product.id}>
+                      {product.name}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+            </select>
+          </div>
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               商品名 <span className="text-red-500">*</span>
