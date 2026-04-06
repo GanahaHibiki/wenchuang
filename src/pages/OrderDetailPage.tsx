@@ -253,21 +253,19 @@ export default function OrderDetailPage() {
     return acc
   }, {} as Record<string, typeof order.gifts>)
 
-  // Render gift items with type labels spanning full width
+  // Render gift items with type labels above first item of each type
   const renderGiftsWithLabels = () => {
     const elements: JSX.Element[] = []
 
     Object.entries(giftsByType).forEach(([type, gifts]) => {
-      // Add type label as a full-width element
-      elements.push(
-        <div key={`label-${type}`} className="col-span-full text-md font-medium text-gray-700 mb-2">
-          [{type}]
-        </div>
-      )
-      // Add all gifts of this type
-      gifts.forEach((item) => {
+      gifts.forEach((item, index) => {
         elements.push(
-          <div key={item.id}>
+          <div key={item.id} className="relative">
+            {index === 0 && (
+              <div className="absolute -top-8 left-0 text-md font-medium text-gray-700">
+                [{type}]
+              </div>
+            )}
             {renderItem(item, false)}
           </div>
         )
@@ -413,7 +411,7 @@ export default function OrderDetailPage() {
         {order.gifts.length === 0 ? (
           <p className="text-gray-500">暂无礼品</p>
         ) : (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,230px))] gap-4 justify-center">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,230px))] gap-4 justify-center pt-8">
             {renderGiftsWithLabels()}
           </div>
         )}
