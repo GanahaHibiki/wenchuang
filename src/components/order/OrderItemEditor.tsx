@@ -258,32 +258,60 @@ export default function OrderItemEditor({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
+      <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
           <h2 className="text-xl font-bold">
             编辑{category === 'purchased' ? '已购商品' : category === 'gift' ? '礼品' : '小礼物'}
           </h2>
-          <button
-            onClick={onCancel}
-            className="text-gray-500 hover:text-gray-700"
-          >
-            ✕
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={onCancel}
+              className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
+            >
+              取消
+            </button>
+            <button
+              onClick={() => onSave(editedItems, newImages)}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            >
+              保存
+            </button>
+          </div>
         </div>
 
         <div className="p-6 space-y-6">
           {editedItems.map((item, itemIndex) => (
-            <div key={item.id} className="border rounded-lg p-4 space-y-4">
-              <div className="flex justify-between items-start gap-4">
-                <div className="flex-1 space-y-3">
+            <div key={item.id} className="border rounded-lg p-4 space-y-3">
+              <div className="flex items-start gap-4">
+                {/* Image */}
+                <div className="flex-shrink-0">
+                  <div className="w-32 h-24 bg-gray-200 rounded overflow-hidden">
+                    {(imagePreviews.get(item.id) || item.product.imagePath) && (
+                      <img
+                        src={
+                          imagePreviews.get(item.id) ||
+                          `/images/thumbnails/${item.product.thumbnailPath}`
+                        }
+                        alt={item.product.name}
+                        className="w-full h-full object-cover"
+                      />
+                    )}
+                  </div>
+                  <ImageUploader
+                    onImageSelect={(file) => updateItemImage(itemIndex, file)}
+                    preview={null}
+                    enableClipboard={true}
+                  />
+                </div>
+
+                {/* Product Info */}
+                <div className="flex-1 space-y-2">
                   {/* Product Selection */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      选择商品
-                    </label>
+                    <label className="block text-sm font-medium mb-1">选择商品</label>
                     <select
                       onChange={(e) => handleSelectProduct(itemIndex, e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border rounded-md"
                       defaultValue="manual"
                     >
                       <option value="manual">手动输入商品名和图片</option>
@@ -311,26 +339,9 @@ export default function OrderItemEditor({
                     </select>
                   </div>
 
-                  {/* Product Image */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      商品图片
-                    </label>
-                    <ImageUploader
-                      onImageSelect={(file) => updateItemImage(itemIndex, file)}
-                      preview={
-                        imagePreviews.get(item.id) ||
-                        (item.product.imagePath ? `/images/original/${item.product.imagePath}` : null)
-                      }
-                      enableClipboard={true}
-                    />
-                  </div>
-
                   {/* Product Name */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      商品名称
-                    </label>
+                    <label className="block text-sm font-medium mb-1">商品名称</label>
                     <input
                       type="text"
                       value={item.product.name}
@@ -343,9 +354,7 @@ export default function OrderItemEditor({
                   {/* Gift Type (only for gifts) */}
                   {category === 'gift' && (
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        礼品类型
-                      </label>
+                      <label className="block text-sm font-medium mb-1">礼品类型</label>
                       <select
                         value={item.giftType || '满赠礼'}
                         onChange={(e) => updateItemGiftType(itemIndex, e.target.value as GiftType)}
@@ -371,10 +380,8 @@ export default function OrderItemEditor({
 
                   {/* Specifications */}
                   <div>
-                    <div className="flex justify-between items-center mb-2">
-                      <label className="text-sm font-medium text-gray-700">
-                        规格
-                      </label>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-sm font-medium">规格明细</label>
                       <button
                         onClick={() => addSpecification(itemIndex)}
                         className="text-sm text-blue-600 hover:text-blue-700"
@@ -387,88 +394,83 @@ export default function OrderItemEditor({
                         const isMultiEntry = MULTI_ENTRY_TYPES.includes(spec.type as any)
 
                         return (
-                          <div key={specIndex} className="flex gap-2 items-start bg-gray-50 p-3 rounded">
-                            <div className="flex-1 grid grid-cols-2 gap-2">
-                              {/* Type selector */}
-                              <div className="col-span-2">
-                                <label className="text-xs text-gray-600">类型</label>
-                                <select
-                                  value={spec.type}
-                                  onChange={(e) => updateSpecification(itemIndex, specIndex, 'type', e.target.value)}
-                                  className="w-full px-2 py-1 border rounded text-sm"
-                                >
-                                  {SPECIFICATION_TYPES.map((t) => (
-                                    <option key={t} value={t}>{t}</option>
-                                  ))}
-                                </select>
-                              </div>
+                          <div key={specIndex} className="flex items-center gap-2 text-sm">
+                            <select
+                              value={spec.type}
+                              onChange={(e) => updateSpecification(itemIndex, specIndex, 'type', e.target.value)}
+                              className="px-2 py-1 border rounded"
+                            >
+                              {SPECIFICATION_TYPES.map((t) => (
+                                <option key={t} value={t}>{t}</option>
+                              ))}
+                            </select>
 
-                              {isMultiEntry && (
-                                <div>
-                                  <label className="text-xs text-gray-600">序号</label>
-                                  <input
-                                    type="number"
-                                    min="1"
-                                    value={spec.sequenceNumber}
-                                    onChange={(e) => updateSpecification(itemIndex, specIndex, 'sequenceNumber', parseInt(e.target.value) || 1)}
-                                    className="w-full px-2 py-1 border rounded text-sm"
-                                  />
-                                </div>
-                              )}
-
-                              {(spec.type === '其他衍生' || spec.type === '其他贴纸') && (
-                                <div className={isMultiEntry ? '' : 'col-span-2'}>
-                                  <label className="text-xs text-gray-600">自定义名称</label>
-                                  <input
-                                    type="text"
-                                    value={spec.customType || ''}
-                                    onChange={(e) => updateSpecification(itemIndex, specIndex, 'customType', e.target.value)}
-                                    placeholder="输入类别名称"
-                                    className="w-full px-2 py-1 border rounded text-sm"
-                                  />
-                                </div>
-                              )}
-
-                              <div>
-                                <label className="text-xs text-gray-600">数量</label>
+                            {isMultiEntry && (
+                              <>
+                                <span className="text-xs text-gray-500">序号</span>
                                 <input
                                   type="number"
-                                  value={spec.quantity}
-                                  onChange={(e) => updateSpecification(itemIndex, specIndex, 'quantity', parseInt(e.target.value) || 0)}
-                                  className="w-full px-2 py-1 border rounded text-sm"
+                                  min="1"
+                                  value={spec.sequenceNumber}
+                                  onChange={(e) => updateSpecification(itemIndex, specIndex, 'sequenceNumber', parseInt(e.target.value) || 1)}
+                                  className="w-12 px-2 py-1 border rounded"
                                 />
-                              </div>
+                              </>
+                            )}
 
-                              {category === 'purchased' && (
-                                <div>
-                                  <label className="text-xs text-gray-600">购入价</label>
-                                  <input
-                                    type="number"
-                                    step="0.01"
-                                    value={spec.purchasePrice || 0}
-                                    onChange={(e) => updateSpecification(itemIndex, specIndex, 'purchasePrice', parseFloat(e.target.value) || 0)}
-                                    className="w-full px-2 py-1 border rounded text-sm"
-                                  />
-                                </div>
-                              )}
+                            {(spec.type === '其他衍生' || spec.type === '其他贴纸') && (
+                              <input
+                                type="text"
+                                value={spec.customType || ''}
+                                onChange={(e) => updateSpecification(itemIndex, specIndex, 'customType', e.target.value)}
+                                placeholder="自定义类型"
+                                className="px-2 py-1 border rounded w-24"
+                              />
+                            )}
 
-                              <div>
-                                <label className="text-xs text-gray-600">原价</label>
+                            <input
+                              type="number"
+                              value={spec.quantity}
+                              onChange={(e) => updateSpecification(itemIndex, specIndex, 'quantity', parseInt(e.target.value) || 0)}
+                              className="w-16 px-2 py-1 border rounded"
+                              placeholder="数量"
+                            />
+                            <span>个 ×</span>
+
+                            {category === 'purchased' && (
+                              <>
                                 <input
                                   type="number"
                                   step="0.01"
-                                  value={spec.originalPrice}
-                                  onChange={(e) => updateSpecification(itemIndex, specIndex, 'originalPrice', parseFloat(e.target.value) || 0)}
-                                  className="w-full px-2 py-1 border rounded text-sm"
+                                  value={spec.purchasePrice || 0}
+                                  onChange={(e) => updateSpecification(itemIndex, specIndex, 'purchasePrice', parseFloat(e.target.value) || 0)}
+                                  className="w-20 px-2 py-1 border rounded"
+                                  placeholder="购买单价"
                                 />
-                              </div>
-                            </div>
+                                <span>/</span>
+                              </>
+                            )}
+
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={spec.originalPrice}
+                              onChange={(e) => updateSpecification(itemIndex, specIndex, 'originalPrice', parseFloat(e.target.value) || 0)}
+                              className="w-20 px-2 py-1 border rounded"
+                              placeholder="原价"
+                            />
+
+                            {category === 'purchased' && (
+                              <span>
+                                = ¥{((spec.quantity * (spec.purchasePrice || 0)).toFixed(2))}
+                              </span>
+                            )}
 
                             <button
                               onClick={() => removeSpecification(itemIndex, specIndex)}
-                              className="text-red-600 hover:text-red-700 mt-5"
+                              className="text-red-600 hover:text-red-700 ml-2"
                             >
-                              ✕
+                              删除
                             </button>
                           </div>
                         )
@@ -480,7 +482,7 @@ export default function OrderItemEditor({
                 {/* Remove Item Button */}
                 <button
                   onClick={() => removeItem(itemIndex)}
-                  className="ml-4 text-red-600 hover:text-red-700 font-medium text-sm"
+                  className="text-red-600 hover:text-red-700 text-sm"
                 >
                   删除商品
                 </button>
@@ -495,29 +497,11 @@ export default function OrderItemEditor({
           )}
 
           {/* Add New Item Button */}
-          <div className="text-center">
-            <button
-              onClick={addNewItem}
-              className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
-            >
-              + 添加商品
-            </button>
-          </div>
-        </div>
-
-        {/* Footer Actions */}
-        <div className="sticky bottom-0 bg-gray-50 border-t px-6 py-4 flex justify-end gap-3">
           <button
-            onClick={onCancel}
-            className="px-4 py-2 border rounded-md hover:bg-gray-100"
+            onClick={addNewItem}
+            className="w-full py-2 border-2 border-dashed border-gray-300 rounded-lg text-gray-600 hover:border-blue-500 hover:text-blue-600"
           >
-            取消
-          </button>
-          <button
-            onClick={() => onSave(editedItems, newImages)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-          >
-            保存
+            + 添加商品
           </button>
         </div>
       </div>
