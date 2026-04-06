@@ -11,6 +11,7 @@ import {
   findOrCreateProduct,
   getShopById,
   getProductById,
+  getAllProducts,
 } from '../services/database.js'
 import { saveImage } from '../services/imageService.js'
 import type {
@@ -297,25 +298,36 @@ router.post('/group', upload.any(), async (req, res, next) => {
         const item = items[itemIndex]
         const file = findFile(`shop${shopIndex}_item${itemIndex}`)
 
+        let product: any
+
         if (!file) {
-          return res.status(400).json({
-            message: `店铺 ${shopIndex + 1} 的商品 ${itemIndex + 1} 缺少图片`
-          })
+          // No file uploaded, try to find existing product by name
+          const allProducts = await getAllProducts()
+          const existingProduct = allProducts.find(p => p.name === item.productName)
+
+          if (existingProduct) {
+            product = existingProduct
+          } else {
+            return res.status(400).json({
+              message: `店铺 ${shopIndex + 1} 的商品 ${itemIndex + 1} "${item.productName}" 缺少图片`
+            })
+          }
+        } else {
+          // New image uploaded
+          const { imagePath, thumbnailPath } = await saveImage(
+            file.buffer,
+            file.originalname,
+            shopName.trim(),
+            item.productName
+          )
+
+          product = await findOrCreateProduct(
+            item.productName,
+            uuidv4(),
+            imagePath,
+            thumbnailPath
+          )
         }
-
-        const { imagePath, thumbnailPath } = await saveImage(
-          file.buffer,
-          file.originalname,
-          shopName.trim(),
-          item.productName
-        )
-
-        const product = await findOrCreateProduct(
-          item.productName,
-          uuidv4(),
-          imagePath,
-          thumbnailPath
-        )
 
         const specs: Specification[] = item.specifications || []
         const itemTotal = specs.reduce(
