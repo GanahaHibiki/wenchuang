@@ -457,19 +457,20 @@ export default function OrderDetailPage() {
         {order.orderType === 'group' && order.shops ? (
           // Group order: display all items in one row with shop labels above first item of each shop
           <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,230px))] gap-4 justify-center">
-            {order.shops.map((shop) => {
+            {order.shops.flatMap((shop) => {
               const shopItems = order.purchasedItems.filter(
                 (item) => item.shopId === shop.id
               )
-              if (shopItems.length === 0) return null
+              if (shopItems.length === 0) return []
 
               return shopItems.map((item, index) => (
                 <div key={item.id} className="flex flex-col">
                   {index === 0 && (
-                    <div className="text-sm font-medium text-gray-700 mb-2 px-1">
+                    <div className="text-sm font-medium text-gray-700 mb-2 px-1 h-6">
                       店铺：{shop.name}
                     </div>
                   )}
+                  {index !== 0 && <div className="h-6" />}
                   {renderItem(item, true)}
                 </div>
               ))
