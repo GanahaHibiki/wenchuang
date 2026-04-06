@@ -4,6 +4,7 @@ import { orderApi } from '@/api/client'
 import type { OrderDetail, OrderItem, Product } from '@/types'
 import ImageViewer from '@/components/common/ImageViewer'
 import OrderItemEditor from '@/components/order/OrderItemEditor'
+import GroupOrderItemEditor from '@/components/order/GroupOrderItemEditor'
 import { sortSpecifications } from '@/utils/specificationSort'
 
 export default function OrderDetailPage() {
@@ -13,7 +14,7 @@ export default function OrderDetailPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [viewingImage, setViewingImage] = useState<string | null>(null)
-  const [editingCategory, setEditingCategory] = useState<'purchased' | 'gift' | 'smallGift' | null>(null)
+  const [editingCategory, setEditingCategory] = useState<'purchased' | 'gift' | 'smallGift' | 'groupOrder' | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [isEditingShopName, setIsEditingShopName] = useState(false)
@@ -69,6 +70,7 @@ export default function OrderDetailPage() {
         productId: item.productId,
         productName: item.product.name,
         giftType: item.giftType,
+        customGiftType: item.customGiftType,
         specifications: item.specifications,
       }))
 
@@ -111,6 +113,56 @@ export default function OrderDetailPage() {
     }
   }
 
+  const handleSaveGroupOrder = async (
+    updatedGroups: Array<{
+      shopId: string
+      shopName: string
+      items: (OrderItem & { product: Product })[]
+    }>,
+    newImages: Map<string, File>
+  ) => {
+    if (!order || !id) return
+
+    setIsSaving(true)
+    try {
+      const formData = new FormData()
+      formData.append('orderType', 'group')
+
+      // Flatten items from all shops
+      const allItems: any[] = []
+      for (const group of updatedGroups) {
+        for (const item of group.items) {
+          allItems.push({
+            id: item.id,
+            productId: item.productId,
+            productName: item.product.name,
+            specifications: item.specifications,
+            shopId: item.shopId,
+          })
+        }
+      }
+
+      formData.append('items', JSON.stringify(allItems))
+      formData.append('shopIds', JSON.stringify(updatedGroups.map(g => g.shopId)))
+
+      // Add images with naming: item_{itemId}
+      for (const [itemId, file] of newImages.entries()) {
+        formData.append(`item_${itemId}`, file)
+      }
+
+      await orderApi.update(id, formData)
+
+      // Reload order data
+      const refreshedOrder = await orderApi.getDetail(id)
+      setOrder(refreshedOrder)
+      setEditingCategory(null)
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '保存失败')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
   const handleSaveShopName = async () => {
     if (!order || !id || !editedShopName.trim()) return
 
@@ -132,6 +184,7 @@ export default function OrderDetailPage() {
         productId: item.productId,
         productName: item.product.name,
         giftType: item.giftType,
+        customGiftType: item.customGiftType,
         specifications: item.specifications,
       }))
 
@@ -247,7 +300,9 @@ export default function OrderDetailPage() {
 
   // Group gifts by type and maintain order
   const giftsByType = order.gifts.reduce((acc, gift) => {
-    const type = gift.giftType || '其他'
+    const type = gift.giftType === '其他' && gift.customGiftType
+      ? gift.customGiftType
+      : gift.giftType || '其他'
     if (!acc[type]) acc[type] = []
     acc[type].push(gift)
     return acc
@@ -408,6 +463,12 @@ export default function OrderDetailPage() {
                 </div>
               )
             })}
+            <button
+              onClick={() => setEditingCategory('groupOrder')}
+              className="mt-4 text-sm text-blue-600 hover:text-blue-700 font-medium"
+            >
+              编辑拼单订单
+            </button>
           </div>
         ) : (
           // Regular shop order
@@ -477,6 +538,38 @@ export default function OrderDetailPage() {
 
       {/* Order Item Editor */}
       {editingCategory && order && (() => {
+        // Group order editing
+        if (editingCategory === 'groupOrder' && order.orderType === 'group' && order.shops) {
+          const shopGroups = order.shops.map(shop => ({
+            shopId: shop.id,
+            shopName: shop.name,
+            items: order.purchasedItems.filter(item => item.shopId === shop.id)
+          }))
+
+          // Collect all existing products
+          const allProducts = order.purchasedItems.map(item => ({
+            productId: item.productId,
+            productName: item.product.name,
+            imagePath: item.product.imagePath,
+            thumbnailPath: item.product.thumbnailPath
+          }))
+
+          const uniqueProducts = allProducts.filter((product, index, self) => {
+            const productNameLower = product.productName.trim().toLowerCase()
+            return index === self.findIndex(p => p.productName.trim().toLowerCase() === productNameLower)
+          })
+
+          return (
+            <GroupOrderItemEditor
+              shopGroups={shopGroups}
+              onSave={handleSaveGroupOrder}
+              onCancel={() => setEditingCategory(null)}
+              existingProducts={uniqueProducts}
+            />
+          )
+        }
+
+        // Regular order editing
         // Build and deduplicate existing products list
         const allProducts = [
           ...order.purchasedItems.map(item => ({

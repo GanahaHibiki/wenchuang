@@ -4,7 +4,7 @@ const menuItems = [
   { path: '/', label: '商品浏览', icon: '📦' },
   { path: '/order-entry', label: '店铺订单录入', icon: '📝' },
   { path: '/group-order-entry', label: '拼单订单录入', icon: '🛒' },
-  { path: '/orders', label: '订单详情', icon: '📋' },
+  { path: '/orders', label: '订单总览', icon: '📋' },
   { path: '/shops', label: '已购店铺', icon: '🏪' },
 ]
 

@@ -127,9 +127,9 @@ export default function OrderItemEditor({
     setImagePreviews(prev => new Map(prev).set(itemId, previewUrl))
   }
 
-  const updateItemGiftType = (index: number, giftType: GiftType) => {
+  const updateItemGiftType = (index: number, giftType: GiftType, customGiftType?: string) => {
     const newItems = [...editedItems]
-    newItems[index] = { ...newItems[index], giftType }
+    newItems[index] = { ...newItems[index], giftType, customGiftType }
     setEditedItems(newItems)
   }
 
@@ -355,6 +355,17 @@ export default function OrderItemEditor({
                           <option key={type} value={type}>{type}</option>
                         ))}
                       </select>
+                      {item.giftType === '其他' && (
+                        <div className="mt-2">
+                          <input
+                            type="text"
+                            value={item.customGiftType || ''}
+                            onChange={(e) => updateItemGiftType(itemIndex, item.giftType!, e.target.value)}
+                            placeholder="请输入礼品类型名称"
+                            className="w-full px-3 py-2 border rounded-md"
+                          />
+                        </div>
+                      )}
                     </div>
                   )}
 

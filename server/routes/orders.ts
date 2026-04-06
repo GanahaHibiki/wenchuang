@@ -201,6 +201,7 @@ router.post('/', upload.any(), async (req, res, next) => {
         productId: product.id,
         category: 'gift',
         giftType: item.giftType as GiftType,
+        customGiftType: item.customGiftType,
         specifications: item.specifications || [],
       })
     }
@@ -362,6 +363,82 @@ router.put('/:id', upload.any(), async (req, res, next) => {
       return res.status(404).json({ message: '订单不存在' })
     }
 
+    const files = req.files as Express.Multer.File[]
+    const findFile = (fieldName: string) =>
+      files?.find((f) => f.fieldname === fieldName)
+
+    // Handle group order updates
+    if (req.body.orderType === 'group') {
+      const { items: itemsData, shopIds: shopIdsData } = req.body
+      const parsedItems = JSON.parse(itemsData)
+      const parsedShopIds = JSON.parse(shopIdsData)
+
+      const orderItems: OrderItem[] = []
+      let totalAmount = 0
+
+      for (const itemData of parsedItems) {
+        let productId = itemData.productId
+
+        // Check if new image provided
+        const file = findFile(`item_${itemData.id}`)
+
+        if (productId) {
+          const existingProduct = await getProductById(productId)
+          if (existingProduct && (existingProduct.name !== itemData.productName || file)) {
+            // Get shop for image naming
+            const itemShop = await getShopById(itemData.shopId)
+            const shopName = itemShop?.name || 'Unknown'
+
+            if (file) {
+              const { imagePath, thumbnailPath } = await saveImage(file.buffer, file.originalname, shopName, itemData.productName)
+              const product = await findOrCreateProduct(itemData.productName, uuidv4(), imagePath, thumbnailPath)
+              productId = product.id
+            } else {
+              const product = await findOrCreateProduct(itemData.productName, uuidv4(), existingProduct.imagePath, existingProduct.thumbnailPath)
+              productId = product.id
+            }
+          }
+        } else {
+          // New product, must have image
+          if (!file) {
+            return res.status(400).json({ message: `商品 ${itemData.productName} 缺少图片` })
+          }
+          const itemShop = await getShopById(itemData.shopId)
+          const shopName = itemShop?.name || 'Unknown'
+          const { imagePath, thumbnailPath } = await saveImage(file.buffer, file.originalname, shopName, itemData.productName)
+          const product = await findOrCreateProduct(itemData.productName, uuidv4(), imagePath, thumbnailPath)
+          productId = product.id
+        }
+
+        const specs: Specification[] = itemData.specifications || []
+        const itemTotal = specs.reduce(
+          (sum: number, s: Specification) => sum + s.quantity * (s.purchasePrice || 0),
+          0
+        )
+        totalAmount += itemTotal
+
+        orderItems.push({
+          id: itemData.id.startsWith('temp_') ? uuidv4() : itemData.id,
+          productId,
+          category: 'purchased',
+          specifications: specs,
+          shopId: itemData.shopId,
+        })
+      }
+
+      const updated = await updateOrder(id, {
+        shopIds: parsedShopIds,
+        items: orderItems,
+        totalAmount,
+        giftTotal: 0,
+        smallGiftTotal: 0,
+        giftRatio: 0,
+      })
+
+      return res.json(updated)
+    }
+
+    // Handle regular order updates
     // Check if shop name is being updated
     const newShopName = req.body.shopName
     let shopId = existingOrder.shopId
@@ -382,7 +459,6 @@ router.put('/:id', upload.any(), async (req, res, next) => {
     // Similar logic to POST, but update existing order
     // For now, just update the items
     const { purchasedItems, gifts, smallGifts } = req.body
-    const files = req.files as Express.Multer.File[]
 
     const parsedPurchased = purchasedItems ? JSON.parse(purchasedItems) : []
     const parsedGifts = gifts ? JSON.parse(gifts) : []
@@ -392,9 +468,6 @@ router.put('/:id', upload.any(), async (req, res, next) => {
     let totalAmount = 0
     let giftTotal = 0
     let smallGiftTotal = 0
-
-    const findFile = (fieldName: string) =>
-      files?.find((f) => f.fieldname === fieldName)
 
     // Process purchased items
     for (let i = 0; i < parsedPurchased.length; i++) {
@@ -487,6 +560,7 @@ router.put('/:id', upload.any(), async (req, res, next) => {
         productId,
         category: 'gift',
         giftType: item.giftType as GiftType,
+        customGiftType: item.customGiftType,
         specifications: item.specifications || [],
       })
     }

@@ -21,7 +21,9 @@
       "Bash(xargs kill:*)",
       "Bash(lsof -ti:3000)",
       "Bash(grep:*)",
-      "Read(//tmp/**)"
+      "Read(//tmp/**)",
+      "Bash(pkill -f \"npm run dev\")",
+      "Read(//private/tmp/**)"
     ]
   }
 }

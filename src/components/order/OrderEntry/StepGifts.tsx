@@ -7,6 +7,7 @@ import SpecificationForm from './SpecificationForm'
 
 export interface GiftItemData {
   giftType: GiftType
+  customGiftType?: string
   productName: string
   image: File | null
   imagePreview: string | null
@@ -37,6 +38,7 @@ export default function StepGifts({
 
   const emptyItem: GiftItemData = {
     giftType: '满赠礼',
+    customGiftType: '',
     productName: '',
     image: null,
     imagePreview: null,
@@ -157,6 +159,7 @@ export default function StepGifts({
 
     const newItem: GiftItemData = {
       giftType: '满赠礼',
+      customGiftType: '',
       productName: '',
       image: null,
       imagePreview: null,
@@ -257,6 +260,17 @@ export default function StepGifts({
                   </label>
                 ))}
               </div>
+              {currentItem.giftType === '其他' && (
+                <div className="mt-2">
+                  <input
+                    type="text"
+                    value={currentItem.customGiftType || ''}
+                    onChange={(e) => updateCurrentItem({ customGiftType: e.target.value })}
+                    placeholder="请输入礼品类型名称"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              )}
             </div>
 
             <div>

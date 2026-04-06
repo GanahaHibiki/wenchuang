@@ -91,9 +91,9 @@ export interface Specification {
 
 export type ItemCategory = 'purchased' | 'gift' | 'smallGift'
 
-export type GiftType = '满赠礼' | '宣传礼' | '手速礼' | '高消礼' | '小时礼' | '新客礼' | '回购礼'
+export type GiftType = '满赠礼' | '宣传礼' | '手速礼' | '高消礼' | '小时礼' | '新客礼' | '回购礼' | '其他'
 
-export const GIFT_TYPES: GiftType[] = ['满赠礼', '宣传礼', '手速礼', '高消礼', '小时礼', '新客礼', '回购礼']
+export const GIFT_TYPES: GiftType[] = ['满赠礼', '宣传礼', '手速礼', '高消礼', '小时礼', '新客礼', '回购礼', '其他']
 
 export type OrderType = 'shop' | 'group'
 
@@ -102,6 +102,7 @@ export interface OrderItem {
   productId: string
   category: ItemCategory
   giftType?: GiftType
+  customGiftType?: string // Custom gift type name when giftType is '其他'
   specifications: Specification[]
   shopId?: string // For group orders, track which shop this item belongs to
 }

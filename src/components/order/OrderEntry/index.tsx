@@ -54,6 +54,7 @@ export default function OrderEntry() {
       // Add gifts
       const giftsData = giftItems.map((item) => ({
         giftType: item.giftType,
+        customGiftType: item.customGiftType,
         productName: item.productName,
         specifications: item.specifications,
       }))
