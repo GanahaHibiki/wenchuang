@@ -25,6 +25,13 @@ export default function ShopItemsEntry({
   const [shopProducts, setShopProducts] = useState<Product[]>([])
   const [showShopInput, setShowShopInput] = useState(false)
 
+  // Reset currentIndex when items change from parent (e.g., switching shops)
+  useEffect(() => {
+    if (currentIndex >= items.length) {
+      setCurrentIndex(Math.max(0, items.length - 1))
+    }
+  }, [items.length])
+
   const currentItem = items[currentIndex] || {
     productName: '',
     image: null,

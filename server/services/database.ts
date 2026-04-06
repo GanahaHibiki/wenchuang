@@ -208,12 +208,25 @@ export async function searchProducts(
     )
     const shopIds = new Set(matchingShops.map((s) => s.id))
 
-    const matchingOrders = db.orders.filter((o) => shopIds.has(o.shopId))
     const productIds = new Set<string>()
 
-    for (const order of matchingOrders) {
-      for (const item of order.items) {
-        productIds.add(item.productId)
+    for (const order of db.orders) {
+      // For regular orders, check order.shopId
+      // For group orders, check item.shopId
+      if (order.orderType === 'group') {
+        // Check items in group orders
+        for (const item of order.items) {
+          if (item.shopId && shopIds.has(item.shopId)) {
+            productIds.add(item.productId)
+          }
+        }
+      } else {
+        // Check regular orders
+        if (shopIds.has(order.shopId)) {
+          for (const item of order.items) {
+            productIds.add(item.productId)
+          }
+        }
       }
     }
 

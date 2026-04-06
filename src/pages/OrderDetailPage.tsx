@@ -483,50 +483,58 @@ export default function OrderDetailPage() {
       </section>
 
       {/* Gifts */}
-      <section className="bg-white rounded-lg shadow p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold">礼品</h2>
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-gray-500">{order.gifts.length} 件</span>
-            <button
-              onClick={() => setEditingCategory('gift')}
-              className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-            >
-              编辑
-            </button>
+      {order.orderType !== 'group' && (
+        <section className="bg-white rounded-lg shadow p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-bold">礼品</h2>
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-gray-500">{order.gifts.length} 件</span>
+              <button
+                onClick={() => setEditingCategory('gift')}
+                className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+              >
+                编辑
+              </button>
+            </div>
           </div>
-        </div>
-        {order.gifts.length === 0 ? (
-          <p className="text-gray-500">暂无礼品</p>
-        ) : (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,230px))] gap-4 justify-center pt-8">
-            {renderGiftsWithLabels()}
-          </div>
-        )}
-      </section>
+          {order.gifts.length === 0 ? (
+            <div>
+              <p className="text-gray-500">暂无礼品</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,230px))] gap-4 justify-center pt-8">
+              {renderGiftsWithLabels()}
+            </div>
+          )}
+        </section>
+      )}
 
       {/* Small Gifts */}
-      <section className="bg-white rounded-lg shadow p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold">小礼物</h2>
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-gray-500">{order.smallGifts.length} 件</span>
-            <button
-              onClick={() => setEditingCategory('smallGift')}
-              className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-            >
-              编辑
-            </button>
+      {order.orderType !== 'group' && (
+        <section className="bg-white rounded-lg shadow p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-bold">小礼物</h2>
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-gray-500">{order.smallGifts.length} 件</span>
+              <button
+                onClick={() => setEditingCategory('smallGift')}
+                className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+              >
+                编辑
+              </button>
+            </div>
           </div>
-        </div>
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,230px))] gap-4 justify-center">
           {order.smallGifts.length === 0 ? (
-            <p className="text-gray-500 col-span-full">暂无小礼物</p>
+            <div>
+              <p className="text-gray-500">暂无小礼物</p>
+            </div>
           ) : (
-            order.smallGifts.map((item) => renderItem(item, false))
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,230px))] gap-4 justify-center">
+              {order.smallGifts.map((item) => renderItem(item, false))}
+            </div>
           )}
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Image Viewer */}
       {viewingImage && (
