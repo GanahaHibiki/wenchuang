@@ -16,7 +16,7 @@ export default function ProductGrid({ products, emptyMessage = '暂无商品' }:
   }
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4">
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-4">
       {products.map((product) => (
         <ProductCard key={product.id} product={product} />
       ))}

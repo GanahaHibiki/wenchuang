@@ -328,7 +328,18 @@ export default function GroupOrderItemEditor({ shopGroups, onSave, onCancel, exi
                                       purchasePrice: parseFloat(e.target.value) || 0
                                     })}
                                     className="w-20 px-2 py-1 border rounded"
-                                    placeholder="单价"
+                                    placeholder="购买单价"
+                                  />
+                                  <span>/</span>
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    value={spec.originalPrice || 0}
+                                    onChange={(e) => updateSpecification(group.shopId, itemIndex, specIndex, {
+                                      originalPrice: parseFloat(e.target.value) || 0
+                                    })}
+                                    className="w-20 px-2 py-1 border rounded"
+                                    placeholder="原价"
                                   />
                                   <span>
                                     = ¥{((spec.quantity * (spec.purchasePrice || 0)).toFixed(2))}

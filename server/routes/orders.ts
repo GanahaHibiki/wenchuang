@@ -412,19 +412,24 @@ router.put('/:id', upload.any(), async (req, res, next) => {
 
         if (productId) {
           const existingProduct = await getProductById(productId)
-          if (existingProduct && (existingProduct.name !== itemData.productName || file)) {
+          if (existingProduct) {
             // Get shop for image naming
             const itemShop = await getShopById(itemData.shopId)
             const shopName = itemShop?.name || 'Unknown'
 
-            if (file) {
-              const { imagePath, thumbnailPath } = await saveImage(file.buffer, file.originalname, shopName, itemData.productName)
-              const product = await findOrCreateProduct(itemData.productName, uuidv4(), imagePath, thumbnailPath)
-              productId = product.id
-            } else {
-              const product = await findOrCreateProduct(itemData.productName, uuidv4(), existingProduct.imagePath, existingProduct.thumbnailPath)
-              productId = product.id
+            // Only create new product if name changed OR new image uploaded
+            if (existingProduct.name !== itemData.productName || file) {
+              if (file) {
+                const { imagePath, thumbnailPath } = await saveImage(file.buffer, file.originalname, shopName, itemData.productName)
+                const product = await findOrCreateProduct(itemData.productName, uuidv4(), imagePath, thumbnailPath)
+                productId = product.id
+              } else {
+                // Name changed but no new image, reuse existing image
+                const product = await findOrCreateProduct(itemData.productName, uuidv4(), existingProduct.imagePath, existingProduct.thumbnailPath)
+                productId = product.id
+              }
             }
+            // else: neither name nor image changed, keep existing productId
           }
         } else {
           // New product, must have image
