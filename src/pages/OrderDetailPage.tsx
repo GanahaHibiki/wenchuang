@@ -249,7 +249,7 @@ export default function OrderDetailPage() {
     return spec.type
   }
 
-  const renderItem = (item: OrderItem & { product: Product }, showPurchasePrice: boolean) => {
+  const renderItem = (item: OrderItem & { product: Product }, showPurchasePrice: boolean, shopLabel?: string) => {
     // Sort specifications by display order
     const sortedSpecs = sortSpecifications(item.specifications)
 
@@ -262,6 +262,11 @@ export default function OrderDetailPage() {
 
     return (
       <div key={item.id} className="bg-gray-50 rounded-lg p-3 flex flex-col">
+        {shopLabel && (
+          <div className="text-xs font-medium text-gray-600 mb-2 -mt-1 px-1 py-1 bg-blue-50 rounded">
+            {shopLabel}
+          </div>
+        )}
         <div
           className="w-full aspect-[4/3] bg-gray-200 rounded overflow-hidden cursor-pointer mb-2"
           onClick={() => setViewingImage(`/images/original/${item.product.imagePath}`)}
@@ -455,7 +460,7 @@ export default function OrderDetailPage() {
         </div>
 
         {order.orderType === 'group' && order.shops ? (
-          // Group order: display all items in one row with shop labels above first item of each shop
+          // Group order: display all items in one row with shop labels inside first item of each shop
           <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,230px))] gap-4 justify-center">
             {order.shops.flatMap((shop) => {
               const shopItems = order.purchasedItems.filter(
@@ -463,17 +468,9 @@ export default function OrderDetailPage() {
               )
               if (shopItems.length === 0) return []
 
-              return shopItems.map((item, index) => (
-                <div key={item.id} className="flex flex-col">
-                  {index === 0 && (
-                    <div className="text-sm font-medium text-gray-700 mb-2 px-1 h-6">
-                      店铺：{shop.name}
-                    </div>
-                  )}
-                  {index !== 0 && <div className="h-6" />}
-                  {renderItem(item, true)}
-                </div>
-              ))
+              return shopItems.map((item, index) =>
+                renderItem(item, true, index === 0 ? `店铺：${shop.name}` : undefined)
+              )
             })}
           </div>
         ) : (
