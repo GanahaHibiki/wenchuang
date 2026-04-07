@@ -123,40 +123,40 @@ export default function OrderListPage() {
       <div className="space-y-4">
         <h2 className="text-xl font-bold">{title}</h2>
         <div className="bg-white rounded-lg shadow overflow-hidden">
-          <table className="w-full">
+          <table className="w-full table-fixed">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-2 py-3 text-left text-sm font-medium text-gray-700">
+                <th className="w-[5%] px-2 py-3 text-left text-sm font-medium text-gray-700">
                   序号
                 </th>
-                <th className="px-8 py-3 text-left text-sm font-medium text-gray-700">
+                <th className="w-[18%] px-8 py-3 text-left text-sm font-medium text-gray-700">
                   店铺名称
                 </th>
                 <th
-                  className="px-4 py-3 text-left text-sm font-medium text-gray-700 cursor-pointer hover:bg-gray-100"
+                  className="w-[10%] px-4 py-3 text-left text-sm font-medium text-gray-700 cursor-pointer hover:bg-gray-100"
                   onClick={() => handleSort('totalAmount')}
                 >
                   订单金额 {getSortIcon('totalAmount')}
                 </th>
                 <th
-                  className="px-4 py-3 text-left text-sm font-medium text-gray-700 cursor-pointer hover:bg-gray-100"
+                  className="w-[10%] px-4 py-3 text-left text-sm font-medium text-gray-700 cursor-pointer hover:bg-gray-100"
                   onClick={() => handleSort('giftTotal')}
                 >
                   礼品总价 {getSortIcon('giftTotal')}
                 </th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">
+                <th className="w-[10%] px-4 py-3 text-left text-sm font-medium text-gray-700">
                   小礼物总价
                 </th>
                 <th
-                  className="px-4 py-3 text-left text-sm font-medium text-gray-700 cursor-pointer hover:bg-gray-100"
+                  className="w-[10%] px-4 py-3 text-left text-sm font-medium text-gray-700 cursor-pointer hover:bg-gray-100"
                   onClick={() => handleSort('giftRatio')}
                 >
                   小礼物占比 {getSortIcon('giftRatio')}
                 </th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">
+                <th className="w-[10%] px-4 py-3 text-left text-sm font-medium text-gray-700">
                   到货情况
                 </th>
-                <th className="px-8 py-3 text-left text-sm font-medium text-gray-700">
+                <th className="w-[27%] px-8 py-3 text-left text-sm font-medium text-gray-700">
                   备注
                 </th>
               </tr>
