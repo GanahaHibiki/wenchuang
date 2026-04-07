@@ -171,7 +171,7 @@ export default function OrderListPage() {
                   <td className="px-2 py-3">
                     {index + 1}
                   </td>
-                  <td className="px-8 py-3">{order.shopName}</td>
+                  <td className="px-8 py-3 font-bold">{order.shopName}</td>
                   <td className="px-4 py-3">¥{order.totalAmount.toFixed(2)}</td>
                   <td className="px-4 py-3">¥{(order.giftTotal || 0).toFixed(2)}</td>
                   <td className="px-4 py-3">¥{order.smallGiftTotal.toFixed(2)}</td>
