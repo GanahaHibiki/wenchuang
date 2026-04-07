@@ -126,10 +126,10 @@ export default function OrderListPage() {
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">
+                <th className="px-2 py-3 text-left text-sm font-medium text-gray-700">
                   序号
                 </th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">
+                <th className="px-8 py-3 text-left text-sm font-medium text-gray-700">
                   店铺名称
                 </th>
                 <th
@@ -156,7 +156,7 @@ export default function OrderListPage() {
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">
                   到货情况
                 </th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">
+                <th className="px-8 py-3 text-left text-sm font-medium text-gray-700">
                   备注
                 </th>
               </tr>
@@ -168,10 +168,10 @@ export default function OrderListPage() {
                   className="hover:bg-gray-50 cursor-pointer"
                   onClick={() => navigate(`/orders/${order.id}`)}
                 >
-                  <td className="px-4 py-3">
+                  <td className="px-2 py-3">
                     {index + 1}
                   </td>
-                  <td className="px-4 py-3">{order.shopName}</td>
+                  <td className="px-8 py-3">{order.shopName}</td>
                   <td className="px-4 py-3">¥{order.totalAmount.toFixed(2)}</td>
                   <td className="px-4 py-3">¥{(order.giftTotal || 0).toFixed(2)}</td>
                   <td className="px-4 py-3">¥{order.smallGiftTotal.toFixed(2)}</td>
@@ -193,7 +193,7 @@ export default function OrderListPage() {
                       <option value="已到货">已到货</option>
                     </select>
                   </td>
-                  <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                  <td className="px-8 py-3" onClick={(e) => e.stopPropagation()}>
                     {editingNoteId === order.id ? (
                       <input
                         type="text"
@@ -226,7 +226,7 @@ export default function OrderListPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">订单详情</h1>
+      <h1 className="text-2xl font-bold">订单总览</h1>
 
       {orders.length === 0 ? (
         <div className="text-center py-12 text-gray-500">
