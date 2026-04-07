@@ -175,7 +175,7 @@ export default function OrderListPage() {
                   <td className="px-4 py-3">¥{order.totalAmount.toFixed(2)}</td>
                   <td className="px-4 py-3">¥{(order.giftTotal || 0).toFixed(2)}</td>
                   <td className="px-4 py-3">¥{order.smallGiftTotal.toFixed(2)}</td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 font-bold">
                     {order.totalAmount > 0 ? `${order.giftRatio.toFixed(1)}%` : '-'}
                   </td>
                   <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
@@ -193,7 +193,7 @@ export default function OrderListPage() {
                       <option value="已到货">已到货</option>
                     </select>
                   </td>
-                  <td className="px-8 py-3" onClick={(e) => e.stopPropagation()}>
+                  <td className="px-8 py-3" onClick={(e) => handleNoteClick(order, e)}>
                     {editingNoteId === order.id ? (
                       <input
                         type="text"
@@ -207,11 +207,8 @@ export default function OrderListPage() {
                         onClick={(e) => e.stopPropagation()}
                       />
                     ) : (
-                      <div
-                        onClick={(e) => handleNoteClick(order, e)}
-                        className="text-blue-500 text-sm hover:underline cursor-pointer"
-                      >
-                        {order.note || '点击添加备注'}
+                      <div className="min-h-[24px] cursor-pointer font-bold">
+                        {order.note || ''}
                       </div>
                     )}
                   </td>
