@@ -51,6 +51,8 @@ router.get('/', async (req, res, next) => {
           giftRatio: o.giftRatio,
           note: o.note || '',
           deliveryStatus: o.deliveryStatus || '未到货',
+          orderTime: o.orderTime,
+          shippingTime: o.shippingTime,
         }
       })
     )
@@ -708,6 +710,58 @@ router.patch('/:id/delivery-status', async (req, res, next) => {
     }
 
     const updated = await updateOrder(id, { deliveryStatus: deliveryStatus || '未到货' })
+
+    if (!updated) {
+      return res.status(404).json({ message: '订单不存在' })
+    }
+
+    res.json(updated)
+  } catch (err) {
+    next(err)
+  }
+})
+
+// PATCH /api/orders/:id/order-time - Update order time
+router.patch('/:id/order-time', async (req, res, next) => {
+  try {
+    const { id } = req.params
+    const { orderTime } = req.body
+
+    // Validate ISO format if provided
+    if (orderTime && orderTime !== '') {
+      const date = new Date(orderTime)
+      if (isNaN(date.getTime())) {
+        return res.status(400).json({ message: '无效的下单时间格式' })
+      }
+    }
+
+    const updated = await updateOrder(id, { orderTime: orderTime || undefined })
+
+    if (!updated) {
+      return res.status(404).json({ message: '订单不存在' })
+    }
+
+    res.json(updated)
+  } catch (err) {
+    next(err)
+  }
+})
+
+// PATCH /api/orders/:id/shipping-time - Update shipping time
+router.patch('/:id/shipping-time', async (req, res, next) => {
+  try {
+    const { id } = req.params
+    const { shippingTime } = req.body
+
+    // Validate ISO format if provided
+    if (shippingTime && shippingTime !== '') {
+      const date = new Date(shippingTime)
+      if (isNaN(date.getTime())) {
+        return res.status(400).json({ message: '无效的发货时间格式' })
+      }
+    }
+
+    const updated = await updateOrder(id, { shippingTime: shippingTime || undefined })
 
     if (!updated) {
       return res.status(404).json({ message: '订单不存在' })

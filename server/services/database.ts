@@ -296,8 +296,26 @@ export async function getAllOrders(
       return order === 'desc' ? bVal - aVal : aVal - bVal
     })
   } else {
-    // Default: sort by sequence number
-    orders.sort((a, b) => a.sequenceNumber - b.sequenceNumber)
+    // Default: sort by orderTime if available, then by sequence number
+    orders.sort((a, b) => {
+      // Orders with orderTime come first, sorted chronologically
+      const aHasTime = !!a.orderTime
+      const bHasTime = !!b.orderTime
+
+      if (aHasTime && bHasTime) {
+        // Both have orderTime, sort chronologically
+        return new Date(a.orderTime).getTime() - new Date(b.orderTime).getTime()
+      } else if (aHasTime) {
+        // a has time, b doesn't - a comes first
+        return -1
+      } else if (bHasTime) {
+        // b has time, a doesn't - b comes first
+        return 1
+      } else {
+        // Neither has time, sort by sequence number (original entry order)
+        return a.sequenceNumber - b.sequenceNumber
+      }
+    })
   }
 
   return orders

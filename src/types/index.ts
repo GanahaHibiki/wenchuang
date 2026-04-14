@@ -122,6 +122,8 @@ export interface Order {
   giftRatio: number
   note?: string // User note for this order
   deliveryStatus?: DeliveryStatus // Delivery status, defaults to '未到货'
+  orderTime?: string // Order time in ISO format (precision to seconds)
+  shippingTime?: string // Shipping time in ISO format (precision to day)
   createdAt: string
 }
 
@@ -190,6 +192,8 @@ export interface OrderSummary {
   giftRatio: number
   note?: string
   deliveryStatus?: DeliveryStatus
+  orderTime?: string
+  shippingTime?: string
 }
 
 // ==================== Database Schema ====================

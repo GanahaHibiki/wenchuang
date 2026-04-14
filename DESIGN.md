@@ -175,6 +175,10 @@ interface Order {
   smallGiftTotal: number;    // 小礼物总价
   giftRatio: number;         // 小礼物占比 (保留1位小数)
   
+  // Time tracking
+  orderTime?: string;        // 下单时间 (ISO format, precision to seconds)
+  shippingTime?: string;     // 发货时间 (ISO format, precision to day)
+  
   createdAt: Date;
 }
 ```
@@ -392,30 +396,47 @@ function calculateGiftRatio(order: Order): number {
 
 ---
 
-### Page 3: Order List (订单详情)
+### Page 3: Order List (订单总览)
 
 #### Table Layout
 ```
-┌─────┬──────────┬──────────┬────────────┬────────────┐
-│ 序号 │ 店铺名称  │ 订单金额  │ 小礼物总价  │ 小礼物占比  │
-├─────┼──────────┼──────────┼────────────┼────────────┤
-│  1  │ Shop A   │ ¥1000.00 │ ¥150.00    │ 15.0%      │  ← Entire row clickable
-│  2  │ Shop B   │ ¥800.00  │ ¥80.00     │ 10.0%      │  ← Entire row clickable
-└─────┴──────────┴──────────┴────────────┴────────────┘
+┌─────┬──────────┬──────────┬──────────┬────────────┬────────────┬────────────┬────────────┬──────────┬──────┐
+│ 序号 │ 店铺名称  │ 订单金额  │ 礼品总价  │ 小礼物总价  │ 小礼物占比  │ 下单时间    │ 发货时间    │ 到货情况  │ 备注  │
+├─────┼──────────┼──────────┼──────────┼────────────┼────────────┼────────────┼────────────┼──────────┼──────┤
+│  1  │ Shop A   │ ¥1000.00 │ ¥100.00  │ ¥150.00    │ 15.0%      │ 2026-01-01 │ 2026-01-05 │ 已到货    │ 备注  │
+│  2  │ Shop B   │ ¥800.00  │ ¥50.00   │ ¥80.00     │ 10.0%      │ 2026-01-02 │            │ 未到货    │      │
+└─────┴──────────┴──────────┴──────────┴────────────┴────────────┴────────────┴────────────┴──────────┴──────┘
 
-Sort by: [订单金额 ↕] [小礼物占比 ↕]
+Sort by: [订单金额 ↕] [礼品总价 ↕] [小礼物占比 ↕]
+Default sort: Orders with orderTime sorted chronologically, orders without orderTime follow in entry order
 ```
 
 #### Columns
-1. **序号**: Sequence number (auto-reordered on deletion), entire row clickable → Order Detail Page
+1. **序号**: Display sequence (1, 2, 3...), dynamically calculated based on current sort order
 2. **店铺名称**: Shop name (editable in order detail page)
 3. **订单金额**: Sum of (quantity × purchasePrice) for all purchased items
-4. **小礼物总价**: Sum of (quantity × originalPrice) for all small gifts
-5. **小礼物占比**: (小礼物总价 ÷ 订单金额) × 100%, rounded to 1 decimal
+4. **礼品总价**: Sum of (quantity × originalPrice) for all gifts
+5. **小礼物总价**: Sum of (quantity × originalPrice) for all small gifts
+6. **小礼物占比**: (小礼物总价 ÷ 订单金额) × 100%, rounded to 1 decimal
+7. **下单时间**: Order time (editable), input format: YYYY-MM-DD HH:mm:ss, display in local format
+8. **发货时间**: Shipping time (editable), input format: YYYY-MM-DD, display in local format
+9. **到货情况**: Delivery status dropdown (未到货/已到货)
+10. **备注**: User notes (editable inline)
 
 #### Sorting
-- **订单金额**: Ascending/Descending
-- **小礼物占比**: Ascending/Descending
+- **订单金额**: Ascending/Descending (manual)
+- **礼品总价**: Ascending/Descending (manual)
+- **小礼物占比**: Ascending/Descending (manual)
+- **Default (no manual sort)**: 
+  - Orders with orderTime: sorted chronologically (earliest first)
+  - Orders without orderTime: follow in original entry order after orders with orderTime
+
+#### Time Input Behavior
+- **下单时间**: Click cell to edit, enter time as `YYYY-MM-DD HH:mm:ss`, press Enter or blur to save
+  - After saving, orders automatically re-sort by orderTime
+  - Sequence numbers update to reflect new sort order
+- **发货时间**: Click cell to edit, enter date as `YYYY-MM-DD`, press Enter or blur to save
+  - Does not affect sort order
 
 ---
 
@@ -1286,6 +1307,7 @@ WenChuang/
 | 1.19 | 2026-04-06 | Added: Two new gift types "新客礼" and "回购礼" (高消礼 already existed) | AI Assistant |
 | 1.20 | 2026-04-06 | Added: Product selection dropdown in gift and small gift entry steps - can select from purchased items or shop products, auto-fills name and image | AI Assistant |
 | 1.21 | 2026-04-06 | Fixed: Shop filter now works correctly on multiple clicks - SearchBar syncs with URL params, clears search when leaving shop filter | AI Assistant |
+| 1.22 | 2026-04-14 | Added: Order time (下单时间) and shipping time (发货时间) columns in order list page. Orders automatically sort by orderTime when set (chronologically), with orders without orderTime following in entry order. Both time fields are editable inline. | AI Assistant |
 
 ---
 

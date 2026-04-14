@@ -15,6 +15,10 @@ export default function OrderListPage() {
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc')
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
   const [noteValue, setNoteValue] = useState('')
+  const [editingOrderTimeId, setEditingOrderTimeId] = useState<string | null>(null)
+  const [orderTimeValue, setOrderTimeValue] = useState('')
+  const [editingShippingTimeId, setEditingShippingTimeId] = useState<string | null>(null)
+  const [shippingTimeValue, setShippingTimeValue] = useState('')
 
   useEffect(() => {
     loadOrders()
@@ -25,6 +29,8 @@ export default function OrderListPage() {
     setError(null)
 
     try {
+      // When sortField is set, backend sorts by that field
+      // When sortField is null, backend sorts by orderTime (if available) then sequenceNumber
       const data = await orderApi.getAll(sortField || undefined, sortField ? sortOrder : undefined)
       setOrders(data)
     } catch (err) {
@@ -104,6 +110,128 @@ export default function OrderListPage() {
     }
   }
 
+  const handleOrderTimeClick = (order: OrderSummary, e: React.MouseEvent) => {
+    e.stopPropagation()
+    setEditingOrderTimeId(order.id)
+    // Format orderTime to YYYY-MM-DD HH:mm:ss if it exists
+    if (order.orderTime) {
+      const date = new Date(order.orderTime)
+      const formatted = date.getFullYear() + '-' +
+        String(date.getMonth() + 1).padStart(2, '0') + '-' +
+        String(date.getDate()).padStart(2, '0') + ' ' +
+        String(date.getHours()).padStart(2, '0') + ':' +
+        String(date.getMinutes()).padStart(2, '0') + ':' +
+        String(date.getSeconds()).padStart(2, '0')
+      setOrderTimeValue(formatted)
+    } else {
+      setOrderTimeValue('')
+    }
+  }
+
+  const handleOrderTimeSave = async (orderId: string) => {
+    try {
+      // Convert YYYY-MM-DD HH:mm:ss to ISO string
+      let isoString = ''
+      if (orderTimeValue.trim()) {
+        const date = new Date(orderTimeValue)
+        if (isNaN(date.getTime())) {
+          alert('时间格式错误，请使用 YYYY-MM-DD HH:mm:ss 格式')
+          return
+        }
+        isoString = date.toISOString()
+      }
+
+      await fetch(`/api/orders/${orderId}/order-time`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderTime: isoString })
+      })
+
+      // Update local state and trigger re-sort
+      setOrders(orders.map(o =>
+        o.id === orderId ? { ...o, orderTime: isoString || undefined } : o
+      ))
+      setEditingOrderTimeId(null)
+
+      // Reload to apply sorting
+      loadOrders()
+    } catch (err) {
+      alert('保存失败')
+    }
+  }
+
+  const handleOrderTimeKeyDown = (orderId: string, e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      handleOrderTimeSave(orderId)
+    } else if (e.key === 'Escape') {
+      setEditingOrderTimeId(null)
+      setOrderTimeValue('')
+    }
+  }
+
+  const handleOrderTimeBlur = (orderId: string) => {
+    handleOrderTimeSave(orderId)
+  }
+
+  const handleShippingTimeClick = (order: OrderSummary, e: React.MouseEvent) => {
+    e.stopPropagation()
+    setEditingShippingTimeId(order.id)
+    // Format shippingTime to YYYY-MM-DD if it exists
+    if (order.shippingTime) {
+      const date = new Date(order.shippingTime)
+      const formatted = date.getFullYear() + '-' +
+        String(date.getMonth() + 1).padStart(2, '0') + '-' +
+        String(date.getDate()).padStart(2, '0')
+      setShippingTimeValue(formatted)
+    } else {
+      setShippingTimeValue('')
+    }
+  }
+
+  const handleShippingTimeSave = async (orderId: string) => {
+    try {
+      // Convert YYYY-MM-DD to ISO string
+      let isoString = ''
+      if (shippingTimeValue.trim()) {
+        const date = new Date(shippingTimeValue + 'T00:00:00')
+        if (isNaN(date.getTime())) {
+          alert('日期格式错误，请使用 YYYY-MM-DD 格式')
+          return
+        }
+        isoString = date.toISOString()
+      }
+
+      await fetch(`/api/orders/${orderId}/shipping-time`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ shippingTime: isoString })
+      })
+
+      // Update local state
+      setOrders(orders.map(o =>
+        o.id === orderId ? { ...o, shippingTime: isoString || undefined } : o
+      ))
+      setEditingShippingTimeId(null)
+    } catch (err) {
+      alert('保存失败')
+    }
+  }
+
+  const handleShippingTimeKeyDown = (orderId: string, e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      handleShippingTimeSave(orderId)
+    } else if (e.key === 'Escape') {
+      setEditingShippingTimeId(null)
+      setShippingTimeValue('')
+    }
+  }
+
+  const handleShippingTimeBlur = (orderId: string) => {
+    handleShippingTimeSave(orderId)
+  }
+
   if (isLoading) {
     return <div className="text-center py-12 text-gray-500">加载中...</div>
   }
@@ -129,34 +257,40 @@ export default function OrderListPage() {
                 <th className="w-[5%] px-2 py-3 text-left text-sm font-medium text-gray-700">
                   序号
                 </th>
-                <th className="w-[18%] px-8 py-3 text-left text-sm font-medium text-gray-700">
+                <th className="w-[13%] px-8 py-3 text-left text-sm font-medium text-gray-700">
                   店铺名称
                 </th>
                 <th
-                  className="w-[10%] px-4 py-3 text-left text-sm font-medium text-gray-700 cursor-pointer hover:bg-gray-100"
+                  className="w-[8%] px-4 py-3 text-left text-sm font-medium text-gray-700 cursor-pointer hover:bg-gray-100"
                   onClick={() => handleSort('totalAmount')}
                 >
                   订单金额 {getSortIcon('totalAmount')}
                 </th>
                 <th
-                  className="w-[10%] px-4 py-3 text-left text-sm font-medium text-gray-700 cursor-pointer hover:bg-gray-100"
+                  className="w-[8%] px-4 py-3 text-left text-sm font-medium text-gray-700 cursor-pointer hover:bg-gray-100"
                   onClick={() => handleSort('giftTotal')}
                 >
                   礼品总价 {getSortIcon('giftTotal')}
                 </th>
-                <th className="w-[10%] px-4 py-3 text-left text-sm font-medium text-gray-700">
+                <th className="w-[8%] px-4 py-3 text-left text-sm font-medium text-gray-700">
                   小礼物总价
                 </th>
                 <th
-                  className="w-[10%] px-4 py-3 text-left text-sm font-medium text-gray-700 cursor-pointer hover:bg-gray-100"
+                  className="w-[8%] px-4 py-3 text-left text-sm font-medium text-gray-700 cursor-pointer hover:bg-gray-100"
                   onClick={() => handleSort('giftRatio')}
                 >
                   小礼物占比 {getSortIcon('giftRatio')}
                 </th>
-                <th className="w-[10%] px-4 py-3 text-left text-sm font-medium text-gray-700">
+                <th className="w-[8%] px-4 py-3 text-left text-sm font-medium text-gray-700">
+                  下单时间
+                </th>
+                <th className="w-[8%] px-4 py-3 text-left text-sm font-medium text-gray-700">
+                  发货时间
+                </th>
+                <th className="w-[8%] px-4 py-3 text-left text-sm font-medium text-gray-700">
                   到货情况
                 </th>
-                <th className="w-[27%] px-8 py-3 text-left text-sm font-medium text-gray-700">
+                <th className="w-[26%] px-8 py-3 text-left text-sm font-medium text-gray-700">
                   备注
                 </th>
               </tr>
@@ -177,6 +311,56 @@ export default function OrderListPage() {
                   <td className="px-4 py-3">¥{order.smallGiftTotal.toFixed(2)}</td>
                   <td className="px-4 py-3 font-bold">
                     {order.totalAmount > 0 ? `${order.giftRatio.toFixed(1)}%` : '-'}
+                  </td>
+                  <td className="px-4 py-3" onClick={(e) => handleOrderTimeClick(order, e)}>
+                    {editingOrderTimeId === order.id ? (
+                      <input
+                        type="text"
+                        value={orderTimeValue}
+                        onChange={(e) => setOrderTimeValue(e.target.value)}
+                        onKeyDown={(e) => handleOrderTimeKeyDown(order.id, e)}
+                        onBlur={() => handleOrderTimeBlur(order.id)}
+                        className="px-2 py-1 border rounded text-sm w-full"
+                        placeholder="YYYY-MM-DD HH:mm:ss"
+                        autoFocus
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    ) : (
+                      <div className="min-h-[24px] cursor-pointer">
+                        {order.orderTime ? new Date(order.orderTime).toLocaleString('zh-CN', {
+                          year: 'numeric',
+                          month: '2-digit',
+                          day: '2-digit',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          second: '2-digit',
+                          hour12: false
+                        }).replace(/\//g, '-') : ''}
+                      </div>
+                    )}
+                  </td>
+                  <td className="px-4 py-3" onClick={(e) => handleShippingTimeClick(order, e)}>
+                    {editingShippingTimeId === order.id ? (
+                      <input
+                        type="text"
+                        value={shippingTimeValue}
+                        onChange={(e) => setShippingTimeValue(e.target.value)}
+                        onKeyDown={(e) => handleShippingTimeKeyDown(order.id, e)}
+                        onBlur={() => handleShippingTimeBlur(order.id)}
+                        className="px-2 py-1 border rounded text-sm w-full"
+                        placeholder="YYYY-MM-DD"
+                        autoFocus
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    ) : (
+                      <div className="min-h-[24px] cursor-pointer">
+                        {order.shippingTime ? new Date(order.shippingTime).toLocaleDateString('zh-CN', {
+                          year: 'numeric',
+                          month: '2-digit',
+                          day: '2-digit'
+                        }).replace(/\//g, '-') : ''}
+                      </div>
+                    )}
                   </td>
                   <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                     <select
