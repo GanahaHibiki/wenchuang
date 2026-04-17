@@ -78,7 +78,7 @@ export const SPECIFICATION_DISPLAY_ORDER: SpecificationType[] = [
 ]
 
 // Types that support multiple entries
-export const MULTI_ENTRY_TYPES: SpecificationType[] = ['卡头', '封口贴', '长贴']
+export const MULTI_ENTRY_TYPES: SpecificationType[] = ['卡头', '封口贴', '长贴', '其他贴纸', '其他衍生']
 
 export interface Specification {
   type: SpecificationType
