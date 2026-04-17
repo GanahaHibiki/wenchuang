@@ -232,6 +232,33 @@ export default function OrderListPage() {
     handleShippingTimeSave(orderId)
   }
 
+  // Calculate shipping duration in days
+  const calculateShippingDuration = (order: OrderSummary): string => {
+    if (!order.orderTime) return '-'
+
+    const orderDate = new Date(order.orderTime)
+    orderDate.setHours(0, 0, 0, 0)
+
+    let endDate: Date
+    if (order.shippingTime) {
+      endDate = new Date(order.shippingTime)
+      endDate.setHours(0, 0, 0, 0)
+    } else {
+      // Use Beijing time (UTC+8)
+      const now = new Date()
+      const beijingOffset = 8 * 60 // Beijing is UTC+8
+      const localOffset = now.getTimezoneOffset()
+      const beijingTime = new Date(now.getTime() + (beijingOffset + localOffset) * 60 * 1000)
+      beijingTime.setHours(0, 0, 0, 0)
+      endDate = beijingTime
+    }
+
+    const diffTime = endDate.getTime() - orderDate.getTime()
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
+
+    return `${diffDays}天`
+  }
+
   if (isLoading) {
     return <div className="text-center py-12 text-gray-500">加载中...</div>
   }
@@ -254,20 +281,20 @@ export default function OrderListPage() {
           <table className="w-full table-fixed">
             <thead className="bg-gray-50">
               <tr>
-                <th className="w-[5%] px-2 py-3 text-left text-sm font-medium text-gray-700">
+                <th className="w-[4%] px-2 py-3 text-left text-sm font-medium text-gray-700">
                   序号
                 </th>
-                <th className="w-[13%] px-8 py-3 text-left text-sm font-medium text-gray-700">
+                <th className="w-[12%] px-8 py-3 text-left text-sm font-medium text-gray-700">
                   店铺名称
                 </th>
                 <th
-                  className="w-[8%] px-4 py-3 text-left text-sm font-medium text-gray-700 cursor-pointer hover:bg-gray-100"
+                  className="w-[7%] px-4 py-3 text-left text-sm font-medium text-gray-700 cursor-pointer hover:bg-gray-100"
                   onClick={() => handleSort('totalAmount')}
                 >
                   订单金额 {getSortIcon('totalAmount')}
                 </th>
                 <th
-                  className="w-[8%] px-4 py-3 text-left text-sm font-medium text-gray-700 cursor-pointer hover:bg-gray-100"
+                  className="w-[7%] px-4 py-3 text-left text-sm font-medium text-gray-700 cursor-pointer hover:bg-gray-100"
                   onClick={() => handleSort('giftTotal')}
                 >
                   礼品总价 {getSortIcon('giftTotal')}
@@ -284,10 +311,13 @@ export default function OrderListPage() {
                 <th className="w-[8%] px-4 py-3 text-left text-sm font-medium text-gray-700">
                   下单时间
                 </th>
-                <th className="w-[8%] px-4 py-3 text-left text-sm font-medium text-gray-700">
+                <th className="w-[7%] px-4 py-3 text-left text-sm font-medium text-gray-700">
                   发货时间
                 </th>
-                <th className="w-[8%] px-4 py-3 text-left text-sm font-medium text-gray-700">
+                <th className="w-[6%] px-4 py-3 text-left text-sm font-medium text-gray-700">
+                  发货时长
+                </th>
+                <th className="w-[7%] px-4 py-3 text-left text-sm font-medium text-gray-700">
                   到货情况
                 </th>
                 <th className="w-[26%] px-8 py-3 text-left text-sm font-medium text-gray-700">
@@ -361,6 +391,9 @@ export default function OrderListPage() {
                         }).replace(/\//g, '-') : ''}
                       </div>
                     )}
+                  </td>
+                  <td className="px-4 py-3">
+                    {calculateShippingDuration(order)}
                   </td>
                   <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                     <select

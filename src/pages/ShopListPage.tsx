@@ -67,7 +67,7 @@ export default function ShopListPage() {
                   onClick={() => navigate(`/?shop=${encodeURIComponent(shop.name)}`)}
                 >
                   <td className="px-4 py-3 text-gray-500">{index + 1}</td>
-                  <td className="px-4 py-3 font-medium">{shop.name}</td>
+                  <td className="px-4 py-3 font-bold">{shop.name}</td>
                   <td className="px-4 py-3 text-gray-500">
                     {new Date(shop.createdAt).toLocaleDateString('zh-CN')}
                   </td>
