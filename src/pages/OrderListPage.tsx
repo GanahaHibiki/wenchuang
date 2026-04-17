@@ -314,13 +314,13 @@ export default function OrderListPage() {
                 <th className="w-[7%] px-4 py-3 text-left text-sm font-medium text-gray-700">
                   发货时间
                 </th>
-                <th className="w-[6%] px-4 py-3 text-left text-sm font-medium text-gray-700">
+                <th className="w-[7%] px-4 py-3 text-left text-sm font-medium text-gray-700">
                   发货时长
                 </th>
                 <th className="w-[7%] px-4 py-3 text-left text-sm font-medium text-gray-700">
                   到货情况
                 </th>
-                <th className="w-[26%] px-8 py-3 text-left text-sm font-medium text-gray-700">
+                <th className="w-[25%] px-8 py-3 text-left text-sm font-medium text-gray-700">
                   备注
                 </th>
               </tr>
@@ -392,7 +392,7 @@ export default function OrderListPage() {
                       </div>
                     )}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 font-bold">
                     {calculateShippingDuration(order)}
                   </td>
                   <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
