@@ -318,9 +318,10 @@ export default function OrderDetailPage() {
 
     Object.entries(giftsByType).forEach(([type, gifts]) => {
       gifts.forEach((item, index) => {
+        const isFirstOfType = index === 0
         elements.push(
-          <div key={item.id} className="relative">
-            {index === 0 && (
+          <div key={item.id} className={`relative ${isFirstOfType ? 'mt-8' : ''}`}>
+            {isFirstOfType && (
               <div className="absolute -top-8 left-0 text-md font-medium text-gray-700">
                 [{type}]
               </div>
@@ -347,9 +348,10 @@ export default function OrderDetailPage() {
       if (shopItems.length === 0) return
 
       shopItems.forEach((item, index) => {
+        const isFirstOfShop = index === 0
         elements.push(
-          <div key={item.id} className="relative">
-            {index === 0 && (
+          <div key={item.id} className={`relative ${isFirstOfShop ? 'mt-8' : ''}`}>
+            {isFirstOfShop && (
               <div className="absolute -top-8 left-0 text-md font-medium text-gray-700">
                 店铺：{shop.name}
               </div>
@@ -485,7 +487,7 @@ export default function OrderDetailPage() {
 
         {order.orderType === 'group' && order.shops ? (
           // Group order: display all items with shop labels above first item of each shop
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,230px))] gap-4 justify-center pt-8">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,230px))] gap-4 justify-center">
             {renderGroupOrderItems()}
           </div>
         ) : (
@@ -520,7 +522,7 @@ export default function OrderDetailPage() {
               <p className="text-gray-500">暂无礼品</p>
             </div>
           ) : (
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,230px))] gap-4 justify-center pt-8">
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,230px))] gap-4 justify-center">
               {renderGiftsWithLabels()}
             </div>
           )}
