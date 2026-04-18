@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import type { Specification, Product } from '@/types'
-import { productApi } from '@/api/client'
+import { productApi, wishApi, type WishProduct } from '@/api/client'
 import ImageUploader from '@/components/common/ImageUploader'
 import SpecificationForm from './SpecificationForm'
 
@@ -9,6 +9,7 @@ export interface SmallGiftItemData {
   image: File | null
   imagePreview: string | null
   specifications: Specification[]
+  isFromWish?: boolean
 }
 
 interface StepSmallGiftsProps {
@@ -32,6 +33,7 @@ export default function StepSmallGifts({
 }: StepSmallGiftsProps) {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [shopProducts, setShopProducts] = useState<Product[]>([])
+  const [wishProducts, setWishProducts] = useState<WishProduct[]>([])
   const [isLoadingShopProducts, setIsLoadingShopProducts] = useState(false)
   const [lastCheckedName, setLastCheckedName] = useState('')
 
@@ -55,18 +57,46 @@ export default function StepSmallGifts({
 
     setLastCheckedName(trimmedName)
 
-    // Check for duplicates in:
-    // 1. Shop products from other orders (same shop)
-    // 2. Previous steps (purchased items + gift items)
-    // 3. Current step other items (excluding current item)
+    const lowerName = trimmedName.toLowerCase()
+
+    // Check for duplicates
     const shopProductNames = shopProducts.map(p => p.name.trim().toLowerCase())
+    const wishProductNames = wishProducts.map(p => p.productName.trim().toLowerCase())
     const previousStepNames = previousItems.map(item => item.productName.trim().toLowerCase())
     const currentStepNames = items
       .filter((_, idx) => idx !== currentIndex)
       .map(item => item.productName.trim().toLowerCase())
 
+    // Check wish products first
+    const matchingWish = wishProducts.find(
+      w => w.productName.trim().toLowerCase() === lowerName
+    )
+
+    if (matchingWish) {
+      const userConfirmed = window.confirm(
+        `商品名"${trimmedName}"与该店铺的心愿商品重名。\n\n` +
+        `是否为心愿商品？\n\n` +
+        `- 点击"确定"：这是心愿商品，将自动填充图片\n` +
+        `- 点击"取消"：这是不同商品，将自动添加序号区分`
+      )
+
+      if (userConfirmed) {
+        updateCurrentItem({
+          imagePreview: `/images/original/${matchingWish.imagePath}`,
+          isFromWish: true
+        })
+      } else {
+        const allNames = [...shopProductNames, ...wishProductNames, ...previousStepNames, ...currentStepNames]
+        const duplicateCount = allNames.filter(name => name === lowerName).length
+        const newName = `${trimmedName} (${duplicateCount + 1})`
+        updateCurrentItem({ productName: newName })
+        setLastCheckedName(newName)
+      }
+      return
+    }
+
     const allExistingNames = [...shopProductNames, ...previousStepNames, ...currentStepNames]
-    const duplicateCount = allExistingNames.filter(name => name === trimmedName.toLowerCase()).length
+    const duplicateCount = allExistingNames.filter(name => name === lowerName).length
 
     if (duplicateCount > 0) {
       const userConfirmed = window.confirm(
@@ -77,29 +107,25 @@ export default function StepSmallGifts({
       )
 
       if (userConfirmed) {
-        // User confirmed it's the same product, find and auto-fill image
-        // First check shop products
         const matchingShopProduct = shopProducts.find(
-          p => p.name.trim().toLowerCase() === trimmedName.toLowerCase()
+          p => p.name.trim().toLowerCase() === lowerName
         )
         if (matchingShopProduct) {
           updateCurrentItem({
             imagePreview: `/images/original/${matchingShopProduct.imagePath}`
           })
         } else {
-          // Check previous items (purchased + gifts)
           const matchingPreviousItem = previousItems.find(
-            item => item.productName.trim().toLowerCase() === trimmedName.toLowerCase()
+            item => item.productName.trim().toLowerCase() === lowerName
           )
           if (matchingPreviousItem && matchingPreviousItem.imagePreview) {
             updateCurrentItem({
               imagePreview: matchingPreviousItem.imagePreview
             })
           } else {
-            // Check other items in current step
             const matchingCurrentItem = items.find(
               (item, idx) => idx !== currentIndex &&
-              item.productName.trim().toLowerCase() === trimmedName.toLowerCase()
+              item.productName.trim().toLowerCase() === lowerName
             )
             if (matchingCurrentItem && matchingCurrentItem.imagePreview) {
               updateCurrentItem({
@@ -109,7 +135,6 @@ export default function StepSmallGifts({
           }
         }
       } else {
-        // User says it's different product, add sequence number
         const newName = `${trimmedName} (${duplicateCount + 1})`
         updateCurrentItem({ productName: newName })
         setLastCheckedName(newName)
@@ -117,29 +142,46 @@ export default function StepSmallGifts({
     }
   }
 
-  // Load shop products
+  // Load shop products and wish products
   useEffect(() => {
-    const loadShopProducts = async () => {
+    const loadProducts = async () => {
       if (!shopName) return
 
       setIsLoadingShopProducts(true)
       try {
-        const products = await productApi.search('shopName', shopName)
+        const [products, wishes] = await Promise.all([
+          productApi.search('shopName', shopName),
+          wishApi.getByShop(shopName)
+        ])
         setShopProducts(products)
+        setWishProducts(wishes)
       } catch (error) {
-        console.error('Failed to load shop products:', error)
+        console.error('Failed to load products:', error)
       } finally {
         setIsLoadingShopProducts(false)
       }
     }
 
-    loadShopProducts()
+    loadProducts()
   }, [shopName])
 
   const handleSelectProduct = async (selection: string) => {
     if (selection === 'manual') {
-      // Clear selection for manual input
-      updateCurrentItem({ productName: '', image: null, imagePreview: null })
+      updateCurrentItem({ productName: '', image: null, imagePreview: null, isFromWish: false })
+      return
+    }
+
+    // Check if it's a wish product
+    if (selection.startsWith('wish_')) {
+      const wishId = selection.replace('wish_', '')
+      const wish = wishProducts.find(w => w.id === wishId)
+      if (wish) {
+        updateCurrentItem({
+          productName: wish.productName,
+          imagePreview: `/images/original/${wish.imagePath}`,
+          isFromWish: true
+        })
+      }
       return
     }
 
@@ -148,7 +190,8 @@ export default function StepSmallGifts({
     if (previousItem) {
       updateCurrentItem({
         productName: previousItem.productName,
-        imagePreview: previousItem.imagePreview
+        imagePreview: previousItem.imagePreview,
+        isFromWish: false
       })
       return
     }
@@ -158,7 +201,8 @@ export default function StepSmallGifts({
     if (product) {
       updateCurrentItem({
         productName: product.name,
-        imagePreview: `/images/original/${product.imagePath}`
+        imagePreview: `/images/original/${product.imagePath}`,
+        isFromWish: false
       })
     }
   }
@@ -222,7 +266,6 @@ export default function StepSmallGifts({
   // Deduplicate previousItems by product name (case-insensitive)
   const uniquePreviousItems = previousItems.filter((item, index, self) => {
     const itemNameLower = item.productName.trim().toLowerCase()
-    // Keep only first occurrence of each product name
     return index === self.findIndex(t => t.productName.trim().toLowerCase() === itemNameLower)
   })
 
@@ -231,6 +274,9 @@ export default function StepSmallGifts({
   )
   const availableShopProducts = shopProducts.filter(
     product => !usedProductNames.has(product.name.trim().toLowerCase())
+  )
+  const availableWishProducts = wishProducts.filter(
+    wish => !usedProductNames.has(wish.productName.trim().toLowerCase())
   )
 
   return (
@@ -296,6 +342,15 @@ export default function StepSmallGifts({
                 defaultValue="manual"
               >
                 <option value="manual">手动输入商品名和图片</option>
+                {availableWishProducts.length > 0 && (
+                  <optgroup label="心愿商品">
+                    {availableWishProducts.map((wish) => (
+                      <option key={`wish_${wish.id}`} value={`wish_${wish.id}`}>
+                        {wish.productName}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
                 {availablePreviousItems.length > 0 && (
                   <optgroup label="本订单已录入商品">
                     {availablePreviousItems.map((item, idx) => {

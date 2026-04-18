@@ -509,4 +509,48 @@ export async function getWishProductsByShop(shopId: string): Promise<WishItemWit
   return wishItems.filter((w: WishItemWithProduct) => w.shopId === shopId)
 }
 
+export async function getWishProductsByShopName(
+  shopName: string
+): Promise<Array<WishItemWithProduct & { shopName: string }>> {
+  const db = await loadDatabase()
+  const wishItems = db.wishItems || []
+
+  // Find shop by name
+  const shop = db.shops.find((s) => s.name.toLowerCase() === shopName.toLowerCase())
+  if (!shop) return []
+
+  const matchingItems = wishItems.filter((w: WishItemWithProduct) => w.shopId === shop.id)
+
+  return matchingItems.map((w: WishItemWithProduct) => ({
+    ...w,
+    shopName: shop.name,
+  })).sort((a: WishItemWithProduct, b: WishItemWithProduct) =>
+    b.createdAt.localeCompare(a.createdAt)
+  )
+}
+
+export async function deleteWishItemByProductName(
+  shopName: string,
+  productName: string
+): Promise<boolean> {
+  const db = await loadDatabase()
+  if (!db.wishItems) return false
+
+  // Find shop by name
+  const shop = db.shops.find((s) => s.name.toLowerCase() === shopName.toLowerCase())
+  if (!shop) return false
+
+  const index = db.wishItems.findIndex(
+    (w: WishItemWithProduct) =>
+      w.shopId === shop.id &&
+      w.productName.toLowerCase() === productName.toLowerCase()
+  )
+
+  if (index === -1) return false
+
+  db.wishItems.splice(index, 1)
+  await saveDatabase(db)
+  return true
+}
+
 export { loadDatabase, DATA_DIR }

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import ShopItemsEntry from './ShopItemsEntry'
-import { orderApi } from '@/api/client'
+import { orderApi, wishApi } from '@/api/client'
 import type { PurchasedItemData } from '../OrderEntry/StepPurchased'
 
 export interface ShopItemsData {
@@ -108,6 +108,19 @@ export default function GroupOrderEntry() {
       })
 
       const order = await orderApi.createGroupOrder(formData)
+
+      // Delete wish items that were added to the order
+      for (const shop of shopItemsList) {
+        const wishItemsToDelete = shop.items.filter(item => item.isFromWish)
+        for (const item of wishItemsToDelete) {
+          try {
+            await wishApi.deleteByProductName(shop.shopName, item.productName)
+          } catch (err) {
+            console.error('Failed to delete wish item:', err)
+          }
+        }
+      }
+
       navigate(`/orders/${order.id}`)
     } catch (err) {
       setError(err instanceof Error ? err.message : '提交失败，请重试')

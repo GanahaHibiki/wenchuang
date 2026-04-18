@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { shopApi, productApi } from '@/api/client'
+import { shopApi, productApi, wishApi, type WishProduct } from '@/api/client'
 import type { Shop, Product } from '@/types'
 import type { PurchasedItemData } from '../OrderEntry/StepPurchased'
 import ImageUploader from '@/components/common/ImageUploader'
@@ -23,6 +23,7 @@ export default function ShopItemsEntry({
   const [currentIndex, setCurrentIndex] = useState(0)
   const [shops, setShops] = useState<Shop[]>([])
   const [shopProducts, setShopProducts] = useState<Product[]>([])
+  const [wishProducts, setWishProducts] = useState<WishProduct[]>([])
   const [showShopInput, setShowShopInput] = useState(false)
   const [lastCheckedShopName, setLastCheckedShopName] = useState('')
   const [lastCheckedProductName, setLastCheckedProductName] = useState('')
@@ -46,10 +47,10 @@ export default function ShopItemsEntry({
     loadShops()
   }, [])
 
-  // Load shop products when shop name changes
+  // Load shop products and wish products when shop name changes
   useEffect(() => {
     if (shopName.trim()) {
-      loadShopProducts()
+      loadProducts()
     }
   }, [shopName])
 
@@ -62,14 +63,18 @@ export default function ShopItemsEntry({
     }
   }
 
-  const loadShopProducts = async () => {
+  const loadProducts = async () => {
     if (!shopName) return
 
     try {
-      const products = await productApi.search('shopName', shopName)
+      const [products, wishes] = await Promise.all([
+        productApi.search('shopName', shopName),
+        wishApi.getByShop(shopName)
+      ])
       setShopProducts(products)
+      setWishProducts(wishes)
     } catch (error) {
-      console.error('Failed to load shop products:', error)
+      console.error('Failed to load products:', error)
     }
   }
 
@@ -126,16 +131,48 @@ export default function ShopItemsEntry({
 
     setLastCheckedProductName(trimmedName)
 
+    const lowerName = trimmedName.toLowerCase()
+
     // Check for duplicates in:
     // 1. Shop products from other orders (same shop)
-    // 2. Current shop other items (excluding current item)
+    // 2. Wish products (same shop)
+    // 3. Current shop other items (excluding current item)
     const shopProductNames = shopProducts.map(p => p.name.trim().toLowerCase())
+    const wishProductNames = wishProducts.map(p => p.productName.trim().toLowerCase())
     const currentShopNames = items
       .filter((_, idx) => idx !== currentIndex)
       .map(item => item.productName.trim().toLowerCase())
 
+    // Check wish products first
+    const matchingWish = wishProducts.find(
+      w => w.productName.trim().toLowerCase() === lowerName
+    )
+
+    if (matchingWish) {
+      const userConfirmed = window.confirm(
+        `商品名"${trimmedName}"与该店铺的心愿商品重名。\n\n` +
+        `是否为心愿商品？\n\n` +
+        `- 点击"确定"：这是心愿商品，将自动填充图片\n` +
+        `- 点击"取消"：这是不同商品，将自动添加序号区分`
+      )
+
+      if (userConfirmed) {
+        updateCurrentItem({
+          imagePreview: `/images/original/${matchingWish.imagePath}`,
+          isFromWish: true
+        })
+      } else {
+        const allNames = [...shopProductNames, ...wishProductNames, ...currentShopNames]
+        const duplicateCount = allNames.filter(name => name === lowerName).length
+        const newName = `${trimmedName} (${duplicateCount + 1})`
+        updateCurrentItem({ productName: newName })
+        setLastCheckedProductName(newName)
+      }
+      return
+    }
+
     const allExistingNames = [...shopProductNames, ...currentShopNames]
-    const duplicateCount = allExistingNames.filter(name => name === trimmedName.toLowerCase()).length
+    const duplicateCount = allExistingNames.filter(name => name === lowerName).length
 
     if (duplicateCount > 0) {
       const userConfirmed = window.confirm(
@@ -146,20 +183,17 @@ export default function ShopItemsEntry({
       )
 
       if (userConfirmed) {
-        // User confirmed it's the same product, find and auto-fill image
-        // First check shop products
         const matchingShopProduct = shopProducts.find(
-          p => p.name.trim().toLowerCase() === trimmedName.toLowerCase()
+          p => p.name.trim().toLowerCase() === lowerName
         )
         if (matchingShopProduct) {
           updateCurrentItem({
             imagePreview: `/images/original/${matchingShopProduct.imagePath}`
           })
         } else {
-          // Check other items in current shop
           const matchingCurrentItem = items.find(
             (item, idx) => idx !== currentIndex &&
-            item.productName.trim().toLowerCase() === trimmedName.toLowerCase()
+            item.productName.trim().toLowerCase() === lowerName
           )
           if (matchingCurrentItem && matchingCurrentItem.imagePreview) {
             updateCurrentItem({
@@ -168,7 +202,6 @@ export default function ShopItemsEntry({
           }
         }
       } else {
-        // User says it's different product, add sequence number
         const newName = `${trimmedName} (${duplicateCount + 1})`
         updateCurrentItem({ productName: newName })
         setLastCheckedProductName(newName)
@@ -178,8 +211,23 @@ export default function ShopItemsEntry({
 
   const handleSelectProduct = (selection: string) => {
     if (selection === 'manual') {
-      updateCurrentItem({ productName: '', image: null, imagePreview: null })
+      updateCurrentItem({ productName: '', image: null, imagePreview: null, isFromWish: false })
       setLastCheckedProductName('')
+      return
+    }
+
+    // Check if it's a wish product
+    if (selection.startsWith('wish_')) {
+      const wishId = selection.replace('wish_', '')
+      const wish = wishProducts.find(w => w.id === wishId)
+      if (wish) {
+        updateCurrentItem({
+          productName: wish.productName,
+          imagePreview: `/images/original/${wish.imagePath}`,
+          isFromWish: true
+        })
+        setLastCheckedProductName('')
+      }
       return
     }
 
@@ -187,7 +235,8 @@ export default function ShopItemsEntry({
     if (product) {
       updateCurrentItem({
         productName: product.name,
-        imagePreview: `/images/original/${product.imagePath}`
+        imagePreview: `/images/original/${product.imagePath}`,
+        isFromWish: false
       })
       setLastCheckedProductName('')
     }
@@ -318,7 +367,7 @@ export default function ShopItemsEntry({
 
         <div className="space-y-4">
           {/* Product selection */}
-          {shopName && shopProducts.length > 0 && (
+          {shopName && (shopProducts.length > 0 || wishProducts.length > 0) && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 选择商品
@@ -329,13 +378,24 @@ export default function ShopItemsEntry({
                 defaultValue="manual"
               >
                 <option value="manual">手动输入商品名和图片</option>
-                <optgroup label="同店铺商品">
-                  {shopProducts.map((product) => (
-                    <option key={product.id} value={product.id}>
-                      {product.name}
-                    </option>
-                  ))}
-                </optgroup>
+                {wishProducts.length > 0 && (
+                  <optgroup label="心愿商品">
+                    {wishProducts.map((wish) => (
+                      <option key={`wish_${wish.id}`} value={`wish_${wish.id}`}>
+                        {wish.productName}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+                {shopProducts.length > 0 && (
+                  <optgroup label="同店铺商品">
+                    {shopProducts.map((product) => (
+                      <option key={product.id} value={product.id}>
+                        {product.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
               </select>
             </div>
           )}

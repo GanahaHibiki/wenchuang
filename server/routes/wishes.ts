@@ -5,7 +5,9 @@ import {
   getAllWishItems,
   createWishItem,
   deleteWishItem,
+  deleteWishItemByProductName,
   searchWishProducts,
+  getWishProductsByShopName,
   getShopById,
   findOrCreateShop,
 } from '../services/database.js'
@@ -32,6 +34,20 @@ router.get('/search', async (req, res, next) => {
       type as 'productName' | 'shopName',
       (keyword as string) || ''
     )
+    res.json(products)
+  } catch (error) {
+    next(error)
+  }
+})
+
+// Get wish products by shop name
+router.get('/by-shop', async (req, res, next) => {
+  try {
+    const { shopName } = req.query
+    if (!shopName) {
+      return res.json([])
+    }
+    const products = await getWishProductsByShopName(shopName as string)
     res.json(products)
   } catch (error) {
     next(error)
@@ -79,7 +95,7 @@ router.post('/', upload.single('image'), async (req, res, next) => {
   }
 })
 
-// Delete wish item
+// Delete wish item by id
 router.delete('/:id', async (req, res, next) => {
   try {
     const { id } = req.params
@@ -90,6 +106,25 @@ router.delete('/:id', async (req, res, next) => {
     }
 
     res.json({ success: true })
+  } catch (error) {
+    next(error)
+  }
+})
+
+// Delete wish item by shop name and product name
+router.delete('/by-product', async (req, res, next) => {
+  try {
+    const { shopName, productName } = req.query
+    if (!shopName || !productName) {
+      return res.status(400).json({ message: '店铺名和商品名为必填项' })
+    }
+
+    const success = await deleteWishItemByProductName(
+      shopName as string,
+      productName as string
+    )
+
+    res.json({ success })
   } catch (error) {
     next(error)
   }

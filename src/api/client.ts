@@ -118,6 +118,9 @@ export const wishApi = {
   search: (type: 'productName' | 'shopName', keyword: string) =>
     request<WishProduct[]>(`/wishes/search?type=${type}&keyword=${encodeURIComponent(keyword)}`),
 
+  getByShop: (shopName: string) =>
+    request<WishProduct[]>(`/wishes/by-shop?shopName=${encodeURIComponent(shopName)}`),
+
   create: (formData: FormData) =>
     request<WishItem>('/wishes', {
       method: 'POST',
@@ -126,6 +129,11 @@ export const wishApi = {
 
   delete: (id: string) =>
     request<{ success: boolean }>(`/wishes/${id}`, {
+      method: 'DELETE',
+    }),
+
+  deleteByProductName: (shopName: string, productName: string) =>
+    request<{ success: boolean }>(`/wishes/by-product?shopName=${encodeURIComponent(shopName)}&productName=${encodeURIComponent(productName)}`, {
       method: 'DELETE',
     }),
 }

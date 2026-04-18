@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import type { Shop } from '@/types'
-import { wishApi } from '@/api/client'
+import { wishApi, productApi } from '@/api/client'
 
 interface WishItemInput {
   id: string
@@ -26,6 +26,7 @@ export default function AddWishModal({ shops, onClose, onSuccess }: AddWishModal
   const [duplicateWarning, setDuplicateWarning] = useState<{
     itemId: string
     productName: string
+    source: 'wish' | 'purchased'
   } | null>(null)
   const fileInputRefs = useRef<Map<string, HTMLInputElement>>(new Map())
 
@@ -75,16 +76,29 @@ export default function AddWishModal({ shops, onClose, onSuccess }: AddWishModal
   const handleProductNameBlur = async (itemId: string, name: string) => {
     if (!name.trim() || !shopName.trim()) return
 
-    // Check if this product name exists for this shop
+    // Check if this product name exists for this shop in wishes or purchased products
     try {
-      const existingProducts = await wishApi.search('shopName', shopName)
-      const duplicate = existingProducts.find(
+      const [existingWishes, existingProducts] = await Promise.all([
+        wishApi.search('shopName', shopName),
+        productApi.search('shopName', shopName)
+      ])
+
+      const wishDuplicate = existingWishes.find(
         p => p.productName.toLowerCase() === name.toLowerCase() &&
             p.shopName.toLowerCase() === shopName.toLowerCase()
       )
 
-      if (duplicate) {
-        setDuplicateWarning({ itemId, productName: name })
+      if (wishDuplicate) {
+        setDuplicateWarning({ itemId, productName: name, source: 'wish' })
+        return
+      }
+
+      const purchasedDuplicate = existingProducts.find(
+        p => p.name.toLowerCase() === name.toLowerCase()
+      )
+
+      if (purchasedDuplicate) {
+        setDuplicateWarning({ itemId, productName: name, source: 'purchased' })
       }
     } catch (err) {
       console.error('Error checking duplicate:', err)
@@ -308,7 +322,9 @@ export default function AddWishModal({ shops, onClose, onSuccess }: AddWishModal
           <div className="bg-white rounded-lg p-6 max-w-md">
             <h3 className="font-bold mb-4">商品名重复</h3>
             <p className="mb-4">
-              商品名"{duplicateWarning.productName}"与该店铺已有的心愿商品重名。是否为相同商品？
+              商品名"{duplicateWarning.productName}"与该店铺已有的
+              {duplicateWarning.source === 'wish' ? '心愿商品' : '已购商品'}
+              重名。是否为相同商品？
             </p>
             <div className="flex justify-end gap-3">
               <button

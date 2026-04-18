@@ -4,7 +4,7 @@ import StepShop from './StepShop'
 import StepPurchased, { PurchasedItemData } from './StepPurchased'
 import StepGifts, { GiftItemData } from './StepGifts'
 import StepSmallGifts, { SmallGiftItemData } from './StepSmallGifts'
-import { orderApi } from '@/api/client'
+import { orderApi, wishApi } from '@/api/client'
 
 type Step = 'shop' | 'purchased' | 'gifts' | 'smallGifts'
 
@@ -78,6 +78,22 @@ export default function OrderEntry() {
       })
 
       const order = await orderApi.create(formData)
+
+      // Delete wish items that were added to the order
+      const wishItemsToDelete = [
+        ...purchasedItems.filter(item => item.isFromWish),
+        ...giftItems.filter(item => item.isFromWish),
+        ...smallGiftItems.filter(item => item.isFromWish),
+      ]
+
+      for (const item of wishItemsToDelete) {
+        try {
+          await wishApi.deleteByProductName(shopName, item.productName)
+        } catch (err) {
+          console.error('Failed to delete wish item:', err)
+        }
+      }
+
       navigate(`/orders/${order.id}`)
     } catch (err) {
       setError(err instanceof Error ? err.message : '提交失败，请重试')
