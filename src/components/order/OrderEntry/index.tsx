@@ -182,7 +182,8 @@ export default function OrderEntry() {
             shopName={shopName}
             previousItems={purchasedItems.map(item => ({
               productName: item.productName,
-              imagePreview: item.imagePreview
+              imagePreview: item.imagePreview,
+              image: item.image
             }))}
           />
         )}
@@ -198,11 +199,13 @@ export default function OrderEntry() {
             previousItems={[
               ...purchasedItems.map(item => ({
                 productName: item.productName,
-                imagePreview: item.imagePreview
+                imagePreview: item.imagePreview,
+                image: item.image
               })),
               ...giftItems.map(item => ({
                 productName: item.productName,
-                imagePreview: item.imagePreview
+                imagePreview: item.imagePreview,
+                image: item.image
               }))
             ]}
           />

@@ -19,7 +19,7 @@ interface StepSmallGiftsProps {
   onBack: () => void
   isSubmitting: boolean
   shopName: string
-  previousItems: { productName: string; imagePreview: string | null }[]
+  previousItems: { productName: string; imagePreview: string | null; image: File | null }[]
 }
 
 export default function StepSmallGifts({
@@ -120,7 +120,8 @@ export default function StepSmallGifts({
           )
           if (matchingPreviousItem && matchingPreviousItem.imagePreview) {
             updateCurrentItem({
-              imagePreview: matchingPreviousItem.imagePreview
+              imagePreview: matchingPreviousItem.imagePreview,
+              image: matchingPreviousItem.image
             })
           } else {
             const matchingCurrentItem = items.find(
@@ -129,7 +130,8 @@ export default function StepSmallGifts({
             )
             if (matchingCurrentItem && matchingCurrentItem.imagePreview) {
               updateCurrentItem({
-                imagePreview: matchingCurrentItem.imagePreview
+                imagePreview: matchingCurrentItem.imagePreview,
+                image: matchingCurrentItem.image
               })
             }
           }
@@ -191,6 +193,7 @@ export default function StepSmallGifts({
       updateCurrentItem({
         productName: previousItem.productName,
         imagePreview: previousItem.imagePreview,
+        image: previousItem.image,
         isFromWish: false
       })
       return

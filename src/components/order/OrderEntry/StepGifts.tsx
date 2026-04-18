@@ -21,7 +21,7 @@ interface StepGiftsProps {
   onNext: () => void
   onBack: () => void
   shopName: string
-  previousItems: { productName: string; imagePreview: string | null }[]
+  previousItems: { productName: string; imagePreview: string | null; image: File | null }[]
 }
 
 export default function StepGifts({
@@ -127,7 +127,8 @@ export default function StepGifts({
           )
           if (matchingPreviousItem && matchingPreviousItem.imagePreview) {
             updateCurrentItem({
-              imagePreview: matchingPreviousItem.imagePreview
+              imagePreview: matchingPreviousItem.imagePreview,
+              image: matchingPreviousItem.image
             })
           } else {
             const matchingCurrentItem = items.find(
@@ -136,7 +137,8 @@ export default function StepGifts({
             )
             if (matchingCurrentItem && matchingCurrentItem.imagePreview) {
               updateCurrentItem({
-                imagePreview: matchingCurrentItem.imagePreview
+                imagePreview: matchingCurrentItem.imagePreview,
+                image: matchingCurrentItem.image
               })
             }
           }
@@ -198,6 +200,7 @@ export default function StepGifts({
       updateCurrentItem({
         productName: previousItem.productName,
         imagePreview: previousItem.imagePreview,
+        image: previousItem.image,
         isFromWish: false
       })
       return
