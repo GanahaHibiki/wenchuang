@@ -7,6 +7,7 @@ const menuItems = [
   { path: '/group-order-entry', label: '拼单订单录入', icon: '🛒' },
   { path: '/orders', label: '订单总览', icon: '📋' },
   { path: '/shops', label: '已购店铺', icon: '🏪' },
+  { path: '/wish-shops', label: '心愿店铺', icon: '💫' },
 ]
 
 export default function Sidebar() {

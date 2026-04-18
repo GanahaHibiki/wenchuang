@@ -8,6 +8,7 @@ import OrderListPage from './pages/OrderListPage'
 import OrderDetailPage from './pages/OrderDetailPage'
 import ProductDetailPage from './pages/ProductDetailPage'
 import ShopListPage from './pages/ShopListPage'
+import WishShopListPage from './pages/WishShopListPage'
 
 function App() {
   return (
@@ -21,6 +22,7 @@ function App() {
         <Route path="/orders/:id" element={<OrderDetailPage />} />
         <Route path="/products/:id" element={<ProductDetailPage />} />
         <Route path="/shops" element={<ShopListPage />} />
+        <Route path="/wish-shops" element={<WishShopListPage />} />
       </Routes>
     </MainLayout>
   )

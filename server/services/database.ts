@@ -104,6 +104,62 @@ export async function getAllShops(): Promise<Shop[]> {
   return db.shops
 }
 
+// Get shops that have orders (excluding wish-only shops)
+export async function getOrderShops(): Promise<Shop[]> {
+  const db = await loadDatabase()
+  const wishItems = db.wishItems || []
+
+  // Get all shop IDs that have orders
+  const orderShopIds = new Set<string>()
+  for (const order of db.orders) {
+    if (order.shopId) {
+      orderShopIds.add(order.shopId)
+    }
+    // For group orders, check items
+    if (order.items) {
+      for (const item of order.items) {
+        if ((item as any).shopId) {
+          orderShopIds.add((item as any).shopId)
+        }
+      }
+    }
+  }
+
+  return db.shops.filter(shop => orderShopIds.has(shop.id))
+}
+
+// Get shops that only have wish items (no orders)
+export async function getWishOnlyShops(): Promise<Shop[]> {
+  const db = await loadDatabase()
+  const wishItems = db.wishItems || []
+
+  // Get all shop IDs that have orders
+  const orderShopIds = new Set<string>()
+  for (const order of db.orders) {
+    if (order.shopId) {
+      orderShopIds.add(order.shopId)
+    }
+    if (order.items) {
+      for (const item of order.items) {
+        if ((item as any).shopId) {
+          orderShopIds.add((item as any).shopId)
+        }
+      }
+    }
+  }
+
+  // Get shop IDs that have wish items
+  const wishShopIds = new Set<string>()
+  for (const wish of wishItems) {
+    wishShopIds.add(wish.shopId)
+  }
+
+  // Return shops that have wish items but no orders
+  return db.shops.filter(shop =>
+    wishShopIds.has(shop.id) && !orderShopIds.has(shop.id)
+  )
+}
+
 export async function getShopById(id: string): Promise<Shop | undefined> {
   const db = await loadDatabase()
   return db.shops.find((s) => s.id === id)

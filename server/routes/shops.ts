@@ -1,14 +1,35 @@
 import { Router } from 'express'
 import { v4 as uuidv4 } from 'uuid'
-import { getAllShops, createShop } from '../services/database.js'
+import { getAllShops, createShop, getOrderShops, getWishOnlyShops } from '../services/database.js'
 
 const router = Router()
 
-// GET /api/shops
+// GET /api/shops - Get shops with orders (excluding wish-only shops)
 router.get('/', async (req, res, next) => {
   try {
-    const shops = await getAllShops()
+    const shops = await getOrderShops()
     // Filter out the special "拼单" shop used for group orders
+    const filteredShops = shops.filter(shop => shop.name !== '拼单')
+    res.json(filteredShops)
+  } catch (err) {
+    next(err)
+  }
+})
+
+// GET /api/shops/wish - Get shops that only have wish items
+router.get('/wish', async (req, res, next) => {
+  try {
+    const shops = await getWishOnlyShops()
+    res.json(shops)
+  } catch (err) {
+    next(err)
+  }
+})
+
+// GET /api/shops/all - Get all shops (for dropdowns etc.)
+router.get('/all', async (req, res, next) => {
+  try {
+    const shops = await getAllShops()
     const filteredShops = shops.filter(shop => shop.name !== '拼单')
     res.json(filteredShops)
   } catch (err) {

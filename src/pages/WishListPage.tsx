@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { wishApi, shopApi, type WishProduct } from '@/api/client'
 import type { Shop } from '@/types'
 import SearchBar from '@/components/common/SearchBar'
@@ -8,13 +9,18 @@ import AddWishModal from '@/components/wish/AddWishModal'
 const ITEMS_PER_PAGE = 50
 
 export default function WishListPage() {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const initialShop = searchParams.get('shop') || ''
+
   const [allProducts, setAllProducts] = useState<WishProduct[]>([])
   const [displayedProducts, setDisplayedProducts] = useState<WishProduct[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
-  const [searchKeyword, setSearchKeyword] = useState('')
-  const [searchType, setSearchType] = useState<'productName' | 'shopName'>('productName')
+  const [searchKeyword, setSearchKeyword] = useState(initialShop)
+  const [searchType, setSearchType] = useState<'productName' | 'shopName'>(
+    initialShop ? 'shopName' : 'productName'
+  )
   const [showAddModal, setShowAddModal] = useState(false)
   const [shops, setShops] = useState<Shop[]>([])
   const observerRef = useRef<IntersectionObserver | null>(null)
@@ -41,12 +47,18 @@ export default function WishListPage() {
   }, [loadProducts])
 
   useEffect(() => {
-    shopApi.getAll().then(setShops).catch(console.error)
+    shopApi.getAllShops().then(setShops).catch(console.error)
   }, [])
 
   const handleSearch = async (type: 'productName' | 'shopName', keyword: string) => {
     setSearchType(type)
     setSearchKeyword(keyword)
+    // Update URL params
+    if (keyword && type === 'shopName') {
+      setSearchParams({ shop: keyword })
+    } else {
+      setSearchParams({})
+    }
   }
 
   const loadMore = useCallback(() => {
@@ -99,7 +111,7 @@ export default function WishListPage() {
   const handleAddSuccess = () => {
     setShowAddModal(false)
     loadProducts()
-    shopApi.getAll().then(setShops).catch(console.error)
+    shopApi.getAllShops().then(setShops).catch(console.error)
   }
 
   const hasMore = displayedProducts.length < allProducts.length

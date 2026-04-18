@@ -34,6 +34,10 @@ async function request<T>(
 export const shopApi = {
   getAll: () => request<Shop[]>('/shops'),
 
+  getWishShops: () => request<Shop[]>('/shops/wish'),
+
+  getAllShops: () => request<Shop[]>('/shops/all'),
+
   create: (name: string) =>
     request<Shop>('/shops', {
       method: 'POST',
