@@ -205,7 +205,7 @@ export default function StepPurchased({
   const isCurrentItemValid = () => {
     return (
       currentItem.productName.trim() &&
-      currentItem.image &&
+      (currentItem.image || currentItem.imagePreview) &&
       currentItem.specifications.length > 0
     )
   }
