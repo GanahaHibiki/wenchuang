@@ -284,7 +284,7 @@ export default function OrderListPage() {
                 <th className="w-[4%] px-2 py-3 text-left text-sm font-medium text-gray-700">
                   序号
                 </th>
-                <th className="w-[12%] px-8 py-3 text-left text-sm font-medium text-gray-700">
+                <th className="w-[15%] px-8 py-3 text-left text-sm font-medium text-gray-700">
                   店铺名称
                 </th>
                 <th
@@ -299,16 +299,16 @@ export default function OrderListPage() {
                 >
                   礼品总价 {getSortIcon('giftTotal')}
                 </th>
-                <th className="w-[8%] px-4 py-3 text-left text-sm font-medium text-gray-700">
+                <th className="w-[7%] px-4 py-3 text-left text-sm font-medium text-gray-700">
                   小礼物总价
                 </th>
                 <th
-                  className="w-[8%] px-4 py-3 text-left text-sm font-medium text-gray-700 cursor-pointer hover:bg-gray-100"
+                  className="w-[7%] px-4 py-3 text-left text-sm font-medium text-gray-700 cursor-pointer hover:bg-gray-100"
                   onClick={() => handleSort('giftRatio')}
                 >
                   小礼物占比 {getSortIcon('giftRatio')}
                 </th>
-                <th className="w-[8%] px-4 py-3 text-left text-sm font-medium text-gray-700">
+                <th className="w-[11%] px-4 py-3 text-left text-sm font-medium text-gray-700">
                   下单时间
                 </th>
                 <th className="w-[7%] px-4 py-3 text-left text-sm font-medium text-gray-700">
@@ -320,7 +320,7 @@ export default function OrderListPage() {
                 <th className="w-[7%] px-4 py-3 text-left text-sm font-medium text-gray-700">
                   到货情况
                 </th>
-                <th className="w-[25%] px-8 py-3 text-left text-sm font-medium text-gray-700">
+                <th className="w-[21%] px-8 py-3 text-left text-sm font-medium text-gray-700">
                   备注
                 </th>
               </tr>
