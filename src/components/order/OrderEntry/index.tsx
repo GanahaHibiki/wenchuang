@@ -43,6 +43,9 @@ export default function OrderEntry() {
       const purchasedData = purchasedItems.map((item) => ({
         productName: item.productName,
         specifications: item.specifications,
+        existingImagePath: !item.image && item.imagePreview
+          ? item.imagePreview.replace('/images/original/', '')
+          : undefined,
       }))
       formData.append('purchasedItems', JSON.stringify(purchasedData))
       purchasedItems.forEach((item, index) => {
@@ -57,6 +60,9 @@ export default function OrderEntry() {
         customGiftType: item.customGiftType,
         productName: item.productName,
         specifications: item.specifications,
+        existingImagePath: !item.image && item.imagePreview
+          ? item.imagePreview.replace('/images/original/', '')
+          : undefined,
       }))
       formData.append('gifts', JSON.stringify(giftsData))
       giftItems.forEach((item, index) => {
@@ -69,6 +75,9 @@ export default function OrderEntry() {
       const smallGiftsData = smallGiftItems.map((item) => ({
         productName: item.productName,
         specifications: item.specifications,
+        existingImagePath: !item.image && item.imagePreview
+          ? item.imagePreview.replace('/images/original/', '')
+          : undefined,
       }))
       formData.append('smallGifts', JSON.stringify(smallGiftsData))
       smallGiftItems.forEach((item, index) => {

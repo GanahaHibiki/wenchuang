@@ -162,11 +162,20 @@ router.post('/', upload.any(), async (req, res, next) => {
       const item = parsedPurchased[i]
       const file = findFile(`purchasedImage_${i}`)
 
-      if (!file) {
+      let imagePath: string
+      let thumbnailPath: string
+
+      if (file) {
+        const saved = await saveImage(file.buffer, file.originalname, shopName, item.productName)
+        imagePath = saved.imagePath
+        thumbnailPath = saved.thumbnailPath
+      } else if (item.existingImagePath) {
+        imagePath = item.existingImagePath
+        thumbnailPath = item.existingImagePath.replace('/original/', '/thumbnail/')
+      } else {
         return res.status(400).json({ message: `已购商品 ${i + 1} 缺少图片` })
       }
 
-      const { imagePath, thumbnailPath } = await saveImage(file.buffer, file.originalname, shopName, item.productName)
       const product = await findOrCreateProduct(item.productName, uuidv4(), imagePath, thumbnailPath)
 
       const specs: Specification[] = item.specifications || []
@@ -189,11 +198,20 @@ router.post('/', upload.any(), async (req, res, next) => {
       const item = parsedGifts[i]
       const file = findFile(`giftImage_${i}`)
 
-      if (!file) {
+      let imagePath: string
+      let thumbnailPath: string
+
+      if (file) {
+        const saved = await saveImage(file.buffer, file.originalname, shopName, item.productName)
+        imagePath = saved.imagePath
+        thumbnailPath = saved.thumbnailPath
+      } else if (item.existingImagePath) {
+        imagePath = item.existingImagePath
+        thumbnailPath = item.existingImagePath.replace('/original/', '/thumbnail/')
+      } else {
         return res.status(400).json({ message: `礼品 ${i + 1} 缺少图片` })
       }
 
-      const { imagePath, thumbnailPath } = await saveImage(file.buffer, file.originalname, shopName, item.productName)
       const product = await findOrCreateProduct(item.productName, uuidv4(), imagePath, thumbnailPath)
 
       const specs: Specification[] = item.specifications || []
@@ -218,11 +236,20 @@ router.post('/', upload.any(), async (req, res, next) => {
       const item = parsedSmallGifts[i]
       const file = findFile(`smallGiftImage_${i}`)
 
-      if (!file) {
+      let imagePath: string
+      let thumbnailPath: string
+
+      if (file) {
+        const saved = await saveImage(file.buffer, file.originalname, shopName, item.productName)
+        imagePath = saved.imagePath
+        thumbnailPath = saved.thumbnailPath
+      } else if (item.existingImagePath) {
+        imagePath = item.existingImagePath
+        thumbnailPath = item.existingImagePath.replace('/original/', '/thumbnail/')
+      } else {
         return res.status(400).json({ message: `小礼物 ${i + 1} 缺少图片` })
       }
 
-      const { imagePath, thumbnailPath } = await saveImage(file.buffer, file.originalname, shopName, item.productName)
       const product = await findOrCreateProduct(item.productName, uuidv4(), imagePath, thumbnailPath)
 
       const specs: Specification[] = item.specifications || []
@@ -303,19 +330,7 @@ router.post('/group', upload.any(), async (req, res, next) => {
 
         let product: any
 
-        if (!file) {
-          // No file uploaded, try to find existing product by name
-          const allProducts = await getAllProducts()
-          const existingProduct = allProducts.find(p => p.name === item.productName)
-
-          if (existingProduct) {
-            product = existingProduct
-          } else {
-            return res.status(400).json({
-              message: `店铺 ${shopIndex + 1} 的商品 ${itemIndex + 1} "${item.productName}" 缺少图片`
-            })
-          }
-        } else {
+        if (file) {
           // New image uploaded
           const { imagePath, thumbnailPath } = await saveImage(
             file.buffer,
@@ -330,6 +345,28 @@ router.post('/group', upload.any(), async (req, res, next) => {
             imagePath,
             thumbnailPath
           )
+        } else if (item.existingImagePath) {
+          // Use existing image path (from wish or other products)
+          const imagePath = item.existingImagePath
+          const thumbnailPath = item.existingImagePath.replace('/original/', '/thumbnail/')
+          product = await findOrCreateProduct(
+            item.productName,
+            uuidv4(),
+            imagePath,
+            thumbnailPath
+          )
+        } else {
+          // No file uploaded, try to find existing product by name
+          const allProducts = await getAllProducts()
+          const existingProduct = allProducts.find(p => p.name === item.productName)
+
+          if (existingProduct) {
+            product = existingProduct
+          } else {
+            return res.status(400).json({
+              message: `店铺 ${shopIndex + 1} 的商品 ${itemIndex + 1} "${item.productName}" 缺少图片`
+            })
+          }
         }
 
         const specs: Specification[] = item.specifications || []

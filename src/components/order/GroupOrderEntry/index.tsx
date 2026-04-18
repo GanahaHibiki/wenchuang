@@ -93,7 +93,10 @@ export default function GroupOrderEntry() {
         shopName: shop.shopName,
         items: shop.items.map(item => ({
           productName: item.productName,
-          specifications: item.specifications
+          specifications: item.specifications,
+          existingImagePath: !item.image && item.imagePreview
+            ? item.imagePreview.replace('/images/original/', '')
+            : undefined,
         }))
       }))
       formData.append('shops', JSON.stringify(shopsData))

@@ -27,7 +27,13 @@
       "Bash(kill 66540:*)",
       "Bash(npx eslint:*)",
       "Bash(npx vite-node --eval ':*)",
-      "Bash(jq '.orders[] | select\\(.sequenceNumber == 19\\) | .id' -r)"
+      "Bash(jq '.orders[] | select\\(.sequenceNumber == 19\\) | .id' -r)",
+      "Bash(lsof -ti:3001 -ti:5173 -ti:5174)",
+      "Bash(pkill -f \"tsx watch\")",
+      "Bash(pkill -f \"vite\")",
+      "Bash(npx tsx *)",
+      "Bash(lsof -ti:5173)",
+      "Bash(git restore *)"
     ]
   }
 }
