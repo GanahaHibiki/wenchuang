@@ -95,23 +95,8 @@ router.post('/', upload.single('image'), async (req, res, next) => {
   }
 })
 
-// Delete wish item by id
-router.delete('/:id', async (req, res, next) => {
-  try {
-    const { id } = req.params
-    const success = await deleteWishItem(id)
-
-    if (!success) {
-      return res.status(404).json({ message: '心愿商品不存在' })
-    }
-
-    res.json({ success: true })
-  } catch (error) {
-    next(error)
-  }
-})
-
 // Delete wish item by shop name and product name
+// This route must be before /:id to avoid being matched as an id
 router.delete('/by-product', async (req, res, next) => {
   try {
     const { shopName, productName } = req.query
@@ -125,6 +110,22 @@ router.delete('/by-product', async (req, res, next) => {
     )
 
     res.json({ success })
+  } catch (error) {
+    next(error)
+  }
+})
+
+// Delete wish item by id
+router.delete('/:id', async (req, res, next) => {
+  try {
+    const { id } = req.params
+    const success = await deleteWishItem(id)
+
+    if (!success) {
+      return res.status(404).json({ message: '心愿商品不存在' })
+    }
+
+    res.json({ success: true })
   } catch (error) {
     next(error)
   }
