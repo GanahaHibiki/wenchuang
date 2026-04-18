@@ -1,6 +1,7 @@
 import { Routes, Route } from 'react-router-dom'
 import MainLayout from './components/layout/MainLayout'
 import HomePage from './pages/HomePage'
+import WishListPage from './pages/WishListPage'
 import OrderEntryPage from './pages/OrderEntryPage'
 import GroupOrderEntryPage from './pages/GroupOrderEntryPage'
 import OrderListPage from './pages/OrderListPage'
@@ -13,6 +14,7 @@ function App() {
     <MainLayout>
       <Routes>
         <Route path="/" element={<HomePage />} />
+        <Route path="/wishes" element={<WishListPage />} />
         <Route path="/order-entry" element={<OrderEntryPage />} />
         <Route path="/group-order-entry" element={<GroupOrderEntryPage />} />
         <Route path="/orders" element={<OrderListPage />} />

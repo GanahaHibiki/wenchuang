@@ -198,6 +198,16 @@ export interface OrderSummary {
 
 // ==================== Database Schema ====================
 
+export interface WishItem {
+  id: string
+  shopId: string
+  productId: string
+  productName: string
+  imagePath: string
+  thumbnailPath: string
+  createdAt: string
+}
+
 export interface Database {
   version: string
   lastModified: string
@@ -205,4 +215,5 @@ export interface Database {
   shops: Shop[]
   products: Product[]
   orders: Order[]
+  wishItems?: WishItem[]
 }

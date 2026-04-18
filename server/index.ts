@@ -9,6 +9,7 @@ import shopsRouter from './routes/shops.js'
 import productsRouter from './routes/products.js'
 import ordersRouter from './routes/orders.js'
 import imagesRouter from './routes/images.js'
+import wishesRouter from './routes/wishes.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -28,6 +29,7 @@ app.use('/api/shops', shopsRouter)
 app.use('/api/products', productsRouter)
 app.use('/api/orders', ordersRouter)
 app.use('/api/images', imagesRouter)
+app.use('/api/wishes', wishesRouter)
 
 // Error handling
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {

@@ -5,6 +5,7 @@ import type {
   OrderSummary,
   OrderDetail,
   ProductDetail,
+  WishItem,
 } from '@/types'
 
 const API_BASE = '/api'
@@ -103,4 +104,28 @@ export const imageApi = {
 
   getOriginalUrl: (path: string) => `/images/original/${path}`,
   getThumbnailUrl: (path: string) => `/images/thumbnails/${path}`,
+}
+
+// ==================== Wish API ====================
+
+export interface WishProduct extends Product {
+  shopName: string
+}
+
+export const wishApi = {
+  getAll: () => request<WishProduct[]>('/wishes'),
+
+  search: (type: 'productName' | 'shopName', keyword: string) =>
+    request<WishProduct[]>(`/wishes/search?type=${type}&keyword=${encodeURIComponent(keyword)}`),
+
+  create: (formData: FormData) =>
+    request<WishItem>('/wishes', {
+      method: 'POST',
+      body: formData,
+    }),
+
+  delete: (id: string) =>
+    request<{ success: boolean }>(`/wishes/${id}`, {
+      method: 'DELETE',
+    }),
 }

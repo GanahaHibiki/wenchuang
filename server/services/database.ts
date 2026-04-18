@@ -1,7 +1,7 @@
 import fs from 'fs/promises'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import type { Database, Shop, Product, Order } from '../../src/types/index.js'
+import type { Database, Shop, Product, Order, WishItem } from '../../src/types/index.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const DATA_DIR = path.join(__dirname, '../../data')
@@ -425,6 +425,88 @@ export async function deleteOrder(id: string): Promise<boolean> {
   await saveDatabase(db)
 
   return true
+}
+
+// ==================== Wish Operations ====================
+
+interface WishItemWithProduct {
+  id: string
+  shopId: string
+  productId: string
+  productName: string
+  imagePath: string
+  thumbnailPath: string
+  createdAt: string
+}
+
+export async function getAllWishItems(): Promise<WishItemWithProduct[]> {
+  const db = await loadDatabase()
+  return db.wishItems || []
+}
+
+export async function createWishItem(item: WishItemWithProduct): Promise<WishItemWithProduct> {
+  const db = await loadDatabase()
+  if (!db.wishItems) {
+    db.wishItems = []
+  }
+  db.wishItems.push(item)
+  await saveDatabase(db)
+  return item
+}
+
+export async function deleteWishItem(id: string): Promise<boolean> {
+  const db = await loadDatabase()
+  if (!db.wishItems) return false
+
+  const index = db.wishItems.findIndex((w: WishItemWithProduct) => w.id === id)
+  if (index === -1) return false
+
+  db.wishItems.splice(index, 1)
+  await saveDatabase(db)
+  return true
+}
+
+export async function searchWishProducts(
+  type: 'productName' | 'shopName',
+  keyword: string
+): Promise<Array<WishItemWithProduct & { shopName: string }>> {
+  const db = await loadDatabase()
+  const wishItems = db.wishItems || []
+  const lowerKeyword = keyword.toLowerCase().trim()
+
+  let matchingItems = wishItems
+
+  if (lowerKeyword) {
+    if (type === 'productName') {
+      matchingItems = wishItems.filter((w: WishItemWithProduct) =>
+        w.productName.toLowerCase().includes(lowerKeyword)
+      )
+    } else {
+      // Search by shop name
+      const matchingShops = db.shops.filter((s) =>
+        s.name.toLowerCase().includes(lowerKeyword)
+      )
+      const shopIds = new Set(matchingShops.map((s) => s.id))
+      matchingItems = wishItems.filter((w: WishItemWithProduct) => shopIds.has(w.shopId))
+    }
+  }
+
+  // Add shop name to each item
+  return matchingItems.map((w: WishItemWithProduct) => {
+    const shop = db.shops.find((s) => s.id === w.shopId)
+    return {
+      ...w,
+      shopName: shop?.name || '未知店铺',
+    }
+  }).sort((a: WishItemWithProduct, b: WishItemWithProduct) =>
+    b.createdAt.localeCompare(a.createdAt)
+  )
+}
+
+export async function getWishProductsByShop(shopId: string): Promise<WishItemWithProduct[]> {
+  const db = await loadDatabase()
+  const wishItems = db.wishItems || []
+  return wishItems.filter((w: WishItemWithProduct) => w.shopId === shopId)
 }
 
 export { loadDatabase, DATA_DIR }
