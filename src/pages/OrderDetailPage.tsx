@@ -320,7 +320,7 @@ export default function OrderDetailPage() {
       gifts.forEach((item, index) => {
         const isFirstOfType = index === 0
         elements.push(
-          <div key={item.id} className={`relative ${isFirstOfType ? 'mt-8' : ''}`}>
+          <div key={item.id} className="relative mt-8">
             {isFirstOfType && (
               <div className="absolute -top-8 left-0 text-md font-medium text-gray-700">
                 [{type}]
@@ -350,7 +350,7 @@ export default function OrderDetailPage() {
       shopItems.forEach((item, index) => {
         const isFirstOfShop = index === 0
         elements.push(
-          <div key={item.id} className={`relative ${isFirstOfShop ? 'mt-8' : ''}`}>
+          <div key={item.id} className="relative mt-8">
             {isFirstOfShop && (
               <div className="absolute -top-8 left-0 text-md font-medium text-gray-700">
                 店铺：{shop.name}
