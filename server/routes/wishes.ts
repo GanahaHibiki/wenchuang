@@ -124,7 +124,7 @@ router.put('/:id', async (req, res, next) => {
 
     let shopId: string | undefined
     if (shopName) {
-      const shop = await findOrCreateShop(shopName)
+      const shop = await findOrCreateShop(shopName, uuidv4())
       shopId = shop.id
     }
 
