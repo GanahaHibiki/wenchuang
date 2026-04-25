@@ -64,3 +64,49 @@ export function getOriginalPath(filename: string): string {
 export function getThumbnailPath(filename: string): string {
   return path.join(THUMBNAIL_DIR, filename)
 }
+
+export async function copyAndRenameImage(
+  existingImagePath: string,
+  shopName: string,
+  productName: string
+): Promise<{ imagePath: string; thumbnailPath: string }> {
+  // Ensure directories exist
+  await fs.mkdir(ORIGINAL_DIR, { recursive: true })
+  await fs.mkdir(THUMBNAIL_DIR, { recursive: true })
+
+  const ext = path.extname(existingImagePath).toLowerCase() || '.jpg'
+
+  // Sanitize names
+  const sanitizedShop = shopName.replace(/[/\\?%*:|"<>\s]/g, '_')
+  const sanitizedProduct = productName.replace(/[/\\?%*:|"<>\s]/g, '_')
+  const newFilename = `${sanitizedShop}_${sanitizedProduct}${ext}`
+  const thumbnailFilename = newFilename.replace(/\.(jpg|jpeg|png|gif|webp)$/i, '_thumb.jpg')
+
+  const sourcePath = path.join(ORIGINAL_DIR, existingImagePath)
+  const destPath = path.join(ORIGINAL_DIR, newFilename)
+  const sourceThumbnail = path.join(THUMBNAIL_DIR, existingImagePath.replace(/\.(jpg|jpeg|png|gif|webp)$/i, '_thumb.jpg'))
+  const destThumbnail = path.join(THUMBNAIL_DIR, thumbnailFilename)
+
+  // Copy original image
+  await fs.copyFile(sourcePath, destPath)
+
+  // Copy thumbnail if exists, otherwise generate it
+  try {
+    await fs.copyFile(sourceThumbnail, destThumbnail)
+  } catch {
+    // Thumbnail doesn't exist, generate it
+    const buffer = await fs.readFile(destPath)
+    await sharp(buffer)
+      .resize(THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT, {
+        fit: 'cover',
+        position: 'center',
+      })
+      .jpeg({ quality: 85 })
+      .toFile(destThumbnail)
+  }
+
+  return {
+    imagePath: newFilename,
+    thumbnailPath: thumbnailFilename,
+  }
+}

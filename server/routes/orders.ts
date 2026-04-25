@@ -13,7 +13,7 @@ import {
   getProductById,
   getAllProducts,
 } from '../services/database.js'
-import { saveImage } from '../services/imageService.js'
+import { saveImage, copyAndRenameImage } from '../services/imageService.js'
 import type {
   Order,
   OrderItem,
@@ -170,8 +170,9 @@ router.post('/', upload.any(), async (req, res, next) => {
         imagePath = saved.imagePath
         thumbnailPath = saved.thumbnailPath
       } else if (item.existingImagePath) {
-        imagePath = item.existingImagePath
-        thumbnailPath = item.existingImagePath.replace('/original/', '/thumbnail/')
+        const renamed = await copyAndRenameImage(item.existingImagePath, shopName, item.productName)
+        imagePath = renamed.imagePath
+        thumbnailPath = renamed.thumbnailPath
       } else {
         return res.status(400).json({ message: `已购商品 ${i + 1} 缺少图片` })
       }
@@ -206,8 +207,9 @@ router.post('/', upload.any(), async (req, res, next) => {
         imagePath = saved.imagePath
         thumbnailPath = saved.thumbnailPath
       } else if (item.existingImagePath) {
-        imagePath = item.existingImagePath
-        thumbnailPath = item.existingImagePath.replace('/original/', '/thumbnail/')
+        const renamed = await copyAndRenameImage(item.existingImagePath, shopName, item.productName)
+        imagePath = renamed.imagePath
+        thumbnailPath = renamed.thumbnailPath
       } else {
         return res.status(400).json({ message: `礼品 ${i + 1} 缺少图片` })
       }
@@ -244,8 +246,9 @@ router.post('/', upload.any(), async (req, res, next) => {
         imagePath = saved.imagePath
         thumbnailPath = saved.thumbnailPath
       } else if (item.existingImagePath) {
-        imagePath = item.existingImagePath
-        thumbnailPath = item.existingImagePath.replace('/original/', '/thumbnail/')
+        const renamed = await copyAndRenameImage(item.existingImagePath, shopName, item.productName)
+        imagePath = renamed.imagePath
+        thumbnailPath = renamed.thumbnailPath
       } else {
         return res.status(400).json({ message: `小礼物 ${i + 1} 缺少图片` })
       }
@@ -346,14 +349,13 @@ router.post('/group', upload.any(), async (req, res, next) => {
             thumbnailPath
           )
         } else if (item.existingImagePath) {
-          // Use existing image path (from wish or other products)
-          const imagePath = item.existingImagePath
-          const thumbnailPath = item.existingImagePath.replace('/original/', '/thumbnail/')
+          // Use existing image path (from wish or other products) - copy and rename
+          const renamed = await copyAndRenameImage(item.existingImagePath, shopName.trim(), item.productName)
           product = await findOrCreateProduct(
             item.productName,
             uuidv4(),
-            imagePath,
-            thumbnailPath
+            renamed.imagePath,
+            renamed.thumbnailPath
           )
         } else {
           // No file uploaded, try to find existing product by name

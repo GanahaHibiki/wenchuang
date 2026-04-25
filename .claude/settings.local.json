@@ -35,7 +35,8 @@
       "Bash(lsof -ti:5173)",
       "Bash(git restore *)",
       "Bash(jq)",
-      "Bash(open *)"
+      "Bash(open *)",
+      "Bash(node *)"
     ]
   }
 }
