@@ -14,6 +14,7 @@ export default function WishProductCard({ product, onDelete, onUpdate }: WishPro
   const [editProductName, setEditProductName] = useState(product.productName)
   const [editShopName, setEditShopName] = useState(product.shopName)
   const [isSaving, setIsSaving] = useState(false)
+  const [imageLoaded, setImageLoaded] = useState(false)
 
   useEffect(() => {
     if (!isEditing) {
@@ -53,13 +54,17 @@ export default function WishProductCard({ product, onDelete, onUpdate }: WishPro
     <>
       <div className="bg-white rounded-lg shadow overflow-hidden hover:shadow-lg transition-shadow relative group">
         <div
-          className="w-full aspect-[4/3] bg-gray-100 cursor-pointer overflow-hidden"
+          className="w-full aspect-[4/3] bg-gray-200 cursor-pointer overflow-hidden"
           onClick={() => setShowViewer(true)}
         >
           <img
-            src={`/images/original/${product.imagePath}`}
+            src={`/images/thumbnails/${product.thumbnailPath}`}
             alt={product.productName}
-            className="w-full h-full object-cover hover:opacity-90 transition-opacity"
+            loading="lazy"
+            onLoad={() => setImageLoaded(true)}
+            className={`w-full h-full object-cover hover:opacity-90 transition-all duration-300 ${
+              imageLoaded ? 'opacity-100' : 'opacity-0'
+            }`}
           />
         </div>
         <div className="p-3">

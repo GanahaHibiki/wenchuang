@@ -9,18 +9,23 @@ interface ProductCardProps {
 
 export default function ProductCard({ product }: ProductCardProps) {
   const [showViewer, setShowViewer] = useState(false)
+  const [imageLoaded, setImageLoaded] = useState(false)
 
   return (
     <>
       <div className="bg-white rounded-lg shadow overflow-hidden hover:shadow-lg transition-shadow">
         <div
-          className="w-full aspect-[4/3] bg-gray-100 cursor-pointer overflow-hidden"
+          className="w-full aspect-[4/3] bg-gray-200 cursor-pointer overflow-hidden"
           onClick={() => setShowViewer(true)}
         >
           <img
-            src={`/images/original/${product.imagePath}`}
+            src={`/images/thumbnails/${product.thumbnailPath}`}
             alt={product.name}
-            className="w-full h-full object-cover hover:opacity-90 transition-opacity"
+            loading="lazy"
+            onLoad={() => setImageLoaded(true)}
+            className={`w-full h-full object-cover hover:opacity-90 transition-all duration-300 ${
+              imageLoaded ? 'opacity-100' : 'opacity-0'
+            }`}
           />
         </div>
         <div className="p-3">
