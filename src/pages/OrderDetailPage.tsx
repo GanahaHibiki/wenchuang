@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import { orderApi } from '@/api/client'
 import type { OrderDetail, OrderItem, Product } from '@/types'
 import ImageViewer from '@/components/common/ImageViewer'
+import LazyImage from '@/components/common/LazyImage'
 import OrderItemEditor from '@/components/order/OrderItemEditor'
 import GroupOrderItemEditor from '@/components/order/GroupOrderItemEditor'
 import { sortSpecifications } from '@/utils/specificationSort'
@@ -266,8 +267,8 @@ export default function OrderDetailPage() {
           className="w-full aspect-[4/3] bg-gray-200 rounded overflow-hidden cursor-pointer mb-2"
           onClick={() => setViewingImage(`/images/original/${item.product.imagePath}`)}
         >
-          <img
-            src={`/images/original/${item.product.imagePath}`}
+          <LazyImage
+            src={`/images/thumbnails/${item.product.thumbnailPath}`}
             alt={item.product.name}
             className="w-full h-full object-cover"
           />
