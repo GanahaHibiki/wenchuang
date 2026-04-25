@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { wishApi, type WishProduct } from '@/api/client'
 import ImageViewer from '../common/ImageViewer'
 
@@ -14,6 +14,11 @@ export default function WishProductCard({ product, onDelete, onUpdate }: WishPro
   const [editProductName, setEditProductName] = useState(product.productName)
   const [editShopName, setEditShopName] = useState(product.shopName)
   const [isSaving, setIsSaving] = useState(false)
+
+  useEffect(() => {
+    setEditProductName(product.productName)
+    setEditShopName(product.shopName)
+  }, [product.productName, product.shopName])
 
   const handleSave = async () => {
     if (!editProductName.trim() || !editShopName.trim()) {
