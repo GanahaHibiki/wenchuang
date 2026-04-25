@@ -16,9 +16,11 @@ export default function WishProductCard({ product, onDelete, onUpdate }: WishPro
   const [isSaving, setIsSaving] = useState(false)
 
   useEffect(() => {
-    setEditProductName(product.productName)
-    setEditShopName(product.shopName)
-  }, [product.productName, product.shopName])
+    if (!isEditing) {
+      setEditProductName(product.productName)
+      setEditShopName(product.shopName)
+    }
+  }, [product.productName, product.shopName, isEditing])
 
   const handleSave = async () => {
     if (!editProductName.trim() || !editShopName.trim()) {

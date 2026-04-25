@@ -122,13 +122,17 @@ router.put('/:id', async (req, res, next) => {
     const { id } = req.params
     const { productName, shopName } = req.body
 
+    console.log('Update wish item:', { id, productName, shopName })
+
     let shopId: string | undefined
     if (shopName) {
       const shop = await findOrCreateShop(shopName, uuidv4())
+      console.log('Found/created shop:', shop)
       shopId = shop.id
     }
 
     const updated = await updateWishItem(id, { productName, shopId })
+    console.log('Updated wish item:', updated)
 
     if (!updated) {
       return res.status(404).json({ message: '心愿商品不存在' })

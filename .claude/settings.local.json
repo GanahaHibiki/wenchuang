@@ -33,7 +33,9 @@
       "Bash(pkill -f \"vite\")",
       "Bash(npx tsx *)",
       "Bash(lsof -ti:5173)",
-      "Bash(git restore *)"
+      "Bash(git restore *)",
+      "Bash(jq)",
+      "Bash(open *)"
     ]
   }
 }
