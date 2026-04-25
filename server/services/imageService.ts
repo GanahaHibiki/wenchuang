@@ -110,3 +110,22 @@ export async function copyAndRenameImage(
     thumbnailPath: thumbnailFilename,
   }
 }
+
+export async function deleteImage(imagePath: string): Promise<void> {
+  const thumbnailPath = imagePath.replace(/\.(jpg|jpeg|png|gif|webp)$/i, '_thumb.jpg')
+
+  const originalFile = path.join(ORIGINAL_DIR, imagePath)
+  const thumbnailFile = path.join(THUMBNAIL_DIR, thumbnailPath)
+
+  try {
+    await fs.unlink(originalFile)
+  } catch {
+    // Ignore if file doesn't exist
+  }
+
+  try {
+    await fs.unlink(thumbnailFile)
+  } catch {
+    // Ignore if file doesn't exist
+  }
+}

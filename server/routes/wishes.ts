@@ -11,8 +11,10 @@ import {
   getShopById,
   findOrCreateShop,
   updateWishItem,
+  getWishItemById,
+  getWishItemByShopAndProduct,
 } from '../services/database.js'
-import { saveImage } from '../services/imageService.js'
+import { saveImage, deleteImage } from '../services/imageService.js'
 
 const router = Router()
 const upload = multer({ storage: multer.memoryStorage() })
@@ -73,8 +75,8 @@ router.post('/', upload.single('image'), async (req, res, next) => {
     const shopId = existingShopId || uuidv4()
     const shop = await findOrCreateShop(shopName, shopId)
 
-    // Save image
-    const { imagePath, thumbnailPath } = await saveImage(imageFile.buffer, imageFile.originalname)
+    // Save image with wish naming convention: 心愿_店铺名_商品名
+    const { imagePath, thumbnailPath } = await saveImage(imageFile.buffer, imageFile.originalname, `心愿_${shopName}`, productName)
 
     // Create product
     const productId = uuidv4()
@@ -103,6 +105,17 @@ router.delete('/by-product', async (req, res, next) => {
     const { shopName, productName } = req.query
     if (!shopName || !productName) {
       return res.status(400).json({ message: '店铺名和商品名为必填项' })
+    }
+
+    // Get the wish item first to get its image path
+    const wishItem = await getWishItemByShopAndProduct(
+      shopName as string,
+      productName as string
+    )
+
+    if (wishItem) {
+      // Delete the image files
+      await deleteImage(wishItem.imagePath)
     }
 
     const success = await deleteWishItemByProductName(
@@ -148,11 +161,18 @@ router.put('/:id', async (req, res, next) => {
 router.delete('/:id', async (req, res, next) => {
   try {
     const { id } = req.params
-    const success = await deleteWishItem(id)
 
-    if (!success) {
+    // Get the wish item first to get its image path
+    const wishItem = await getWishItemById(id)
+
+    if (!wishItem) {
       return res.status(404).json({ message: '心愿商品不存在' })
     }
+
+    // Delete the image files
+    await deleteImage(wishItem.imagePath)
+
+    const success = await deleteWishItem(id)
 
     res.json({ success: true })
   } catch (error) {

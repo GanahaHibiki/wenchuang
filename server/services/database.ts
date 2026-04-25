@@ -510,6 +510,29 @@ export async function createWishItem(item: WishItemWithProduct): Promise<WishIte
   return item
 }
 
+export async function getWishItemById(id: string): Promise<WishItemWithProduct | null> {
+  const db = await loadDatabase()
+  if (!db.wishItems) return null
+  return db.wishItems.find((w: WishItemWithProduct) => w.id === id) || null
+}
+
+export async function getWishItemByShopAndProduct(
+  shopName: string,
+  productName: string
+): Promise<WishItemWithProduct | null> {
+  const db = await loadDatabase()
+  if (!db.wishItems) return null
+
+  const shop = db.shops.find((s) => s.name.toLowerCase() === shopName.toLowerCase())
+  if (!shop) return null
+
+  return db.wishItems.find(
+    (w: WishItemWithProduct) =>
+      w.shopId === shop.id &&
+      w.productName.toLowerCase() === productName.toLowerCase()
+  ) || null
+}
+
 export async function deleteWishItem(id: string): Promise<boolean> {
   const db = await loadDatabase()
   if (!db.wishItems) return false
