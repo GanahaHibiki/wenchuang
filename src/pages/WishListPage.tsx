@@ -167,6 +167,7 @@ export default function WishListPage() {
                   key={product.id}
                   product={product}
                   onDelete={() => handleDelete(product.id)}
+                  onUpdate={loadProducts}
                 />
               ))}
             </div>

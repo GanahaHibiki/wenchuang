@@ -10,6 +10,7 @@ import {
   getWishProductsByShopName,
   getShopById,
   findOrCreateShop,
+  updateWishItem,
 } from '../services/database.js'
 import { saveImage } from '../services/imageService.js'
 
@@ -110,6 +111,30 @@ router.delete('/by-product', async (req, res, next) => {
     )
 
     res.json({ success })
+  } catch (error) {
+    next(error)
+  }
+})
+
+// Update wish item
+router.put('/:id', async (req, res, next) => {
+  try {
+    const { id } = req.params
+    const { productName, shopName } = req.body
+
+    let shopId: string | undefined
+    if (shopName) {
+      const shop = await findOrCreateShop(shopName)
+      shopId = shop.id
+    }
+
+    const updated = await updateWishItem(id, { productName, shopId })
+
+    if (!updated) {
+      return res.status(404).json({ message: '心愿商品不存在' })
+    }
+
+    res.json(updated)
   } catch (error) {
     next(error)
   }

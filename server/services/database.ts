@@ -522,6 +522,33 @@ export async function deleteWishItem(id: string): Promise<boolean> {
   return true
 }
 
+export async function updateWishItem(
+  id: string,
+  updates: { productName?: string; shopId?: string }
+): Promise<(WishItemWithProduct & { shopName: string }) | null> {
+  const db = await loadDatabase()
+  if (!db.wishItems) return null
+
+  const index = db.wishItems.findIndex((w: WishItemWithProduct) => w.id === id)
+  if (index === -1) return null
+
+  if (updates.productName !== undefined) {
+    db.wishItems[index].productName = updates.productName
+  }
+  if (updates.shopId !== undefined) {
+    db.wishItems[index].shopId = updates.shopId
+  }
+
+  await saveDatabase(db)
+
+  const item = db.wishItems[index]
+  const shop = db.shops.find((s) => s.id === item.shopId)
+  return {
+    ...item,
+    shopName: shop?.name || '未知店铺',
+  }
+}
+
 export async function searchWishProducts(
   type: 'productName' | 'shopName',
   keyword: string

@@ -131,6 +131,13 @@ export const wishApi = {
       body: formData,
     }),
 
+  update: (id: string, data: { productName?: string; shopName?: string }) =>
+    request<WishProduct>(`/wishes/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }),
+
   delete: (id: string) =>
     request<{ success: boolean }>(`/wishes/${id}`, {
       method: 'DELETE',
