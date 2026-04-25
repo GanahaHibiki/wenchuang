@@ -426,11 +426,16 @@ export async function updateOrder(id: string, updates: Partial<Order>): Promise<
   return db.orders[index]
 }
 
-export async function deleteOrder(id: string): Promise<boolean> {
+export interface DeleteOrderResult {
+  success: boolean
+  deletedProducts: Array<{ id: string; imagePath: string }>
+}
+
+export async function deleteOrder(id: string): Promise<DeleteOrderResult> {
   const db = await loadDatabase()
   const index = db.orders.findIndex((o) => o.id === id)
 
-  if (index === -1) return false
+  if (index === -1) return { success: false, deletedProducts: [] }
 
   // Remove the order
   db.orders.splice(index, 1)
@@ -468,10 +473,25 @@ export async function deleteOrder(id: string): Promise<boolean> {
     })
   }
 
+  // Also check wish items for used products (don't delete products used by wish items)
+  if (db.wishItems) {
+    // Wish items don't use product IDs from db.products, they have their own imagePath
+    // So we don't need to check wish items for product usage
+  }
+
   // Remove orphaned shops (except the special "拼单" shop)
   db.shops = db.shops.filter(shop =>
     shop.name === '拼单' || usedShopIds.has(shop.id)
   )
+
+  // Find orphaned products and collect their image paths before removing
+  const deletedProducts: Array<{ id: string; imagePath: string }> = []
+  const orphanedProducts = db.products.filter(product =>
+    !usedProductIds.has(product.id)
+  )
+  for (const product of orphanedProducts) {
+    deletedProducts.push({ id: product.id, imagePath: product.imagePath })
+  }
 
   // Remove orphaned products
   db.products = db.products.filter(product =>
@@ -480,7 +500,7 @@ export async function deleteOrder(id: string): Promise<boolean> {
 
   await saveDatabase(db)
 
-  return true
+  return { success: true, deletedProducts }
 }
 
 // ==================== Wish Operations ====================

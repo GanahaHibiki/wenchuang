@@ -13,7 +13,7 @@ import {
   getProductById,
   getAllProducts,
 } from '../services/database.js'
-import { saveImage, copyAndRenameImage } from '../services/imageService.js'
+import { saveImage, copyAndRenameImage, deleteImage } from '../services/imageService.js'
 import type {
   Order,
   OrderItem,
@@ -708,10 +708,15 @@ router.put('/:id', upload.any(), async (req, res, next) => {
 router.delete('/:id', async (req, res, next) => {
   try {
     const { id } = req.params
-    const success = await deleteOrder(id)
+    const result = await deleteOrder(id)
 
-    if (!success) {
+    if (!result.success) {
       return res.status(404).json({ message: '订单不存在' })
+    }
+
+    // Delete image files for orphaned products
+    for (const product of result.deletedProducts) {
+      await deleteImage(product.imagePath)
     }
 
     res.json({ success: true, message: '订单已删除' })
