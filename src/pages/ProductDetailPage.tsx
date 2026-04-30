@@ -48,6 +48,15 @@ export default function ProductDetailPage() {
     return spec.type
   }
 
+  // Helper function to format order label based on order type
+  const getOrderLabel = (entry: { orderType?: string; orderSequence: number; groupSequenceNumber?: number; shopName: string }) => {
+    if (entry.orderType === 'group') {
+      const seq = entry.groupSequenceNumber || entry.orderSequence
+      return `拼单 #${seq} - ${entry.shopName}`
+    }
+    return `订单 #${entry.orderSequence} - ${entry.shopName}`
+  }
+
   const { entries } = product
 
   return (
@@ -103,7 +112,7 @@ export default function ProductDetailPage() {
                         to={`/orders/${entry.orderId}`}
                         className="font-medium text-blue-600 hover:underline"
                       >
-                        订单 {entry.orderSequence} - {entry.shopName}
+                        {getOrderLabel(entry)}
                       </Link>
                       <div className="mt-2 space-y-1">
                         {sortedSpecs
@@ -152,7 +161,7 @@ export default function ProductDetailPage() {
                         to={`/orders/${entry.orderId}`}
                         className="font-medium text-blue-600 hover:underline"
                       >
-                        订单 {entry.orderSequence} - {entry.shopName}
+                        {getOrderLabel(entry)}
                       </Link>
                       <span className="ml-2 text-sm bg-green-100 text-green-700 px-2 py-0.5 rounded">
                         {entry.giftType}
@@ -203,7 +212,7 @@ export default function ProductDetailPage() {
                         to={`/orders/${entry.orderId}`}
                         className="font-medium text-blue-600 hover:underline"
                       >
-                        订单 {entry.orderSequence} - {entry.shopName}
+                        {getOrderLabel(entry)}
                       </Link>
                       <div className="mt-2 space-y-1">
                         {sortedSpecs

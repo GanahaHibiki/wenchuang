@@ -53,6 +53,13 @@ router.get('/:id', async (req, res, next) => {
     const shops = await getAllShops()
     const shopMap = new Map(shops.map((s) => [s.id, s]))
 
+    // Calculate group sequence numbers
+    const groupOrders = db.orders
+      .filter(o => o.orderType === 'group')
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+    const groupSeqMap = new Map<string, number>()
+    groupOrders.forEach((o, idx) => groupSeqMap.set(o.id, idx + 1))
+
     const purchased: ProductEntry[] = []
     const gifts: (ProductEntry & { giftType: string })[] = []
     const smallGifts: ProductEntry[] = []
@@ -74,6 +81,8 @@ router.get('/:id', async (req, res, next) => {
         const entry: ProductEntry = {
           orderId: order.id,
           orderSequence: order.sequenceNumber,
+          groupSequenceNumber: order.orderType === 'group' ? groupSeqMap.get(order.id) : undefined,
+          orderType: order.orderType || 'shop',
           shopName,
           specifications: item.specifications,
         }

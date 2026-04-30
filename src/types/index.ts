@@ -170,6 +170,8 @@ export interface ProductDetail extends Product {
 export interface ProductEntry {
   orderId: string
   orderSequence: number
+  groupSequenceNumber?: number // For group orders, the sequence within group orders
+  orderType: OrderType
   shopName: string
   specifications: Specification[]
 }
