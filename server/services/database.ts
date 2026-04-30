@@ -192,8 +192,9 @@ export async function findOrCreateShop(name: string, id?: string): Promise<Shop>
   let shop = db.shops.find((s) => s.name === name)
 
   if (!shop) {
-    // Create new shop
-    shop = { id: id || '', name, createdAt: new Date().toISOString() }
+    // Create new shop - use a valid UUID if id is not provided
+    const { v4: uuidv4 } = await import('uuid')
+    shop = { id: id || uuidv4(), name, createdAt: new Date().toISOString() }
     db.shops.push(shop)
     await saveDatabase(db)
   }
@@ -473,10 +474,13 @@ export async function deleteOrder(id: string): Promise<DeleteOrderResult> {
     })
   }
 
-  // Also check wish items for used products (don't delete products used by wish items)
+  // Also check wish items for used shops (don't delete shops used by wish items)
   if (db.wishItems) {
-    // Wish items don't use product IDs from db.products, they have their own imagePath
-    // So we don't need to check wish items for product usage
+    for (const wish of db.wishItems) {
+      if (wish.shopId) {
+        usedShopIds.add(wish.shopId)
+      }
+    }
   }
 
   // Remove orphaned shops (except the special "拼单" shop)
