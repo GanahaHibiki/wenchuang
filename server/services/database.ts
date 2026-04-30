@@ -243,6 +243,29 @@ export async function findOrCreateProduct(
   return product
 }
 
+export async function updateProduct(
+  id: string,
+  updates: { name?: string; imagePath?: string; thumbnailPath?: string }
+): Promise<Product | null> {
+  const db = await loadDatabase()
+  const index = db.products.findIndex((p) => p.id === id)
+
+  if (index === -1) return null
+
+  if (updates.name !== undefined) {
+    db.products[index].name = updates.name
+  }
+  if (updates.imagePath !== undefined) {
+    db.products[index].imagePath = updates.imagePath
+  }
+  if (updates.thumbnailPath !== undefined) {
+    db.products[index].thumbnailPath = updates.thumbnailPath
+  }
+
+  await saveDatabase(db)
+  return db.products[index]
+}
+
 export async function searchProducts(
   type: 'productName' | 'shopName',
   keyword: string
