@@ -74,9 +74,13 @@ router.get('/:id', async (req, res, next) => {
       return res.status(404).json({ message: '订单不存在' })
     }
 
-    const shop = await getShopById(order.shopId)
-    if (!shop) {
-      return res.status(404).json({ message: '店铺不存在' })
+    // For group orders, shopId may be null - skip shop check
+    let shop = null
+    if (order.orderType !== 'group') {
+      shop = await getShopById(order.shopId)
+      if (!shop) {
+        return res.status(404).json({ message: '店铺不存在' })
+      }
     }
 
     // For group orders, get all shops
