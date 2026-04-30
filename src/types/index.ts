@@ -174,7 +174,7 @@ export interface ProductEntry {
 }
 
 export interface OrderDetail extends Omit<Order, 'items'> {
-  shop: Shop
+  shop: Shop | null // null for group orders
   shops?: Shop[] // For group orders, all shops involved
   purchasedItems: (OrderItem & { product: Product })[]
   gifts: (OrderItem & { product: Product })[]

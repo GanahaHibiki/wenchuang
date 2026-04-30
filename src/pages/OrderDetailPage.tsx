@@ -374,7 +374,9 @@ export default function OrderDetailPage() {
           <h1 className="text-2xl font-bold">
             订单 #{order.sequenceNumber} -
           </h1>
-          {isEditingShopName ? (
+          {order.orderType === 'group' ? (
+            <span className="text-2xl font-bold">拼单</span>
+          ) : isEditingShopName ? (
             <div className="flex items-center gap-2">
               <input
                 type="text"
@@ -393,7 +395,7 @@ export default function OrderDetailPage() {
               <button
                 onClick={() => {
                   setIsEditingShopName(false)
-                  setEditedShopName(order.shop.name)
+                  setEditedShopName(order.shop?.name || '')
                 }}
                 className="px-3 py-1 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 text-sm"
               >
@@ -402,11 +404,11 @@ export default function OrderDetailPage() {
             </div>
           ) : (
             <>
-              <span className="text-2xl font-bold">{order.shop.name}</span>
+              <span className="text-2xl font-bold">{order.shop?.name || '未知店铺'}</span>
               <button
                 onClick={() => {
                   setIsEditingShopName(true)
-                  setEditedShopName(order.shop.name)
+                  setEditedShopName(order.shop?.name || '')
                 }}
                 className="text-sm text-blue-600 hover:text-blue-700"
               >
@@ -639,7 +641,7 @@ export default function OrderDetailPage() {
             category={editingCategory}
             onSave={(items, images) => handleSaveItems(editingCategory, items, images)}
             onCancel={() => setEditingCategory(null)}
-            shopName={order.shopName}
+            shopName={order.shop?.name || '拼单'}
             existingProducts={uniqueProducts}
           />
         )
