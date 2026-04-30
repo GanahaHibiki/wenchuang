@@ -266,6 +266,34 @@ export async function updateProduct(
   return db.products[index]
 }
 
+export async function updateProductsByNameAndImage(
+  productName: string,
+  oldImagePrefix: string,
+  newImagePath: string,
+  newThumbnailPath: string
+): Promise<string[]> {
+  const db = await loadDatabase()
+  const updatedIds: string[] = []
+
+  for (let i = 0; i < db.products.length; i++) {
+    const product = db.products[i]
+    if (
+      product.name === productName &&
+      product.imagePath.startsWith(oldImagePrefix)
+    ) {
+      db.products[i].imagePath = newImagePath
+      db.products[i].thumbnailPath = newThumbnailPath
+      updatedIds.push(product.id)
+    }
+  }
+
+  if (updatedIds.length > 0) {
+    await saveDatabase(db)
+  }
+
+  return updatedIds
+}
+
 export async function searchProducts(
   type: 'productName' | 'shopName',
   keyword: string
