@@ -294,6 +294,20 @@ export async function updateProductsByNameAndImage(
   return updatedIds
 }
 
+export async function updateProductNameById(
+  productId: string,
+  newName: string
+): Promise<Product | null> {
+  const db = await loadDatabase()
+  const index = db.products.findIndex((p) => p.id === productId)
+
+  if (index === -1) return null
+
+  db.products[index].name = newName
+  await saveDatabase(db)
+  return db.products[index]
+}
+
 export async function searchProducts(
   type: 'productName' | 'shopName',
   keyword: string

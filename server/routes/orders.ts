@@ -10,6 +10,7 @@ import {
   findOrCreateShop,
   findOrCreateProduct,
   updateProductsByNameAndImage,
+  updateProductNameById,
   getShopById,
   getProductById,
   getAllProducts,
@@ -479,9 +480,8 @@ router.put('/:id', upload.any(), async (req, res, next) => {
               const product = await findOrCreateProduct(itemData.productName, uuidv4(), imagePath, thumbnailPath)
               productId = product.id
             } else if (nameChanged) {
-              // Only name changed - create new product with same image
-              const product = await findOrCreateProduct(itemData.productName, uuidv4(), existingProduct.imagePath, existingProduct.thumbnailPath)
-              productId = product.id
+              // Only name changed - update existing product name (treat as same product)
+              await updateProductNameById(productId, itemData.productName)
             }
             // If nothing changed, keep the same productId
           }
@@ -588,10 +588,8 @@ router.put('/:id', upload.any(), async (req, res, next) => {
             productId = product.id
             productIdMapping.set(originalProductId, productId)
           } else if (nameChanged) {
-            // Only name changed - create new product with same image
-            const product = await findOrCreateProduct(item.productName, uuidv4(), existingProduct.imagePath, existingProduct.thumbnailPath)
-            productId = product.id
-            productIdMapping.set(originalProductId, productId)
+            // Only name changed - update existing product name (treat as same product)
+            await updateProductNameById(productId, item.productName)
           }
           // If nothing changed, keep the same productId
         }
@@ -652,12 +650,8 @@ router.put('/:id', upload.any(), async (req, res, next) => {
               productIdMapping.set(originalProductId, productId)
             }
           } else if (nameChanged) {
-            // Only name changed - create new product with same image
-            const product = await findOrCreateProduct(item.productName, uuidv4(), existingProduct.imagePath, existingProduct.thumbnailPath)
-            productId = product.id
-            if (!productIdMapping.has(originalProductId)) {
-              productIdMapping.set(originalProductId, productId)
-            }
+            // Only name changed - update existing product name (treat as same product)
+            await updateProductNameById(productId, item.productName)
           }
           // If nothing changed, keep the same productId
         }
@@ -716,9 +710,8 @@ router.put('/:id', upload.any(), async (req, res, next) => {
             const product = await findOrCreateProduct(item.productName, uuidv4(), imagePath, thumbnailPath)
             productId = product.id
           } else if (nameChanged) {
-            // Only name changed - create new product with same image
-            const product = await findOrCreateProduct(item.productName, uuidv4(), existingProduct.imagePath, existingProduct.thumbnailPath)
-            productId = product.id
+            // Only name changed - update existing product name (treat as same product)
+            await updateProductNameById(productId, item.productName)
           }
           // If nothing changed, keep the same productId
         }
