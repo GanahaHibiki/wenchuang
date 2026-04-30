@@ -296,7 +296,7 @@ export default function OrderDetailPage() {
           />
         </div>
         <Link
-          to={`/products/${item.product.id}`}
+          to={`/products/${item.product.id}?from=${order.id}`}
           className="font-medium text-blue-600 hover:underline text-sm mb-2 line-clamp-2"
         >
           {item.product.name}

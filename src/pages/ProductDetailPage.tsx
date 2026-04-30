@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useSearchParams } from 'react-router-dom'
 import { productApi } from '@/api/client'
 import type { ProductDetail } from '@/types'
 import ImageViewer from '@/components/common/ImageViewer'
@@ -7,6 +7,8 @@ import { sortSpecifications } from '@/utils/specificationSort'
 
 export default function ProductDetailPage() {
   const { id } = useParams<{ id: string }>()
+  const [searchParams] = useSearchParams()
+  const fromOrderId = searchParams.get('from')
   const [product, setProduct] = useState<ProductDetail | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -64,9 +66,15 @@ export default function ProductDetailPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">{product.name}</h1>
-        <Link to="/" className="text-blue-500 hover:underline">
-          返回首页
-        </Link>
+        {fromOrderId ? (
+          <Link to={`/orders/${fromOrderId}`} className="text-blue-500 hover:underline">
+            返回订单详情
+          </Link>
+        ) : (
+          <Link to="/" className="text-blue-500 hover:underline">
+            返回首页
+          </Link>
+        )}
       </div>
 
       {/* Main Content - Left-Right Layout */}
