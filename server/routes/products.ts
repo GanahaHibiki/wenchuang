@@ -58,9 +58,6 @@ router.get('/:id', async (req, res, next) => {
     const smallGifts: ProductEntry[] = []
 
     for (const order of db.orders) {
-      const shop = shopMap.get(order.shopId)
-      if (!shop) continue
-
       for (const item of order.items) {
         // Get the product for this item
         const itemProduct = await getProductById(item.productId)
@@ -69,10 +66,15 @@ router.get('/:id', async (req, res, next) => {
         // Match by product name (case-insensitive)
         if (itemProduct.name.toLowerCase() !== product.name.toLowerCase()) continue
 
+        // For group orders, use item.shopId; for regular orders, use order.shopId
+        const shopId = order.orderType === 'group' ? item.shopId : order.shopId
+        const shop = shopId ? shopMap.get(shopId) : null
+        const shopName = shop?.name || (order.orderType === 'group' ? '拼单' : '未知店铺')
+
         const entry: ProductEntry = {
           orderId: order.id,
           orderSequence: order.sequenceNumber,
-          shopName: shop.name,
+          shopName,
           specifications: item.specifications,
         }
 
