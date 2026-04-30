@@ -556,11 +556,15 @@ router.put('/:id', upload.any(), async (req, res, next) => {
     let giftTotal = 0
     let smallGiftTotal = 0
 
+    // Track productId changes to sync across categories
+    const productIdMapping = new Map<string, string>() // oldId -> newId
+
     // Process purchased items
     for (let i = 0; i < parsedPurchased.length; i++) {
       const item = parsedPurchased[i]
 
       let productId = item.productId
+      const originalProductId = productId
 
       // Check if product name changed or new image provided
       const file = findFile(`purchasedImage_${i}`)
@@ -582,10 +586,12 @@ router.put('/:id', upload.any(), async (req, res, next) => {
             const { imagePath, thumbnailPath } = await saveImage(file.buffer, file.originalname, shopName, item.productName)
             const product = await findOrCreateProduct(item.productName, uuidv4(), imagePath, thumbnailPath)
             productId = product.id
+            productIdMapping.set(originalProductId, productId)
           } else if (nameChanged) {
             // Only name changed - create new product with same image
             const product = await findOrCreateProduct(item.productName, uuidv4(), existingProduct.imagePath, existingProduct.thumbnailPath)
             productId = product.id
+            productIdMapping.set(originalProductId, productId)
           }
           // If nothing changed, keep the same productId
         }
@@ -618,7 +624,9 @@ router.put('/:id', upload.any(), async (req, res, next) => {
     for (let i = 0; i < parsedGifts.length; i++) {
       const item = parsedGifts[i]
 
-      let productId = item.productId
+      // Check if this productId was updated in purchased items
+      let productId = productIdMapping.get(item.productId) || item.productId
+      const originalProductId = item.productId
 
       // Check if product name changed or new image provided
       const file = findFile(`giftImage_${i}`)
@@ -640,10 +648,16 @@ router.put('/:id', upload.any(), async (req, res, next) => {
             const { imagePath, thumbnailPath } = await saveImage(file.buffer, file.originalname, shopName, item.productName)
             const product = await findOrCreateProduct(item.productName, uuidv4(), imagePath, thumbnailPath)
             productId = product.id
+            if (!productIdMapping.has(originalProductId)) {
+              productIdMapping.set(originalProductId, productId)
+            }
           } else if (nameChanged) {
             // Only name changed - create new product with same image
             const product = await findOrCreateProduct(item.productName, uuidv4(), existingProduct.imagePath, existingProduct.thumbnailPath)
             productId = product.id
+            if (!productIdMapping.has(originalProductId)) {
+              productIdMapping.set(originalProductId, productId)
+            }
           }
           // If nothing changed, keep the same productId
         }
@@ -678,7 +692,8 @@ router.put('/:id', upload.any(), async (req, res, next) => {
     for (let i = 0; i < parsedSmallGifts.length; i++) {
       const item = parsedSmallGifts[i]
 
-      let productId = item.productId
+      // Check if this productId was updated in purchased items or gifts
+      let productId = productIdMapping.get(item.productId) || item.productId
 
       // Check if product name changed or new image provided
       const file = findFile(`smallGiftImage_${i}`)
