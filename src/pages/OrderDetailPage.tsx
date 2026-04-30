@@ -8,10 +8,12 @@ import OrderItemEditor from '@/components/order/OrderItemEditor'
 import GroupOrderItemEditor from '@/components/order/GroupOrderItemEditor'
 import { sortSpecifications } from '@/utils/specificationSort'
 
+type ExtendedOrderDetail = OrderDetail & { groupSequenceNumber?: number; groupOrderName?: string }
+
 export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const [order, setOrder] = useState<OrderDetail | null>(null)
+  const [order, setOrder] = useState<ExtendedOrderDetail | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [viewingImage, setViewingImage] = useState<string | null>(null)
@@ -20,6 +22,8 @@ export default function OrderDetailPage() {
   const [isDeleting, setIsDeleting] = useState(false)
   const [isEditingShopName, setIsEditingShopName] = useState(false)
   const [editedShopName, setEditedShopName] = useState('')
+  const [isEditingGroupOrderName, setIsEditingGroupOrderName] = useState(false)
+  const [editedGroupOrderName, setEditedGroupOrderName] = useState('')
 
   useEffect(() => {
     if (!id) return
@@ -217,6 +221,24 @@ export default function OrderDetailPage() {
     }
   }
 
+  const handleSaveGroupOrderName = async () => {
+    if (!order || !id || !editedGroupOrderName.trim()) return
+
+    setIsSaving(true)
+    try {
+      await orderApi.updateGroupOrderName(id, editedGroupOrderName.trim())
+
+      // Reload order data
+      const refreshedOrder = await orderApi.getDetail(id)
+      setOrder(refreshedOrder)
+      setIsEditingGroupOrderName(false)
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '保存失败')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
   const handleDeleteOrder = async () => {
     if (!id) return
 
@@ -366,16 +388,60 @@ export default function OrderDetailPage() {
     return elements
   }
 
+  // Determine which sequence number to display
+  const displaySequenceNumber = order.orderType === 'group'
+    ? order.groupSequenceNumber || order.sequenceNumber
+    : order.sequenceNumber
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <h1 className="text-2xl font-bold">
-            订单 #{order.sequenceNumber} -
+            {order.orderType === 'group' ? '拼单' : '订单'} #{displaySequenceNumber} -
           </h1>
           {order.orderType === 'group' ? (
-            <span className="text-2xl font-bold">拼单</span>
+            isEditingGroupOrderName ? (
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={editedGroupOrderName}
+                  onChange={(e) => setEditedGroupOrderName(e.target.value)}
+                  className="px-3 py-1 border rounded-md text-xl font-bold"
+                  autoFocus
+                />
+                <button
+                  onClick={handleSaveGroupOrderName}
+                  disabled={isSaving || !editedGroupOrderName.trim()}
+                  className="px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 text-sm"
+                >
+                  保存
+                </button>
+                <button
+                  onClick={() => {
+                    setIsEditingGroupOrderName(false)
+                    setEditedGroupOrderName(order.groupOrderName || '拼单')
+                  }}
+                  className="px-3 py-1 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 text-sm"
+                >
+                  取消
+                </button>
+              </div>
+            ) : (
+              <>
+                <span className="text-2xl font-bold">{order.groupOrderName || '拼单'}</span>
+                <button
+                  onClick={() => {
+                    setIsEditingGroupOrderName(true)
+                    setEditedGroupOrderName(order.groupOrderName || '拼单')
+                  }}
+                  className="text-sm text-blue-600 hover:text-blue-700"
+                >
+                  编辑
+                </button>
+              </>
+            )
           ) : isEditingShopName ? (
             <div className="flex items-center gap-2">
               <input

@@ -68,7 +68,7 @@ export const orderApi = {
     return request<OrderSummary[]>(`/orders${query ? `?${query}` : ''}`)
   },
 
-  getDetail: (id: string) => request<OrderDetail>(`/orders/${id}`),
+  getDetail: (id: string) => request<OrderDetail & { groupSequenceNumber?: number; groupOrderName?: string }>(`/orders/${id}`),
 
   create: (formData: FormData) =>
     request<Order>('/orders', {
@@ -91,6 +91,13 @@ export const orderApi = {
   delete: (id: string) =>
     request<{ success: boolean; message: string }>(`/orders/${id}`, {
       method: 'DELETE',
+    }),
+
+  updateGroupOrderName: (id: string, groupOrderName: string) =>
+    request<Order>(`/orders/${id}/group-order-name`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ groupOrderName }),
     }),
 }
 

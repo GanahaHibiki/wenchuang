@@ -115,6 +115,7 @@ export interface Order {
   orderType: OrderType
   shopId: string // For group orders, this can be a special "GROUP" id
   shopIds?: string[] // For group orders, list of all shop IDs
+  groupOrderName?: string // Custom name for group orders, defaults to "拼单"
   items: OrderItem[]
   totalAmount: number
   giftTotal: number
@@ -184,6 +185,7 @@ export interface OrderDetail extends Omit<Order, 'items'> {
 export interface OrderSummary {
   id: string
   sequenceNumber: number
+  groupSequenceNumber?: number // Sequence number within group orders only
   orderType: OrderType
   shopName: string
   totalAmount: number

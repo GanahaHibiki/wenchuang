@@ -36,15 +36,25 @@ router.get('/', async (req, res, next) => {
 
     const orders = await getAllOrders(sortBy, order)
 
+    // Calculate group sequence numbers (order within group orders by createdAt)
+    const groupOrders = orders
+      .filter(o => o.orderType === 'group')
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+    const groupSeqMap = new Map<string, number>()
+    groupOrders.forEach((o, idx) => groupSeqMap.set(o.id, idx + 1))
+
     // Convert to summaries
     const summaries: OrderSummary[] = await Promise.all(
       orders.map(async (o) => {
         const shop = await getShopById(o.shopId)
-        // For group orders, always show "拼单" regardless of the actual shop
-        const displayName = o.orderType === 'group' ? '拼单' : (shop?.name || '未知店铺')
+        // For group orders, show custom name or default "拼单"
+        const displayName = o.orderType === 'group'
+          ? (o.groupOrderName || '拼单')
+          : (shop?.name || '未知店铺')
         return {
           id: o.id,
           sequenceNumber: o.sequenceNumber,
+          groupSequenceNumber: o.orderType === 'group' ? groupSeqMap.get(o.id) : undefined,
           orderType: o.orderType || 'shop',
           shopName: displayName,
           totalAmount: o.totalAmount,
@@ -84,13 +94,22 @@ router.get('/:id', async (req, res, next) => {
       }
     }
 
-    // For group orders, get all shops
+    // For group orders, get all shops and calculate group sequence number
     let shops: any[] | undefined
-    if (order.orderType === 'group' && order.shopIds) {
-      shops = await Promise.all(
-        order.shopIds.map(async (shopId) => await getShopById(shopId))
-      )
-      shops = shops.filter(Boolean) // Remove null values
+    let groupSequenceNumber: number | undefined
+    if (order.orderType === 'group') {
+      if (order.shopIds) {
+        shops = await Promise.all(
+          order.shopIds.map(async (shopId) => await getShopById(shopId))
+        )
+        shops = shops.filter(Boolean) // Remove null values
+      }
+      // Calculate group sequence number
+      const allOrders = await getAllOrders()
+      const groupOrders = allOrders
+        .filter(o => o.orderType === 'group')
+        .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+      groupSequenceNumber = groupOrders.findIndex(o => o.id === id) + 1
     }
 
     // Group items by category with product details
@@ -111,12 +130,14 @@ router.get('/:id', async (req, res, next) => {
       }
     }
 
-    const detail: OrderDetail = {
+    const detail: OrderDetail & { groupSequenceNumber?: number; groupOrderName?: string } = {
       id: order.id,
       sequenceNumber: order.sequenceNumber,
+      groupSequenceNumber,
       orderType: order.orderType || 'shop',
       shopId: order.shopId,
       shopIds: order.shopIds,
+      groupOrderName: order.groupOrderName,
       totalAmount: order.totalAmount,
       giftTotal: order.giftTotal,
       smallGiftTotal: order.smallGiftTotal,
@@ -859,6 +880,33 @@ router.patch('/:id/shipping-time', async (req, res, next) => {
     }
 
     const updated = await updateOrder(id, { shippingTime: shippingTime || undefined })
+
+    if (!updated) {
+      return res.status(404).json({ message: '订单不存在' })
+    }
+
+    res.json(updated)
+  } catch (err) {
+    next(err)
+  }
+})
+
+// PATCH /api/orders/:id/group-order-name - Update group order name
+router.patch('/:id/group-order-name', async (req, res, next) => {
+  try {
+    const { id } = req.params
+    const { groupOrderName } = req.body
+
+    const existingOrder = await getOrderById(id)
+    if (!existingOrder) {
+      return res.status(404).json({ message: '订单不存在' })
+    }
+
+    if (existingOrder.orderType !== 'group') {
+      return res.status(400).json({ message: '只有拼单订单可以修改订单名称' })
+    }
+
+    const updated = await updateOrder(id, { groupOrderName: groupOrderName || '拼单' })
 
     if (!updated) {
       return res.status(404).json({ message: '订单不存在' })
