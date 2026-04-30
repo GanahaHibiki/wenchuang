@@ -48,6 +48,16 @@ export const shopApi = {
 
 // ==================== Product API ====================
 
+export interface SetProduct {
+  productId: string
+  productName: string
+  imagePath: string
+  thumbnailPath: string
+  大食量set: number
+  小食量set: number
+  试吃set: number
+}
+
 export const productApi = {
   getAll: () => request<Product[]>('/products'),
 
@@ -55,6 +65,8 @@ export const productApi = {
     request<Product[]>(`/products/search?type=${type}&keyword=${encodeURIComponent(keyword)}`),
 
   getDetail: (id: string) => request<ProductDetail>(`/products/${id}`),
+
+  getSetProducts: () => request<SetProduct[]>('/products/set-products'),
 }
 
 // ==================== Order API ====================

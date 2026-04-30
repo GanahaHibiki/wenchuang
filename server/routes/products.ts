@@ -37,6 +37,69 @@ router.get('/search', async (req, res, next) => {
   }
 })
 
+// GET /api/products/set-products - Get products with significant set quantities
+router.get('/set-products', async (req, res, next) => {
+  try {
+    const db = await loadDatabase()
+
+    // Aggregate set quantities by product name
+    const productSetCounts = new Map<string, {
+      productId: string
+      productName: string
+      imagePath: string
+      thumbnailPath: string
+      大食量set: number
+      小食量set: number
+      试吃set: number
+    }>()
+
+    for (const order of db.orders) {
+      for (const item of order.items) {
+        const product = await getProductById(item.productId)
+        if (!product) continue
+
+        const key = product.name.toLowerCase()
+        if (!productSetCounts.has(key)) {
+          productSetCounts.set(key, {
+            productId: product.id,
+            productName: product.name,
+            imagePath: product.imagePath,
+            thumbnailPath: product.thumbnailPath,
+            大食量set: 0,
+            小食量set: 0,
+            试吃set: 0,
+          })
+        }
+
+        const counts = productSetCounts.get(key)!
+        for (const spec of item.specifications) {
+          if (spec.type === '大食量set') {
+            counts.大食量set += spec.quantity
+          } else if (spec.type === '小食量set') {
+            counts.小食量set += spec.quantity
+          } else if (spec.type === '试吃set') {
+            counts.试吃set += spec.quantity
+          }
+        }
+      }
+    }
+
+    // Filter products: has 大set or 小set, or 试吃set >= 5
+    const setProducts = Array.from(productSetCounts.values())
+      .filter(p => p.大食量set > 0 || p.小食量set > 0 || p.试吃set >= 5)
+      .sort((a, b) => {
+        // Sort by: 大set > 小set > 试吃set
+        if (a.大食量set !== b.大食量set) return b.大食量set - a.大食量set
+        if (a.小食量set !== b.小食量set) return b.小食量set - a.小食量set
+        return b.试吃set - a.试吃set
+      })
+
+    res.json(setProducts)
+  } catch (err) {
+    next(err)
+  }
+})
+
 // GET /api/products/:id
 router.get('/:id', async (req, res, next) => {
   try {

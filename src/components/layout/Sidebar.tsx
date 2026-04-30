@@ -2,6 +2,7 @@ import { NavLink } from 'react-router-dom'
 
 const menuItems = [
   { path: '/', label: '商品浏览', icon: '📦' },
+  { path: '/set-products', label: 'Set商品浏览', icon: '🎁' },
   { path: '/shops', label: '已购店铺', icon: '🏪' },
   { path: '/wishes', label: '心愿浏览', icon: '⭐' },
   { path: '/wish-shops', label: '心愿店铺', icon: '💫' },
