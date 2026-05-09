@@ -5,9 +5,10 @@ import ImageViewer from '../common/ImageViewer'
 
 interface ProductCardProps {
   product: Product
+  shopName?: string
 }
 
-export default function ProductCard({ product }: ProductCardProps) {
+export default function ProductCard({ product, shopName }: ProductCardProps) {
   const [showViewer, setShowViewer] = useState(false)
   const [imageLoaded, setImageLoaded] = useState(false)
 
@@ -35,6 +36,9 @@ export default function ProductCard({ product }: ProductCardProps) {
           >
             {product.name}
           </Link>
+          {shopName && (
+            <p className="text-xs text-gray-500 mt-1 truncate">{shopName}</p>
+          )}
         </div>
       </div>
 

@@ -308,12 +308,30 @@ export async function updateProductNameById(
   return db.products[index]
 }
 
+export interface ProductWithShop extends Product {
+  shopName: string
+}
+
 export async function searchProducts(
   type: 'productName' | 'shopName',
   keyword: string
-): Promise<Product[]> {
+): Promise<ProductWithShop[]> {
   const db = await loadDatabase()
   const lowerKeyword = keyword.toLowerCase().trim()
+
+  // Build a map of productId -> shopName (first shop that sold this product)
+  const productShopMap = new Map<string, string>()
+  const shopMap = new Map(db.shops.map(s => [s.id, s.name]))
+
+  for (const order of db.orders) {
+    for (const item of order.items) {
+      if (!productShopMap.has(item.productId)) {
+        const shopId = order.orderType === 'group' ? item.shopId : order.shopId
+        const shopName = shopId ? shopMap.get(shopId) || '未知店铺' : '未知店铺'
+        productShopMap.set(item.productId, shopName)
+      }
+    }
+  }
 
   let matchingProducts: Product[] = []
 
@@ -371,18 +389,13 @@ export async function searchProducts(
     matchingProducts = db.products.filter((p) => productIds.has(p.id))
   }
 
-  // Deduplicate products by name - keep the most recent one for each unique name
-  const productsByName = new Map<string, Product>()
-  for (const product of matchingProducts) {
-    const existing = productsByName.get(product.name)
-    if (!existing || product.createdAt > existing.createdAt) {
-      productsByName.set(product.name, product)
-    }
-  }
-
-  return Array.from(productsByName.values()).sort((a, b) =>
-    b.createdAt.localeCompare(a.createdAt)
-  )
+  // Add shopName to each product and sort by creation date
+  return matchingProducts
+    .map(p => ({
+      ...p,
+      shopName: productShopMap.get(p.id) || '未知店铺'
+    }))
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
 }
 
 // ==================== Order Operations ====================

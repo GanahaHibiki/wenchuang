@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { productApi } from '@/api/client'
-import type { Product } from '@/types'
+import { productApi, ProductWithShop } from '@/api/client'
 import SearchBar from '@/components/common/SearchBar'
 import ProductGrid from '@/components/product/ProductGrid'
 
@@ -9,8 +8,8 @@ const ITEMS_PER_PAGE = 50
 
 export default function HomePage() {
   const [searchParams] = useSearchParams()
-  const [allProducts, setAllProducts] = useState<Product[]>([])
-  const [displayedProducts, setDisplayedProducts] = useState<Product[]>([])
+  const [allProducts, setAllProducts] = useState<ProductWithShop[]>([])
+  const [displayedProducts, setDisplayedProducts] = useState<ProductWithShop[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(1)

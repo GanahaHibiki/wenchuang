@@ -59,11 +59,15 @@ export interface SetProduct {
   试吃set: number
 }
 
+export interface ProductWithShop extends Product {
+  shopName: string
+}
+
 export const productApi = {
   getAll: () => request<Product[]>('/products'),
 
   search: (type: 'productName' | 'shopName', keyword: string) =>
-    request<Product[]>(`/products/search?type=${type}&keyword=${encodeURIComponent(keyword)}`),
+    request<ProductWithShop[]>(`/products/search?type=${type}&keyword=${encodeURIComponent(keyword)}`),
 
   getDetail: (id: string) => request<ProductDetail>(`/products/${id}`),
 
