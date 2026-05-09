@@ -139,12 +139,8 @@ router.get('/:id', async (req, res, next) => {
 
     for (const order of db.orders) {
       for (const item of order.items) {
-        // Get the product for this item
-        const itemProduct = await getProductById(item.productId)
-        if (!itemProduct) continue
-
-        // Match by product name (case-insensitive)
-        if (itemProduct.name.toLowerCase() !== product.name.toLowerCase()) continue
+        // Match by productId to keep different shops' products separate
+        if (item.productId !== id) continue
 
         // For group orders, use item.shopId; for regular orders, use order.shopId
         const shopId = order.orderType === 'group' ? item.shopId : order.shopId
