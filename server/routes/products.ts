@@ -44,7 +44,7 @@ router.get('/set-products', async (req, res, next) => {
     const shops = await getAllShops()
     const shopMap = new Map(shops.map((s) => [s.id, s]))
 
-    // Aggregate set quantities by product ID (not name, to avoid merging different shops' products)
+    // Aggregate set quantities by shop+productName combination
     const productSetCounts = new Map<string, {
       productId: string
       productName: string
@@ -61,14 +61,14 @@ router.get('/set-products', async (req, res, next) => {
         const product = await getProductById(item.productId)
         if (!product) continue
 
-        // Use productId as key to keep different shops' products separate
-        const key = product.id
-        if (!productSetCounts.has(key)) {
-          // Determine shop name for this product
-          const shopId = order.orderType === 'group' ? item.shopId : order.shopId
-          const shop = shopId ? shopMap.get(shopId) : null
-          const shopName = shop?.name || (order.orderType === 'group' ? '拼单' : '未知店铺')
+        // Determine shop name for this product
+        const shopId = order.orderType === 'group' ? item.shopId : order.shopId
+        const shop = shopId ? shopMap.get(shopId) : null
+        const shopName = shop?.name || (order.orderType === 'group' ? '拼单' : '未知店铺')
 
+        // Use shop+productName as key to merge same shop's duplicate products
+        const key = `${shopName.toLowerCase()}|${product.name.toLowerCase()}`
+        if (!productSetCounts.has(key)) {
           productSetCounts.set(key, {
             productId: product.id,
             productName: product.name,

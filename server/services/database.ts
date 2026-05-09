@@ -389,13 +389,27 @@ export async function searchProducts(
     matchingProducts = db.products.filter((p) => productIds.has(p.id))
   }
 
-  // Add shopName to each product and sort by creation date
-  return matchingProducts
+  // Add shopName to each product
+  const productsWithShop = matchingProducts
     .map(p => ({
       ...p,
       shopName: productShopMap.get(p.id) || '未知店铺'
     }))
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt)) // Sort by oldest first for deduplication
+
+  // Deduplicate by shop+name combination, keeping the oldest one
+  const seenKeys = new Set<string>()
+  const deduplicated: ProductWithShop[] = []
+  for (const p of productsWithShop) {
+    const key = `${p.shopName.toLowerCase()}|${p.name.toLowerCase()}`
+    if (!seenKeys.has(key)) {
+      seenKeys.add(key)
+      deduplicated.push(p)
+    }
+  }
+
+  // Sort by creation date, most recent first
+  return deduplicated.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
 }
 
 // ==================== Order Operations ====================
