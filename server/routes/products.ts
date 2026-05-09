@@ -41,11 +41,14 @@ router.get('/search', async (req, res, next) => {
 router.get('/set-products', async (req, res, next) => {
   try {
     const db = await loadDatabase()
+    const shops = await getAllShops()
+    const shopMap = new Map(shops.map((s) => [s.id, s]))
 
-    // Aggregate set quantities by product name
+    // Aggregate set quantities by product ID (not name, to avoid merging different shops' products)
     const productSetCounts = new Map<string, {
       productId: string
       productName: string
+      shopName: string
       imagePath: string
       thumbnailPath: string
       大食量set: number
@@ -58,11 +61,18 @@ router.get('/set-products', async (req, res, next) => {
         const product = await getProductById(item.productId)
         if (!product) continue
 
-        const key = product.name.toLowerCase()
+        // Use productId as key to keep different shops' products separate
+        const key = product.id
         if (!productSetCounts.has(key)) {
+          // Determine shop name for this product
+          const shopId = order.orderType === 'group' ? item.shopId : order.shopId
+          const shop = shopId ? shopMap.get(shopId) : null
+          const shopName = shop?.name || (order.orderType === 'group' ? '拼单' : '未知店铺')
+
           productSetCounts.set(key, {
             productId: product.id,
             productName: product.name,
+            shopName,
             imagePath: product.imagePath,
             thumbnailPath: product.thumbnailPath,
             大食量set: 0,

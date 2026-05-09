@@ -51,6 +51,7 @@ export const shopApi = {
 export interface SetProduct {
   productId: string
   productName: string
+  shopName: string
   imagePath: string
   thumbnailPath: string
   大食量set: number

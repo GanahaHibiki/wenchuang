@@ -67,9 +67,12 @@ export default function SetProductsPage() {
                 />
               </div>
               <div className="p-3">
-                <h3 className="font-medium text-gray-900 mb-2 line-clamp-2">
+                <h3 className="font-medium text-gray-900 mb-1 line-clamp-2">
                   {product.productName}
                 </h3>
+                <p className="text-xs text-gray-500 mb-2 truncate">
+                  {product.shopName}
+                </p>
                 <div className="space-y-1 text-sm">
                   {product.大食量set > 0 && (
                     <div className="flex justify-between">
