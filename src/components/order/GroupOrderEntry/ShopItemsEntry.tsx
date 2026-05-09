@@ -4,6 +4,7 @@ import type { Shop, Product } from '@/types'
 import type { PurchasedItemData } from '../OrderEntry/StepPurchased'
 import ImageUploader from '@/components/common/ImageUploader'
 import SpecificationForm from '../OrderEntry/SpecificationForm'
+import ShopInput from '@/components/common/ShopInput'
 
 interface ShopItemsEntryProps {
   shopName: string
@@ -24,7 +25,6 @@ export default function ShopItemsEntry({
   const [shops, setShops] = useState<Shop[]>([])
   const [shopProducts, setShopProducts] = useState<Product[]>([])
   const [wishProducts, setWishProducts] = useState<WishProduct[]>([])
-  const [showShopInput, setShowShopInput] = useState(false)
   const [lastCheckedShopName, setLastCheckedShopName] = useState('')
   const [lastCheckedProductName, setLastCheckedProductName] = useState('')
 
@@ -75,21 +75,6 @@ export default function ShopItemsEntry({
       setWishProducts(wishes)
     } catch (error) {
       console.error('Failed to load products:', error)
-    }
-  }
-
-  const handleSelectShop = (selection: string) => {
-    if (selection === 'new') {
-      setShowShopInput(true)
-      onShopNameChange('')
-      setLastCheckedShopName('')
-    } else if (selection) {
-      const shop = shops.find(s => s.id === selection)
-      if (shop) {
-        onShopNameChange(shop.name)
-        setShowShopInput(false)
-        setLastCheckedShopName('')
-      }
     }
   }
 
@@ -280,57 +265,24 @@ export default function ShopItemsEntry({
     }
   }
 
-  // Filter out shops already used in this group order
-  const availableShops = shops.filter(shop =>
-    !allShopNames.includes(shop.name) || shop.name === shopName
-  )
+  // Exclude shops already used in this group order (except current one)
+  const excludeShops = allShopNames.filter(name => name !== shopName)
 
   return (
     <div className="space-y-4">
-      {/* Shop name selection */}
+      {/* Shop name input with suggestions */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
           店铺名称 <span className="text-red-500">*</span>
         </label>
-        {!showShopInput && availableShops.length > 0 && !shopName ? (
-          <select
-            onChange={(e) => handleSelectShop(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            value=""
-          >
-            <option value="">请选择店铺或输入新店铺</option>
-            {availableShops.map((shop) => (
-              <option key={shop.id} value={shop.id}>
-                {shop.name}
-              </option>
-            ))}
-            <option value="new">+ 输入新店铺名</option>
-          </select>
-        ) : (
-          <>
-            <input
-              type="text"
-              value={shopName}
-              onChange={(e) => onShopNameChange(e.target.value)}
-              onBlur={handleShopNameBlur}
-              placeholder="请输入店铺名称"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-            />
-            {showShopInput && (
-              <button
-                type="button"
-                onClick={() => {
-                  setShowShopInput(false)
-                  onShopNameChange('')
-                }}
-                className="text-sm text-blue-600 hover:text-blue-700 mt-2"
-              >
-                ← 返回选择已有店铺
-              </button>
-            )}
-          </>
-        )}
+        <ShopInput
+          value={shopName}
+          onChange={onShopNameChange}
+          onBlur={handleShopNameBlur}
+          excludeShops={excludeShops}
+          placeholder="输入或选择店铺名"
+          required
+        />
       </div>
 
       {/* Item tabs */}
