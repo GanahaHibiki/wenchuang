@@ -120,11 +120,47 @@ router.get('/:id', async (req, res, next) => {
       return res.status(404).json({ message: '商品不存在' })
     }
 
-    // Get all entries for this product across orders
-    // Search by product name instead of productId to capture all instances
     const db = await loadDatabase()
     const shops = await getAllShops()
     const shopMap = new Map(shops.map((s) => [s.id, s]))
+
+    // First, determine the shop for this product by finding its first order
+    let productShopName: string | null = null
+    for (const order of db.orders) {
+      for (const item of order.items) {
+        if (item.productId === id) {
+          const shopId = order.orderType === 'group' ? item.shopId : order.shopId
+          const shop = shopId ? shopMap.get(shopId) : null
+          productShopName = shop?.name || null
+          break
+        }
+      }
+      if (productShopName) break
+    }
+
+    // Find all productIds that match the same shop + product name combination
+    const matchingProductIds = new Set<string>()
+    matchingProductIds.add(id) // Always include the requested product
+
+    if (productShopName) {
+      for (const order of db.orders) {
+        for (const item of order.items) {
+          const itemProduct = await getProductById(item.productId)
+          if (!itemProduct) continue
+
+          // Check if this item's shop matches
+          const shopId = order.orderType === 'group' ? item.shopId : order.shopId
+          const shop = shopId ? shopMap.get(shopId) : null
+          const itemShopName = shop?.name || null
+
+          // Match by shop name + product name
+          if (itemShopName === productShopName &&
+              itemProduct.name.toLowerCase() === product.name.toLowerCase()) {
+            matchingProductIds.add(item.productId)
+          }
+        }
+      }
+    }
 
     // Calculate group sequence numbers
     const groupOrders = db.orders
@@ -139,8 +175,8 @@ router.get('/:id', async (req, res, next) => {
 
     for (const order of db.orders) {
       for (const item of order.items) {
-        // Match by productId to keep different shops' products separate
-        if (item.productId !== id) continue
+        // Match by any of the matching productIds (same shop + product name)
+        if (!matchingProductIds.has(item.productId)) continue
 
         // For group orders, use item.shopId; for regular orders, use order.shopId
         const shopId = order.orderType === 'group' ? item.shopId : order.shopId
