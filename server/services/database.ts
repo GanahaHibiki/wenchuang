@@ -202,6 +202,109 @@ export async function findOrCreateShop(name: string, id?: string): Promise<Shop>
   return shop
 }
 
+export async function renameShop(
+  shopId: string,
+  newName: string
+): Promise<{
+  success: boolean
+  oldName: string
+  renamedProducts: number
+  renamedWishItems: number
+  renamedImages: number
+}> {
+  const { renameImageFile, buildImagePath } = await import('./imageService.js')
+  const db = await loadDatabase()
+
+  const shop = db.shops.find(s => s.id === shopId)
+  if (!shop) {
+    return { success: false, oldName: '', renamedProducts: 0, renamedWishItems: 0, renamedImages: 0 }
+  }
+
+  const oldName = shop.name
+  if (oldName === newName) {
+    return { success: true, oldName, renamedProducts: 0, renamedWishItems: 0, renamedImages: 0 }
+  }
+
+  const sanitizedOldName = oldName.replace(/[/\\?%*:|"<>\s]/g, '_')
+  const sanitizedNewName = newName.replace(/[/\\?%*:|"<>\s]/g, '_')
+
+  let renamedProducts = 0
+  let renamedWishItems = 0
+  let renamedImages = 0
+
+  // Find all productIds associated with this shop (from orders)
+  const shopProductIds = new Set<string>()
+  for (const order of db.orders) {
+    if (order.orderType === 'group') {
+      for (const item of order.items) {
+        if (item.shopId === shopId) {
+          shopProductIds.add(item.productId)
+        }
+      }
+    } else if (order.shopId === shopId) {
+      for (const item of order.items) {
+        shopProductIds.add(item.productId)
+      }
+    }
+  }
+
+  // Update products and rename images
+  for (const product of db.products) {
+    if (!shopProductIds.has(product.id)) continue
+
+    const oldImagePath = product.imagePath
+    if (!oldImagePath.startsWith(sanitizedOldName + '_')) continue
+
+    // Build new image path
+    const ext = path.extname(oldImagePath)
+    const newImagePath = buildImagePath(newName, product.name, ext)
+    const newThumbnailPath = newImagePath.replace(/\.(jpg|jpeg|png|gif|webp)$/i, '_thumb.jpg')
+
+    // Rename image files
+    const renamed = await renameImageFile(oldImagePath, newImagePath)
+    if (renamed) {
+      renamedImages++
+    }
+
+    // Update product record
+    product.imagePath = newImagePath
+    product.thumbnailPath = newThumbnailPath
+    renamedProducts++
+  }
+
+  // Update wish items
+  for (const wishItem of db.wishItems || []) {
+    if (wishItem.shopId !== shopId) continue
+
+    const oldImagePath = wishItem.imagePath
+    // Wish items may have different prefix patterns
+    if (!oldImagePath.includes(sanitizedOldName)) continue
+
+    // Build new image path for wish item
+    const ext = path.extname(oldImagePath)
+    const newImagePath = buildImagePath(`心愿_${newName}`, wishItem.productName, ext)
+    const newThumbnailPath = newImagePath.replace(/\.(jpg|jpeg|png|gif|webp)$/i, '_thumb.jpg')
+
+    // Rename image files
+    const renamed = await renameImageFile(oldImagePath, newImagePath)
+    if (renamed) {
+      renamedImages++
+    }
+
+    // Update wish item record
+    wishItem.imagePath = newImagePath
+    wishItem.thumbnailPath = newThumbnailPath
+    renamedWishItems++
+  }
+
+  // Update shop name
+  shop.name = newName
+
+  await saveDatabase(db)
+
+  return { success: true, oldName, renamedProducts, renamedWishItems, renamedImages }
+}
+
 // ==================== Product Operations ====================
 
 export async function getAllProducts(): Promise<Product[]> {

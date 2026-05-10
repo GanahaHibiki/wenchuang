@@ -129,3 +129,43 @@ export async function deleteImage(imagePath: string): Promise<void> {
     // Ignore if file doesn't exist
   }
 }
+
+export async function renameImageFile(
+  oldImagePath: string,
+  newImagePath: string
+): Promise<boolean> {
+  const oldThumbnailPath = oldImagePath.replace(/\.(jpg|jpeg|png|gif|webp)$/i, '_thumb.jpg')
+  const newThumbnailPath = newImagePath.replace(/\.(jpg|jpeg|png|gif|webp)$/i, '_thumb.jpg')
+
+  const oldOriginalFile = path.join(ORIGINAL_DIR, oldImagePath)
+  const newOriginalFile = path.join(ORIGINAL_DIR, newImagePath)
+  const oldThumbnailFile = path.join(THUMBNAIL_DIR, oldThumbnailPath)
+  const newThumbnailFile = path.join(THUMBNAIL_DIR, newThumbnailPath)
+
+  let success = false
+
+  try {
+    await fs.rename(oldOriginalFile, newOriginalFile)
+    success = true
+  } catch {
+    // Original file doesn't exist or rename failed
+  }
+
+  try {
+    await fs.rename(oldThumbnailFile, newThumbnailFile)
+  } catch {
+    // Thumbnail doesn't exist or rename failed
+  }
+
+  return success
+}
+
+export function buildImagePath(
+  shopName: string,
+  productName: string,
+  ext: string
+): string {
+  const sanitizedShop = shopName.replace(/[/\\?%*:|"<>\s]/g, '_')
+  const sanitizedProduct = productName.replace(/[/\\?%*:|"<>\s]/g, '_')
+  return `${sanitizedShop}_${sanitizedProduct}${ext}`
+}

@@ -14,6 +14,7 @@ import {
   getShopById,
   getProductById,
   getAllProducts,
+  renameShop,
 } from '../services/database.js'
 import { saveImage, copyAndRenameImage, deleteImage } from '../services/imageService.js'
 import type {
@@ -463,9 +464,8 @@ router.put('/:id', upload.any(), async (req, res, next) => {
         if (parsedShopNames[shopId]) {
           const shop = await getShopById(shopId)
           if (shop && shop.name !== parsedShopNames[shopId]) {
-            // Shop name changed, need to update it
-            // Find or create shop with new name
-            const updatedShop = await findOrCreateShop(parsedShopNames[shopId], shopId)
+            // Shop name changed, rename shop and sync all related data
+            await renameShop(shopId, parsedShopNames[shopId])
           }
         }
       }
@@ -553,9 +553,12 @@ router.put('/:id', upload.any(), async (req, res, next) => {
 
     if (newShopName && newShopName.trim()) {
       const existingShop = await getShopById(existingOrder.shopId)
-      if (!existingShop || existingShop.name !== newShopName.trim()) {
-        // Shop name changed, find or create new shop
-        const shop = await findOrCreateShop(newShopName.trim(), uuidv4())
+      if (existingShop && existingShop.name !== newShopName.trim()) {
+        // Shop name changed, rename existing shop and sync all related data
+        await renameShop(existingOrder.shopId, newShopName.trim())
+      } else if (!existingShop) {
+        // Shop doesn't exist (shouldn't happen), create new one
+        const shop = await findOrCreateShop(newShopName.trim())
         shopId = shop.id
       }
     }
