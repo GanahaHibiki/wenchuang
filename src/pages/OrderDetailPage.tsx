@@ -239,6 +239,24 @@ export default function OrderDetailPage() {
     }
   }
 
+  const handleItemArrivalChange = async (itemId: string, arrived: boolean) => {
+    if (!order || !id || order.orderType !== 'group') return
+
+    try {
+      await fetch(`/api/orders/${id}/items/${itemId}/arrived`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ arrived })
+      })
+
+      // Reload order data to get updated delivery status
+      const refreshedOrder = await orderApi.getDetail(id)
+      setOrder(refreshedOrder)
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '更新失败')
+    }
+  }
+
   const handleDeleteOrder = async () => {
     if (!id) return
 
@@ -272,7 +290,7 @@ export default function OrderDetailPage() {
     return spec.type
   }
 
-  const renderItem = (item: OrderItem & { product: Product }, showPurchasePrice: boolean) => {
+  const renderItem = (item: OrderItem & { product: Product }, showPurchasePrice: boolean, showArrivalCheckbox: boolean = false) => {
     // Sort specifications by display order
     const sortedSpecs = sortSpecifications(item.specifications)
 
@@ -285,6 +303,17 @@ export default function OrderDetailPage() {
 
     return (
       <div key={item.id} className="bg-gray-50 rounded-lg p-3 flex flex-col">
+        {showArrivalCheckbox && (
+          <div className="flex items-center justify-center mb-2">
+            <input
+              type="checkbox"
+              checked={item.arrived || false}
+              onChange={(e) => handleItemArrivalChange(item.id, e.target.checked)}
+              className="w-4 h-4 cursor-pointer"
+            />
+            <label className="ml-2 text-sm text-gray-600">到货</label>
+          </div>
+        )}
         <div
           className="w-full aspect-[4/3] bg-gray-200 rounded overflow-hidden cursor-pointer mb-2"
           onClick={() => setViewingImage(`/images/original/${item.product.imagePath}`)}
@@ -379,7 +408,7 @@ export default function OrderDetailPage() {
                 店铺：{shop.name}
               </div>
             )}
-            {renderItem(item, true)}
+            {renderItem(item, true, true)}
           </div>
         )
       })

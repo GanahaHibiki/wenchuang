@@ -921,4 +921,48 @@ router.patch('/:id/group-order-name', async (req, res, next) => {
   }
 })
 
+// PATCH /api/orders/:id/items/:itemId/arrived - Update item arrival status
+router.patch('/:id/items/:itemId/arrived', async (req, res, next) => {
+  try {
+    const { id, itemId } = req.params
+    const { arrived } = req.body
+
+    const existingOrder = await getOrderById(id)
+    if (!existingOrder) {
+      return res.status(404).json({ message: '订单不存在' })
+    }
+
+    if (existingOrder.orderType !== 'group') {
+      return res.status(400).json({ message: '只有拼单订单可以更新商品到货状态' })
+    }
+
+    // Find and update the item
+    const updatedItems = existingOrder.items.map(item =>
+      item.id === itemId ? { ...item, arrived: arrived === true } : item
+    )
+
+    const itemFound = updatedItems.some(item => item.id === itemId)
+    if (!itemFound) {
+      return res.status(404).json({ message: '商品不存在' })
+    }
+
+    // Check if all items are arrived
+    const allArrived = updatedItems.every(item => item.arrived === true)
+
+    // Update order with new items and delivery status
+    const updated = await updateOrder(id, {
+      items: updatedItems,
+      deliveryStatus: allArrived ? '已到货' : existingOrder.deliveryStatus
+    })
+
+    if (!updated) {
+      return res.status(404).json({ message: '更新失败' })
+    }
+
+    res.json(updated)
+  } catch (err) {
+    next(err)
+  }
+})
+
 export default router

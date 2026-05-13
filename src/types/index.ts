@@ -105,6 +105,7 @@ export interface OrderItem {
   customGiftType?: string // Custom gift type name when giftType is '其他'
   specifications: Specification[]
   shopId?: string // For group orders, track which shop this item belongs to
+  arrived?: boolean // For group orders, track if this item has arrived
 }
 
 export type DeliveryStatus = '未到货' | '已到货'
