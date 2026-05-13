@@ -102,10 +102,27 @@ export default function LooseItemsPage() {
       其他衍生: '其他衍生',
     }
 
-    for (const [key, label] of Object.entries(typeLabels)) {
-      const value = product[key as keyof LooseItemProduct]
-      if (typeof value === 'number' && value > 0) {
-        quantities.push({ label, quantity: value })
+    // If no categories selected, show all quantities
+    if (selectedCategories.size === 0) {
+      for (const [key, label] of Object.entries(typeLabels)) {
+        const value = product[key as keyof LooseItemProduct]
+        if (typeof value === 'number' && value > 0) {
+          quantities.push({ label, quantity: value })
+        }
+      }
+    } else {
+      // Only show quantities for selected categories
+      for (const categoryKey of selectedCategories) {
+        const category = CATEGORIES.find(c => c.key === categoryKey)
+        if (category) {
+          for (const type of category.types) {
+            const value = product[type]
+            if (typeof value === 'number' && value > 0) {
+              const label = typeLabels[type as string] || type
+              quantities.push({ label, quantity: value })
+            }
+          }
+        }
       }
     }
 
