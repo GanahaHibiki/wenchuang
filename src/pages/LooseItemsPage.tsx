@@ -3,26 +3,24 @@ import { Link } from 'react-router-dom'
 import { productApi, LooseItemProduct } from '@/api/client'
 import LazyImage from '@/components/common/LazyImage'
 
-type CategoryKey = '折页' | '卡头' | '卡背' | '贴纸' | '售后卡' | '磨砂盒' | '其他衍生'
+type CategoryKey = '折页' | '卡头' | '卡背' | '贴纸' | '贴纸包' | '衍生贴纸' | '售后卡' | '磨砂盒' | '其他衍生'
 
 interface Category {
   key: CategoryKey
   label: string
-  types: Array<keyof LooseItemProduct>
+  types: Array<keyof LooseItemProduct | 'customSticker' | 'customDerivative'>
 }
 
 const CATEGORIES: Category[] = [
   { key: '折页', label: '折页', types: ['折页', '异形折页'] },
   { key: '卡头', label: '卡头', types: ['卡头'] },
   { key: '卡背', label: '卡背', types: ['卡背'] },
-  {
-    key: '贴纸',
-    label: '贴纸',
-    types: ['封口贴', '长贴', '其他贴纸', '贴纸包', '封箱贴', '豆丁贴', 'gift贴']
-  },
+  { key: '贴纸', label: '贴纸', types: ['封口贴', '长贴', 'customSticker'] },
+  { key: '贴纸包', label: '贴纸包', types: ['贴纸包'] },
+  { key: '衍生贴纸', label: '衍生贴纸', types: ['封箱贴', '豆丁贴', 'gift贴'] },
   { key: '售后卡', label: '售后卡', types: ['售后卡'] },
   { key: '磨砂盒', label: '磨砂盒', types: ['磨砂盒'] },
-  { key: '其他衍生', label: '其他衍生', types: ['其他衍生'] },
+  { key: '其他衍生', label: '其他衍生', types: ['customDerivative'] },
 ]
 
 export default function LooseItemsPage() {
@@ -72,8 +70,14 @@ export default function LooseItemsPage() {
         const category = CATEGORIES.find(c => c.key === categoryKey)
         if (category) {
           const hasQuantity = category.types.some(type => {
-            const value = product[type]
-            return typeof value === 'number' && value > 0
+            if (type === 'customSticker') {
+              return Object.keys(product.其他贴纸).length > 0
+            } else if (type === 'customDerivative') {
+              return Object.keys(product.其他衍生).length > 0
+            } else {
+              const value = product[type as keyof LooseItemProduct]
+              return typeof value === 'number' && value > 0
+            }
           })
           if (hasQuantity) return true
         }
@@ -92,22 +96,33 @@ export default function LooseItemsPage() {
       卡背: '卡背',
       封口贴: '封口贴',
       长贴: '长贴',
-      其他贴纸: '其他贴纸',
       贴纸包: '贴纸包',
       封箱贴: '封箱贴',
       豆丁贴: '豆丁贴',
       gift贴: 'gift贴',
       售后卡: '售后卡',
       磨砂盒: '磨砂盒',
-      其他衍生: '其他衍生',
     }
 
     // If no categories selected, show all quantities
     if (selectedCategories.size === 0) {
+      // Standard types
       for (const [key, label] of Object.entries(typeLabels)) {
         const value = product[key as keyof LooseItemProduct]
         if (typeof value === 'number' && value > 0) {
           quantities.push({ label, quantity: value })
+        }
+      }
+      // Custom stickers
+      for (const [customName, quantity] of Object.entries(product.其他贴纸)) {
+        if (quantity > 0) {
+          quantities.push({ label: customName, quantity })
+        }
+      }
+      // Custom derivatives
+      for (const [customName, quantity] of Object.entries(product.其他衍生)) {
+        if (quantity > 0) {
+          quantities.push({ label: customName, quantity })
         }
       }
     } else {
@@ -116,10 +131,26 @@ export default function LooseItemsPage() {
         const category = CATEGORIES.find(c => c.key === categoryKey)
         if (category) {
           for (const type of category.types) {
-            const value = product[type]
-            if (typeof value === 'number' && value > 0) {
-              const label = typeLabels[type as string] || type
-              quantities.push({ label, quantity: value })
+            if (type === 'customSticker') {
+              // Show all custom stickers
+              for (const [customName, quantity] of Object.entries(product.其他贴纸)) {
+                if (quantity > 0) {
+                  quantities.push({ label: customName, quantity })
+                }
+              }
+            } else if (type === 'customDerivative') {
+              // Show all custom derivatives
+              for (const [customName, quantity] of Object.entries(product.其他衍生)) {
+                if (quantity > 0) {
+                  quantities.push({ label: customName, quantity })
+                }
+              }
+            } else {
+              const value = product[type as keyof LooseItemProduct]
+              if (typeof value === 'number' && value > 0) {
+                const label = typeLabels[type as string] || (type as string)
+                quantities.push({ label, quantity: value })
+              }
             }
           }
         }

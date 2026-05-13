@@ -130,14 +130,14 @@ router.get('/loose-items', async (req, res, next) => {
       卡背: number
       封口贴: number
       长贴: number
-      其他贴纸: number
+      其他贴纸: Record<string, number> // customType -> quantity
       贴纸包: number
       封箱贴: number
       豆丁贴: number
       gift贴: number
       售后卡: number
       磨砂盒: number
-      其他衍生: number
+      其他衍生: Record<string, number> // customType -> quantity
     }>()
 
     for (const order of db.orders) {
@@ -165,14 +165,14 @@ router.get('/loose-items', async (req, res, next) => {
             卡背: 0,
             封口贴: 0,
             长贴: 0,
-            其他贴纸: 0,
+            其他贴纸: {},
             贴纸包: 0,
             封箱贴: 0,
             豆丁贴: 0,
             gift贴: 0,
             售后卡: 0,
             磨砂盒: 0,
-            其他衍生: 0,
+            其他衍生: {},
           })
         }
 
@@ -191,7 +191,8 @@ router.get('/loose-items', async (req, res, next) => {
           } else if (spec.type === '长贴') {
             counts.长贴 += spec.quantity
           } else if (spec.type === '其他贴纸') {
-            counts.其他贴纸 += spec.quantity
+            const customName = spec.customType || '其他贴纸'
+            counts.其他贴纸[customName] = (counts.其他贴纸[customName] || 0) + spec.quantity
           } else if (spec.type === '贴纸包') {
             counts.贴纸包 += spec.quantity
           } else if (spec.type === '封箱贴') {
@@ -205,7 +206,8 @@ router.get('/loose-items', async (req, res, next) => {
           } else if (spec.type === '磨砂盒') {
             counts.磨砂盒 += spec.quantity
           } else if (spec.type === '其他衍生') {
-            counts.其他衍生 += spec.quantity
+            const customName = spec.customType || '其他衍生'
+            counts.其他衍生[customName] = (counts.其他衍生[customName] || 0) + spec.quantity
           }
         }
       }
@@ -215,9 +217,9 @@ router.get('/loose-items', async (req, res, next) => {
     const looseProducts = Array.from(productLooseCounts.values())
       .filter(p =>
         p.折页 > 0 || p.异形折页 > 0 || p.卡头 > 0 || p.卡背 > 0 ||
-        p.封口贴 > 0 || p.长贴 > 0 || p.其他贴纸 > 0 || p.贴纸包 > 0 ||
+        p.封口贴 > 0 || p.长贴 > 0 || Object.keys(p.其他贴纸).length > 0 || p.贴纸包 > 0 ||
         p.封箱贴 > 0 || p.豆丁贴 > 0 || p.gift贴 > 0 || p.售后卡 > 0 ||
-        p.磨砂盒 > 0 || p.其他衍生 > 0
+        p.磨砂盒 > 0 || Object.keys(p.其他衍生).length > 0
       )
 
     res.json(looseProducts)
