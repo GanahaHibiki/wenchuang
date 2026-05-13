@@ -56,7 +56,7 @@ export default function SetProductsPage() {
           {products.map((product) => (
             <Link
               key={product.productId}
-              to={`/products/${product.productId}`}
+              to={`/products/${product.productId}?from=set-products`}
               className="bg-white rounded-lg shadow hover:shadow-md transition-shadow overflow-hidden"
             >
               <div className="aspect-[4/3] bg-gray-100">

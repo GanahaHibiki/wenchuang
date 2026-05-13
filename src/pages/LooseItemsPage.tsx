@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { productApi, LooseItemProduct } from '@/api/client'
 import LazyImage from '@/components/common/LazyImage'
 
@@ -24,10 +24,18 @@ const CATEGORIES: Category[] = [
 ]
 
 export default function LooseItemsPage() {
+  const [searchParams, setSearchParams] = useSearchParams()
   const [products, setProducts] = useState<LooseItemProduct[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [selectedCategories, setSelectedCategories] = useState<Set<CategoryKey>>(new Set())
+  const [selectedCategories, setSelectedCategories] = useState<Set<CategoryKey>>(() => {
+    // Initialize from URL params
+    const categoriesParam = searchParams.get('categories')
+    if (categoriesParam) {
+      return new Set(categoriesParam.split(',') as CategoryKey[])
+    }
+    return new Set()
+  })
 
   useEffect(() => {
     const loadProducts = async () => {
@@ -55,6 +63,14 @@ export default function LooseItemsPage() {
       } else {
         next.add(categoryKey)
       }
+
+      // Update URL params
+      if (next.size > 0) {
+        setSearchParams({ categories: Array.from(next).join(',') })
+      } else {
+        setSearchParams({})
+      }
+
       return next
     })
   }
@@ -240,7 +256,10 @@ export default function LooseItemsPage() {
         </div>
         {selectedCategories.size > 0 && (
           <button
-            onClick={() => setSelectedCategories(new Set())}
+            onClick={() => {
+              setSelectedCategories(new Set())
+              setSearchParams({})
+            }}
             className="mt-3 text-sm text-blue-600 hover:text-blue-700"
           >
             清除所有筛选
@@ -257,10 +276,16 @@ export default function LooseItemsPage() {
           {filteredProducts.map((product) => {
             const quantities = getProductQuantities(product)
 
+            // Build the link with source and categories
+            const categoriesParam = selectedCategories.size > 0
+              ? `&categories=${Array.from(selectedCategories).join(',')}`
+              : ''
+            const productLink = `/products/${product.productId}?from=loose-items${categoriesParam}`
+
             return (
               <Link
                 key={product.productId}
-                to={`/products/${product.productId}`}
+                to={productLink}
                 className="bg-white rounded-lg shadow hover:shadow-md transition-shadow overflow-hidden"
               >
                 <div className="aspect-[4/3] bg-gray-100">
