@@ -59,6 +59,28 @@ export interface SetProduct {
   试吃set: number
 }
 
+export interface LooseItemProduct {
+  productId: string
+  productName: string
+  shopName: string
+  imagePath: string
+  thumbnailPath: string
+  折页: number
+  异形折页: number
+  卡头: number
+  卡背: number
+  封口贴: number
+  长贴: number
+  其他贴纸: number
+  贴纸包: number
+  封箱贴: number
+  豆丁贴: number
+  gift贴: number
+  售后卡: number
+  磨砂盒: number
+  其他衍生: number
+}
+
 export interface ProductWithShop extends Product {
   shopName: string
 }
@@ -72,6 +94,8 @@ export const productApi = {
   getDetail: (id: string) => request<ProductDetail>(`/products/${id}`),
 
   getSetProducts: () => request<SetProduct[]>('/products/set-products'),
+
+  getLooseItems: () => request<LooseItemProduct[]>('/products/loose-items'),
 }
 
 // ==================== Order API ====================

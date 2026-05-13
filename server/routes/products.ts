@@ -110,6 +110,122 @@ router.get('/set-products', async (req, res, next) => {
   }
 })
 
+// GET /api/products/loose-items - Get products with loose item quantities
+router.get('/loose-items', async (req, res, next) => {
+  try {
+    const db = await loadDatabase()
+    const shops = await getAllShops()
+    const shopMap = new Map(shops.map((s) => [s.id, s]))
+
+    // Aggregate loose item quantities by shop+productName combination
+    const productLooseCounts = new Map<string, {
+      productId: string
+      productName: string
+      shopName: string
+      imagePath: string
+      thumbnailPath: string
+      折页: number
+      异形折页: number
+      卡头: number
+      卡背: number
+      封口贴: number
+      长贴: number
+      其他贴纸: number
+      贴纸包: number
+      封箱贴: number
+      豆丁贴: number
+      gift贴: number
+      售后卡: number
+      磨砂盒: number
+      其他衍生: number
+    }>()
+
+    for (const order of db.orders) {
+      for (const item of order.items) {
+        const product = await getProductById(item.productId)
+        if (!product) continue
+
+        // Determine shop name for this product
+        const shopId = order.orderType === 'group' ? item.shopId : order.shopId
+        const shop = shopId ? shopMap.get(shopId) : null
+        const shopName = shop?.name || (order.orderType === 'group' ? '拼单' : '未知店铺')
+
+        // Use shop+productName as key to merge same shop's duplicate products
+        const key = `${shopName.toLowerCase()}|${product.name.toLowerCase()}`
+        if (!productLooseCounts.has(key)) {
+          productLooseCounts.set(key, {
+            productId: product.id,
+            productName: product.name,
+            shopName,
+            imagePath: product.imagePath,
+            thumbnailPath: product.thumbnailPath,
+            折页: 0,
+            异形折页: 0,
+            卡头: 0,
+            卡背: 0,
+            封口贴: 0,
+            长贴: 0,
+            其他贴纸: 0,
+            贴纸包: 0,
+            封箱贴: 0,
+            豆丁贴: 0,
+            gift贴: 0,
+            售后卡: 0,
+            磨砂盒: 0,
+            其他衍生: 0,
+          })
+        }
+
+        const counts = productLooseCounts.get(key)!
+        for (const spec of item.specifications) {
+          if (spec.type === '折页') {
+            counts.折页 += spec.quantity
+          } else if (spec.type === '异形折页') {
+            counts.异形折页 += spec.quantity
+          } else if (spec.type === '卡头') {
+            counts.卡头 += spec.quantity
+          } else if (spec.type === '卡背') {
+            counts.卡背 += spec.quantity
+          } else if (spec.type === '封口贴') {
+            counts.封口贴 += spec.quantity
+          } else if (spec.type === '长贴') {
+            counts.长贴 += spec.quantity
+          } else if (spec.type === '其他贴纸') {
+            counts.其他贴纸 += spec.quantity
+          } else if (spec.type === '贴纸包') {
+            counts.贴纸包 += spec.quantity
+          } else if (spec.type === '封箱贴') {
+            counts.封箱贴 += spec.quantity
+          } else if (spec.type === '豆丁贴') {
+            counts.豆丁贴 += spec.quantity
+          } else if (spec.type === 'gift贴') {
+            counts.gift贴 += spec.quantity
+          } else if (spec.type === '售后卡') {
+            counts.售后卡 += spec.quantity
+          } else if (spec.type === '磨砂盒') {
+            counts.磨砂盒 += spec.quantity
+          } else if (spec.type === '其他衍生') {
+            counts.其他衍生 += spec.quantity
+          }
+        }
+      }
+    }
+
+    // Filter products: has any loose item quantity > 0
+    const looseProducts = Array.from(productLooseCounts.values())
+      .filter(p =>
+        p.折页 > 0 || p.异形折页 > 0 || p.卡头 > 0 || p.卡背 > 0 ||
+        p.封口贴 > 0 || p.长贴 > 0 || p.其他贴纸 > 0 || p.贴纸包 > 0 ||
+        p.封箱贴 > 0 || p.豆丁贴 > 0 || p.gift贴 > 0 || p.售后卡 > 0 ||
+        p.磨砂盒 > 0 || p.其他衍生 > 0
+      )
+
+    res.json(looseProducts)
+  } catch (err) {
+    next(err)
+  }
+})
+
 // GET /api/products/:id
 router.get('/:id', async (req, res, next) => {
   try {

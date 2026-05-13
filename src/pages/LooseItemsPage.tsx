@@ -1,0 +1,206 @@
+import { useState, useEffect, useMemo } from 'react'
+import { Link } from 'react-router-dom'
+import { productApi, LooseItemProduct } from '@/api/client'
+import LazyImage from '@/components/common/LazyImage'
+
+type CategoryKey = '折页' | '卡头' | '卡背' | '贴纸' | '售后卡' | '磨砂盒' | '其他衍生'
+
+interface Category {
+  key: CategoryKey
+  label: string
+  types: Array<keyof LooseItemProduct>
+}
+
+const CATEGORIES: Category[] = [
+  { key: '折页', label: '折页', types: ['折页', '异形折页'] },
+  { key: '卡头', label: '卡头', types: ['卡头'] },
+  { key: '卡背', label: '卡背', types: ['卡背'] },
+  {
+    key: '贴纸',
+    label: '贴纸',
+    types: ['封口贴', '长贴', '其他贴纸', '贴纸包', '封箱贴', '豆丁贴', 'gift贴']
+  },
+  { key: '售后卡', label: '售后卡', types: ['售后卡'] },
+  { key: '磨砂盒', label: '磨砂盒', types: ['磨砂盒'] },
+  { key: '其他衍生', label: '其他衍生', types: ['其他衍生'] },
+]
+
+export default function LooseItemsPage() {
+  const [products, setProducts] = useState<LooseItemProduct[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [selectedCategories, setSelectedCategories] = useState<Set<CategoryKey>>(new Set())
+
+  useEffect(() => {
+    const loadProducts = async () => {
+      setIsLoading(true)
+      setError(null)
+
+      try {
+        const data = await productApi.getLooseItems()
+        setProducts(data)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : '加载失败')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadProducts()
+  }, [])
+
+  const toggleCategory = (categoryKey: CategoryKey) => {
+    setSelectedCategories(prev => {
+      const next = new Set(prev)
+      if (next.has(categoryKey)) {
+        next.delete(categoryKey)
+      } else {
+        next.add(categoryKey)
+      }
+      return next
+    })
+  }
+
+  const filteredProducts = useMemo(() => {
+    if (selectedCategories.size === 0) {
+      return products
+    }
+
+    return products.filter(product => {
+      // Check if product has any quantity in selected categories
+      for (const categoryKey of selectedCategories) {
+        const category = CATEGORIES.find(c => c.key === categoryKey)
+        if (category) {
+          const hasQuantity = category.types.some(type => {
+            const value = product[type]
+            return typeof value === 'number' && value > 0
+          })
+          if (hasQuantity) return true
+        }
+      }
+      return false
+    })
+  }, [products, selectedCategories])
+
+  const getProductQuantities = (product: LooseItemProduct): Array<{ label: string; quantity: number }> => {
+    const quantities: Array<{ label: string; quantity: number }> = []
+
+    const typeLabels: Record<string, string> = {
+      折页: '折页',
+      异形折页: '异形折页',
+      卡头: '卡头',
+      卡背: '卡背',
+      封口贴: '封口贴',
+      长贴: '长贴',
+      其他贴纸: '其他贴纸',
+      贴纸包: '贴纸包',
+      封箱贴: '封箱贴',
+      豆丁贴: '豆丁贴',
+      gift贴: 'gift贴',
+      售后卡: '售后卡',
+      磨砂盒: '磨砂盒',
+      其他衍生: '其他衍生',
+    }
+
+    for (const [key, label] of Object.entries(typeLabels)) {
+      const value = product[key as keyof LooseItemProduct]
+      if (typeof value === 'number' && value > 0) {
+        quantities.push({ label, quantity: value })
+      }
+    }
+
+    return quantities
+  }
+
+  if (isLoading) {
+    return <div className="text-center py-12 text-gray-500">加载中...</div>
+  }
+
+  if (error) {
+    return <div className="text-center py-12 text-red-500">{error}</div>
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">散件商品浏览</h1>
+        <span className="text-gray-600">
+          {selectedCategories.size > 0
+            ? `已筛选 ${filteredProducts.length} 件商品`
+            : `共 ${products.length} 件商品`}
+        </span>
+      </div>
+
+      {/* Category filters */}
+      <div className="bg-white rounded-lg shadow p-4">
+        <div className="flex flex-wrap gap-2">
+          {CATEGORIES.map(category => (
+            <button
+              key={category.key}
+              onClick={() => toggleCategory(category.key)}
+              className={`px-4 py-2 rounded-lg border-2 transition-colors ${
+                selectedCategories.has(category.key)
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400'
+              }`}
+            >
+              {category.label}
+            </button>
+          ))}
+        </div>
+        {selectedCategories.size > 0 && (
+          <button
+            onClick={() => setSelectedCategories(new Set())}
+            className="mt-3 text-sm text-blue-600 hover:text-blue-700"
+          >
+            清除所有筛选
+          </button>
+        )}
+      </div>
+
+      {filteredProducts.length === 0 ? (
+        <div className="text-center py-12 text-gray-500">
+          {selectedCategories.size > 0 ? '未找到符合筛选条件的商品' : '暂无散件商品'}
+        </div>
+      ) : (
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-4">
+          {filteredProducts.map((product) => {
+            const quantities = getProductQuantities(product)
+
+            return (
+              <Link
+                key={product.productId}
+                to={`/products/${product.productId}`}
+                className="bg-white rounded-lg shadow hover:shadow-md transition-shadow overflow-hidden"
+              >
+                <div className="aspect-[4/3] bg-gray-100">
+                  <LazyImage
+                    src={`/images/thumbnails/${product.thumbnailPath}`}
+                    alt={product.productName}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <div className="p-3">
+                  <h3 className="font-medium text-gray-900 mb-1 line-clamp-2">
+                    {product.productName}
+                  </h3>
+                  <p className="text-xs text-gray-500 mb-2 truncate">
+                    {product.shopName}
+                  </p>
+                  <div className="space-y-1 text-sm">
+                    {quantities.map((item, index) => (
+                      <div key={index} className="flex justify-between">
+                        <span className="text-gray-600">{item.label}:</span>
+                        <span className="font-bold text-blue-600">{item.quantity}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </Link>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}

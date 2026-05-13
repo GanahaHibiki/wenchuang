@@ -2,6 +2,7 @@ import { Routes, Route } from 'react-router-dom'
 import MainLayout from './components/layout/MainLayout'
 import HomePage from './pages/HomePage'
 import SetProductsPage from './pages/SetProductsPage'
+import LooseItemsPage from './pages/LooseItemsPage'
 import WishListPage from './pages/WishListPage'
 import OrderEntryPage from './pages/OrderEntryPage'
 import GroupOrderEntryPage from './pages/GroupOrderEntryPage'
@@ -17,6 +18,7 @@ function App() {
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/set-products" element={<SetProductsPage />} />
+        <Route path="/loose-items" element={<LooseItemsPage />} />
         <Route path="/wishes" element={<WishListPage />} />
         <Route path="/order-entry" element={<OrderEntryPage />} />
         <Route path="/group-order-entry" element={<GroupOrderEntryPage />} />
