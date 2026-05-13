@@ -71,14 +71,14 @@ export interface LooseItemProduct {
   卡背: number
   封口贴: Record<number, number> // sequenceNumber -> quantity
   长贴: Record<number, number> // sequenceNumber -> quantity
-  其他贴纸: Record<string, number> // customType -> quantity
+  其他贴纸: Record<string, number> // "customType_seqNum" -> quantity
   贴纸包: number
   封箱贴: number
   豆丁贴: number
   gift贴: number
   售后卡: number
   磨砂盒: number
-  其他衍生: Record<string, number> // customType -> quantity
+  其他衍生: Record<string, number> // "customType_seqNum" -> quantity
 }
 
 export interface ProductWithShop extends Product {

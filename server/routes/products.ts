@@ -130,14 +130,14 @@ router.get('/loose-items', async (req, res, next) => {
       卡背: number
       封口贴: Record<number, number> // sequenceNumber -> quantity
       长贴: Record<number, number> // sequenceNumber -> quantity
-      其他贴纸: Record<string, number> // customType -> quantity
+      其他贴纸: Record<string, number> // "customType_seqNum" -> quantity
       贴纸包: number
       封箱贴: number
       豆丁贴: number
       gift贴: number
       售后卡: number
       磨砂盒: number
-      其他衍生: Record<string, number> // customType -> quantity
+      其他衍生: Record<string, number> // "customType_seqNum" -> quantity
     }>()
 
     for (const order of db.orders) {
@@ -195,7 +195,9 @@ router.get('/loose-items', async (req, res, next) => {
             counts.长贴[seqNum] = (counts.长贴[seqNum] || 0) + spec.quantity
           } else if (spec.type === '其他贴纸') {
             const customName = spec.customType || '其他贴纸'
-            counts.其他贴纸[customName] = (counts.其他贴纸[customName] || 0) + spec.quantity
+            const seqNum = spec.sequenceNumber || 1
+            const key = `${customName}_${seqNum}`
+            counts.其他贴纸[key] = (counts.其他贴纸[key] || 0) + spec.quantity
           } else if (spec.type === '贴纸包') {
             counts.贴纸包 += spec.quantity
           } else if (spec.type === '封箱贴') {
@@ -210,7 +212,9 @@ router.get('/loose-items', async (req, res, next) => {
             counts.磨砂盒 += spec.quantity
           } else if (spec.type === '其他衍生') {
             const customName = spec.customType || '其他衍生'
-            counts.其他衍生[customName] = (counts.其他衍生[customName] || 0) + spec.quantity
+            const seqNum = spec.sequenceNumber || 1
+            const key = `${customName}_${seqNum}`
+            counts.其他衍生[key] = (counts.其他衍生[key] || 0) + spec.quantity
           }
         }
       }

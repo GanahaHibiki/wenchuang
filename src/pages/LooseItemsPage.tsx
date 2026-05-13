@@ -151,15 +151,31 @@ export default function LooseItemsPage() {
         }
       }
       // Custom stickers
-      for (const [customName, quantity] of Object.entries(product.其他贴纸)) {
+      for (const [key, quantity] of Object.entries(product.其他贴纸)) {
         if (quantity > 0) {
-          quantities.push({ label: customName, quantity })
+          // Parse "customType_seqNum" format
+          const lastUnderscore = key.lastIndexOf('_')
+          if (lastUnderscore > 0) {
+            const customName = key.substring(0, lastUnderscore)
+            const seqNum = key.substring(lastUnderscore + 1)
+            quantities.push({ label: `${customName}${seqNum}`, quantity })
+          } else {
+            quantities.push({ label: key, quantity })
+          }
         }
       }
       // Custom derivatives
-      for (const [customName, quantity] of Object.entries(product.其他衍生)) {
+      for (const [key, quantity] of Object.entries(product.其他衍生)) {
         if (quantity > 0) {
-          quantities.push({ label: customName, quantity })
+          // Parse "customType_seqNum" format
+          const lastUnderscore = key.lastIndexOf('_')
+          if (lastUnderscore > 0) {
+            const customName = key.substring(0, lastUnderscore)
+            const seqNum = key.substring(lastUnderscore + 1)
+            quantities.push({ label: `${customName}${seqNum}`, quantity })
+          } else {
+            quantities.push({ label: key, quantity })
+          }
         }
       }
     } else {
@@ -170,16 +186,32 @@ export default function LooseItemsPage() {
           for (const type of category.types) {
             if (type === 'customSticker') {
               // Show all custom stickers
-              for (const [customName, quantity] of Object.entries(product.其他贴纸)) {
+              for (const [key, quantity] of Object.entries(product.其他贴纸)) {
                 if (quantity > 0) {
-                  quantities.push({ label: customName, quantity })
+                  // Parse "customType_seqNum" format
+                  const lastUnderscore = key.lastIndexOf('_')
+                  if (lastUnderscore > 0) {
+                    const customName = key.substring(0, lastUnderscore)
+                    const seqNum = key.substring(lastUnderscore + 1)
+                    quantities.push({ label: `${customName}${seqNum}`, quantity })
+                  } else {
+                    quantities.push({ label: key, quantity })
+                  }
                 }
               }
             } else if (type === 'customDerivative') {
               // Show all custom derivatives
-              for (const [customName, quantity] of Object.entries(product.其他衍生)) {
+              for (const [key, quantity] of Object.entries(product.其他衍生)) {
                 if (quantity > 0) {
-                  quantities.push({ label: customName, quantity })
+                  // Parse "customType_seqNum" format
+                  const lastUnderscore = key.lastIndexOf('_')
+                  if (lastUnderscore > 0) {
+                    const customName = key.substring(0, lastUnderscore)
+                    const seqNum = key.substring(lastUnderscore + 1)
+                    quantities.push({ label: `${customName}${seqNum}`, quantity })
+                  } else {
+                    quantities.push({ label: key, quantity })
+                  }
                 }
               }
             } else if (type === 'sequencedKatou') {
