@@ -8,14 +8,14 @@ type CategoryKey = '折页' | '卡头' | '卡背' | '贴纸' | '贴纸包' | '�
 interface Category {
   key: CategoryKey
   label: string
-  types: Array<keyof LooseItemProduct | 'customSticker' | 'customDerivative'>
+  types: Array<keyof LooseItemProduct | 'customSticker' | 'customDerivative' | 'sequencedKatou' | 'sequencedFengkouti' | 'sequencedChangti'>
 }
 
 const CATEGORIES: Category[] = [
   { key: '折页', label: '折页', types: ['折页', '异形折页'] },
-  { key: '卡头', label: '卡头', types: ['卡头'] },
+  { key: '卡头', label: '卡头', types: ['sequencedKatou'] },
   { key: '卡背', label: '卡背', types: ['卡背'] },
-  { key: '贴纸', label: '贴纸', types: ['封口贴', '长贴', 'customSticker'] },
+  { key: '贴纸', label: '贴纸', types: ['sequencedFengkouti', 'sequencedChangti', 'customSticker'] },
   { key: '贴纸包', label: '贴纸包', types: ['贴纸包'] },
   { key: '衍生贴纸', label: '衍生贴纸', types: ['封箱贴', '豆丁贴', 'gift贴'] },
   { key: '售后卡', label: '售后卡', types: ['售后卡'] },
@@ -74,6 +74,12 @@ export default function LooseItemsPage() {
               return Object.keys(product.其他贴纸).length > 0
             } else if (type === 'customDerivative') {
               return Object.keys(product.其他衍生).length > 0
+            } else if (type === 'sequencedKatou') {
+              return Object.keys(product.卡头).length > 0
+            } else if (type === 'sequencedFengkouti') {
+              return Object.keys(product.封口贴).length > 0
+            } else if (type === 'sequencedChangti') {
+              return Object.keys(product.长贴).length > 0
             } else {
               const value = product[type as keyof LooseItemProduct]
               return typeof value === 'number' && value > 0
@@ -92,10 +98,7 @@ export default function LooseItemsPage() {
     const typeLabels: Record<string, string> = {
       折页: '折页',
       异形折页: '异形折页',
-      卡头: '卡头',
       卡背: '卡背',
-      封口贴: '封口贴',
-      长贴: '长贴',
       贴纸包: '贴纸包',
       封箱贴: '封箱贴',
       豆丁贴: '豆丁贴',
@@ -111,6 +114,24 @@ export default function LooseItemsPage() {
         const value = product[key as keyof LooseItemProduct]
         if (typeof value === 'number' && value > 0) {
           quantities.push({ label, quantity: value })
+        }
+      }
+      // Sequenced types - 卡头
+      for (const [seqNum, quantity] of Object.entries(product.卡头)) {
+        if (quantity > 0) {
+          quantities.push({ label: `卡头${seqNum}`, quantity })
+        }
+      }
+      // Sequenced types - 封口贴
+      for (const [seqNum, quantity] of Object.entries(product.封口贴)) {
+        if (quantity > 0) {
+          quantities.push({ label: `封口贴${seqNum}`, quantity })
+        }
+      }
+      // Sequenced types - 长贴
+      for (const [seqNum, quantity] of Object.entries(product.长贴)) {
+        if (quantity > 0) {
+          quantities.push({ label: `长贴${seqNum}`, quantity })
         }
       }
       // Custom stickers
@@ -143,6 +164,27 @@ export default function LooseItemsPage() {
               for (const [customName, quantity] of Object.entries(product.其他衍生)) {
                 if (quantity > 0) {
                   quantities.push({ label: customName, quantity })
+                }
+              }
+            } else if (type === 'sequencedKatou') {
+              // Show all 卡头 with sequence numbers
+              for (const [seqNum, quantity] of Object.entries(product.卡头)) {
+                if (quantity > 0) {
+                  quantities.push({ label: `卡头${seqNum}`, quantity })
+                }
+              }
+            } else if (type === 'sequencedFengkouti') {
+              // Show all 封口贴 with sequence numbers
+              for (const [seqNum, quantity] of Object.entries(product.封口贴)) {
+                if (quantity > 0) {
+                  quantities.push({ label: `封口贴${seqNum}`, quantity })
+                }
+              }
+            } else if (type === 'sequencedChangti') {
+              // Show all 长贴 with sequence numbers
+              for (const [seqNum, quantity] of Object.entries(product.长贴)) {
+                if (quantity > 0) {
+                  quantities.push({ label: `长贴${seqNum}`, quantity })
                 }
               }
             } else {

@@ -126,10 +126,10 @@ router.get('/loose-items', async (req, res, next) => {
       thumbnailPath: string
       折页: number
       异形折页: number
-      卡头: number
+      卡头: Record<number, number> // sequenceNumber -> quantity
       卡背: number
-      封口贴: number
-      长贴: number
+      封口贴: Record<number, number> // sequenceNumber -> quantity
+      长贴: Record<number, number> // sequenceNumber -> quantity
       其他贴纸: Record<string, number> // customType -> quantity
       贴纸包: number
       封箱贴: number
@@ -161,10 +161,10 @@ router.get('/loose-items', async (req, res, next) => {
             thumbnailPath: product.thumbnailPath,
             折页: 0,
             异形折页: 0,
-            卡头: 0,
+            卡头: {},
             卡背: 0,
-            封口贴: 0,
-            长贴: 0,
+            封口贴: {},
+            长贴: {},
             其他贴纸: {},
             贴纸包: 0,
             封箱贴: 0,
@@ -183,13 +183,16 @@ router.get('/loose-items', async (req, res, next) => {
           } else if (spec.type === '异形折页') {
             counts.异形折页 += spec.quantity
           } else if (spec.type === '卡头') {
-            counts.卡头 += spec.quantity
+            const seqNum = spec.sequenceNumber || 1
+            counts.卡头[seqNum] = (counts.卡头[seqNum] || 0) + spec.quantity
           } else if (spec.type === '卡背') {
             counts.卡背 += spec.quantity
           } else if (spec.type === '封口贴') {
-            counts.封口贴 += spec.quantity
+            const seqNum = spec.sequenceNumber || 1
+            counts.封口贴[seqNum] = (counts.封口贴[seqNum] || 0) + spec.quantity
           } else if (spec.type === '长贴') {
-            counts.长贴 += spec.quantity
+            const seqNum = spec.sequenceNumber || 1
+            counts.长贴[seqNum] = (counts.长贴[seqNum] || 0) + spec.quantity
           } else if (spec.type === '其他贴纸') {
             const customName = spec.customType || '其他贴纸'
             counts.其他贴纸[customName] = (counts.其他贴纸[customName] || 0) + spec.quantity
@@ -216,8 +219,9 @@ router.get('/loose-items', async (req, res, next) => {
     // Filter products: has any loose item quantity > 0
     const looseProducts = Array.from(productLooseCounts.values())
       .filter(p =>
-        p.折页 > 0 || p.异形折页 > 0 || p.卡头 > 0 || p.卡背 > 0 ||
-        p.封口贴 > 0 || p.长贴 > 0 || Object.keys(p.其他贴纸).length > 0 || p.贴纸包 > 0 ||
+        p.折页 > 0 || p.异形折页 > 0 || Object.keys(p.卡头).length > 0 || p.卡背 > 0 ||
+        Object.keys(p.封口贴).length > 0 || Object.keys(p.长贴).length > 0 ||
+        Object.keys(p.其他贴纸).length > 0 || p.贴纸包 > 0 ||
         p.封箱贴 > 0 || p.豆丁贴 > 0 || p.gift贴 > 0 || p.售后卡 > 0 ||
         p.磨砂盒 > 0 || Object.keys(p.其他衍生).length > 0
       )

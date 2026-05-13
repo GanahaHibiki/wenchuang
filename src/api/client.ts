@@ -67,10 +67,10 @@ export interface LooseItemProduct {
   thumbnailPath: string
   折页: number
   异形折页: number
-  卡头: number
+  卡头: Record<number, number> // sequenceNumber -> quantity
   卡背: number
-  封口贴: number
-  长贴: number
+  封口贴: Record<number, number> // sequenceNumber -> quantity
+  长贴: Record<number, number> // sequenceNumber -> quantity
   其他贴纸: Record<string, number> // customType -> quantity
   贴纸包: number
   封箱贴: number
