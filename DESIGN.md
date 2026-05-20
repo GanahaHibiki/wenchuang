@@ -3,8 +3,8 @@
 ## Document Metadata
 - **System Name**: 文创商品订单管理系统 (Wenchuang Order Management System)
 - **Document Type**: Technical Design Specification
-- **Version**: 1.21
-- **Last Updated**: 2026-04-06
+- **Version**: 1.23
+- **Last Updated**: 2026-05-21
 
 ---
 
@@ -1308,6 +1308,7 @@ WenChuang/
 | 1.20 | 2026-04-06 | Added: Product selection dropdown in gift and small gift entry steps - can select from purchased items or shop products, auto-fills name and image | AI Assistant |
 | 1.21 | 2026-04-06 | Fixed: Shop filter now works correctly on multiple clicks - SearchBar syncs with URL params, clears search when leaving shop filter | AI Assistant |
 | 1.22 | 2026-04-14 | Added: Order time (下单时间) and shipping time (发货时间) columns in order list page. Orders automatically sort by orderTime when set (chronologically), with orders without orderTime following in entry order. Both time fields are editable inline. | AI Assistant |
+| 1.23 | 2026-05-21 | Added: Image merge feature in SetProductsPage - select up to 9 products and merge their original images into a 6:9 ratio grid (1200×1800px), saved to data/append folder. New API endpoint POST /api/products/merge-images. | AI Assistant |
 
 ---
 

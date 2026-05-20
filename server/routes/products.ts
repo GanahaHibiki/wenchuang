@@ -1,14 +1,20 @@
 import { Router } from 'express'
+import fs from 'fs/promises'
+import path from 'path'
+import sharp from 'sharp'
 import {
   getAllProducts,
   getProductById,
   searchProducts,
   loadDatabase,
   getAllShops,
+  DATA_DIR,
 } from '../services/database.js'
 import type { ProductDetail, ProductEntry } from '../../src/types/index.js'
 
 const router = Router()
+const ORIGINAL_DIR = path.join(DATA_DIR, 'images', 'original')
+const APPEND_DIR = path.join(DATA_DIR, 'append')
 
 // GET /api/products
 router.get('/', async (req, res, next) => {
@@ -334,6 +340,119 @@ router.get('/:id', async (req, res, next) => {
     }
 
     res.json(detail)
+  } catch (err) {
+    next(err)
+  }
+})
+
+// POST /api/products/merge-images - Merge selected product images into a 6:9 grid
+router.post('/merge-images', async (req, res, next) => {
+  try {
+    const { imagePaths } = req.body as { imagePaths: string[] }
+
+    if (!imagePaths || !Array.isArray(imagePaths) || imagePaths.length === 0) {
+      return res.status(400).json({ message: '请选择至少一张图片' })
+    }
+
+    if (imagePaths.length > 9) {
+      return res.status(400).json({ message: '最多选择9张图片' })
+    }
+
+    // Ensure append directory exists
+    await fs.mkdir(APPEND_DIR, { recursive: true })
+
+    // Load all images and get their dimensions
+    const imageInfos: { buffer: Buffer; width: number; height: number }[] = []
+    for (const imagePath of imagePaths) {
+      const fullPath = path.join(ORIGINAL_DIR, imagePath)
+      const buffer = await fs.readFile(fullPath)
+      const metadata = await sharp(buffer).metadata()
+      imageInfos.push({
+        buffer,
+        width: metadata.width || 0,
+        height: metadata.height || 0,
+      })
+    }
+
+    // Calculate grid layout based on number of images
+    // Target: final image should have 6:9 aspect ratio (width:height)
+    const count = imageInfos.length
+    let cols: number
+    let rows: number
+    if (count <= 1) {
+      cols = 1
+      rows = 1
+    } else if (count <= 2) {
+      cols = 1
+      rows = 2
+    } else if (count <= 3) {
+      cols = 1
+      rows = 3
+    } else if (count <= 4) {
+      cols = 2
+      rows = 2
+    } else if (count <= 6) {
+      cols = 2
+      rows = 3
+    } else {
+      cols = 3
+      rows = 3
+    }
+
+    // Final canvas has 6:9 ratio (width:height = 6/9 = 2/3)
+    const canvasWidth = 1200
+    const canvasHeight = 1800
+
+    // Each cell size
+    const cellWidth = canvasWidth / cols
+    const cellHeight = canvasHeight / rows
+
+    // Resize each image to fit cell size
+    const resizedImages: { buffer: Buffer; x: number; y: number }[] = []
+    for (let i = 0; i < imageInfos.length; i++) {
+      const row = Math.floor(i / cols)
+      const col = i % cols
+      const x = Math.round(col * cellWidth)
+      const y = Math.round(row * cellHeight)
+
+      const resized = await sharp(imageInfos[i].buffer)
+        .resize(Math.round(cellWidth), Math.round(cellHeight), { fit: 'cover', position: 'center' })
+        .toBuffer()
+
+      resizedImages.push({ buffer: resized, x, y })
+    }
+
+    // Create composite image
+    const composite = await sharp({
+      create: {
+        width: canvasWidth,
+        height: canvasHeight,
+        channels: 3,
+        background: { r: 255, g: 255, b: 255 },
+      },
+    })
+      .composite(
+        resizedImages.map((img) => ({
+          input: img.buffer,
+          left: img.x,
+          top: img.y,
+        }))
+      )
+      .jpeg({ quality: 95 })
+      .toBuffer()
+
+    // Save to append folder with timestamp
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+    const filename = `merged_${timestamp}.jpg`
+    const outputPath = path.join(APPEND_DIR, filename)
+    await fs.writeFile(outputPath, composite)
+
+    res.json({
+      success: true,
+      filename,
+      path: `/append/${filename}`,
+      count: imagePaths.length,
+    })
   } catch (err) {
     next(err)
   }

@@ -23,6 +23,7 @@ app.use(express.json())
 // Static files for images
 app.use('/images/original', express.static(path.join(DATA_DIR, 'images', 'original')))
 app.use('/images/thumbnails', express.static(path.join(DATA_DIR, 'images', 'thumbnails')))
+app.use('/append', express.static(path.join(DATA_DIR, 'append')))
 
 // API Routes
 app.use('/api/shops', shopsRouter)

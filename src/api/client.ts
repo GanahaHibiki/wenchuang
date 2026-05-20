@@ -96,6 +96,16 @@ export const productApi = {
   getSetProducts: () => request<SetProduct[]>('/products/set-products'),
 
   getLooseItems: () => request<LooseItemProduct[]>('/products/loose-items'),
+
+  mergeImages: (imagePaths: string[]) =>
+    request<{ success: boolean; filename: string; path: string; count: number }>(
+      '/products/merge-images',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imagePaths }),
+      }
+    ),
 }
 
 // ==================== Order API ====================
