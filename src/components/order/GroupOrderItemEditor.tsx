@@ -255,14 +255,17 @@ export default function GroupOrderItemEditor({ shopGroups, onSave, onCancel, exi
     const item = editedGroups.find(g => g.shopId === shopId)?.items[itemIndex]
     if (!item) return
 
+    // Use first specification type as default
+    const defaultType = SPECIFICATION_TYPES[0]
+
     // Calculate next sequence number for the default type
-    const existingOfType = item.specifications.filter(s => s.type === '徽章')
+    const existingOfType = item.specifications.filter(s => s.type === defaultType)
     const nextSeq = existingOfType.length > 0
       ? Math.max(...existingOfType.map(s => s.sequenceNumber || 1)) + 1
       : 1
 
     const newSpec: Specification = {
-      type: '徽章',
+      type: defaultType,
       sequenceNumber: nextSeq,
       quantity: 1,
       purchasePrice: 0,
