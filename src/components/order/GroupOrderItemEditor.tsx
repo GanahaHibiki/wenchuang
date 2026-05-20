@@ -252,26 +252,44 @@ export default function GroupOrderItemEditor({ shopGroups, onSave, onCancel, exi
   }
 
   const addSpecification = (shopId: string, itemIndex: number) => {
+    const item = editedGroups.find(g => g.shopId === shopId)?.items[itemIndex]
+    if (!item) return
+
+    // Calculate next sequence number for the default type
+    const existingOfType = item.specifications.filter(s => s.type === '徽章')
+    const nextSeq = existingOfType.length > 0
+      ? Math.max(...existingOfType.map(s => s.sequenceNumber || 1)) + 1
+      : 1
+
     const newSpec: Specification = {
       type: '徽章',
+      sequenceNumber: nextSeq,
       quantity: 1,
       purchasePrice: 0,
       originalPrice: 0,
     }
 
-    const item = editedGroups.find(g => g.shopId === shopId)?.items[itemIndex]
-    if (item) {
-      updateItem(shopId, itemIndex, {
-        specifications: [...item.specifications, newSpec]
-      })
-    }
+    updateItem(shopId, itemIndex, {
+      specifications: [...item.specifications, newSpec]
+    })
   }
 
   const updateSpecification = (shopId: string, itemIndex: number, specIndex: number, updates: Partial<Specification>) => {
     const item = editedGroups.find(g => g.shopId === shopId)?.items[itemIndex]
     if (item) {
       const newSpecs = [...item.specifications]
-      newSpecs[specIndex] = { ...newSpecs[specIndex], ...updates }
+      const currentSpec = newSpecs[specIndex]
+
+      // If type is changing, recalculate sequenceNumber for the new type
+      if (updates.type && updates.type !== currentSpec.type) {
+        const existingOfNewType = item.specifications.filter((s, i) => i !== specIndex && s.type === updates.type)
+        const nextSeq = existingOfNewType.length > 0
+          ? Math.max(...existingOfNewType.map(s => s.sequenceNumber || 1)) + 1
+          : 1
+        updates.sequenceNumber = nextSeq
+      }
+
+      newSpecs[specIndex] = { ...currentSpec, ...updates }
       updateItem(shopId, itemIndex, { specifications: newSpecs })
     }
   }
