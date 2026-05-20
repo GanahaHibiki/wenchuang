@@ -427,12 +427,22 @@ export default function OrderDetailPage() {
     if (!order.shops) return []
 
     const elements: JSX.Element[] = []
+    const shopMap = new Map(order.shops.map(s => [s.id, s]))
 
-    order.shops.forEach((shop) => {
-      const shopItems = order.purchasedItems.filter(
-        (item) => item.shopId === shop.id
-      )
-      if (shopItems.length === 0) return
+    // Group items by shopId, maintaining order
+    const itemsByShop = new Map<string, typeof order.purchasedItems>()
+    for (const item of order.purchasedItems) {
+      const shopId = item.shopId || 'unknown'
+      if (!itemsByShop.has(shopId)) {
+        itemsByShop.set(shopId, [])
+      }
+      itemsByShop.get(shopId)!.push(item)
+    }
+
+    // Render items grouped by shop
+    itemsByShop.forEach((shopItems, shopId) => {
+      const shop = shopMap.get(shopId)
+      const shopName = shop?.name || '未知店铺'
 
       shopItems.forEach((item, index) => {
         const isFirstOfShop = index === 0
@@ -440,7 +450,7 @@ export default function OrderDetailPage() {
           <div key={item.id} className="relative mt-8">
             {isFirstOfShop && (
               <div className="absolute -top-8 left-0 text-md font-medium text-gray-700">
-                店铺：{shop.name}
+                店铺：{shopName}
               </div>
             )}
             {renderItem(item, true, true)}
