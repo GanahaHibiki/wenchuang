@@ -349,7 +349,7 @@ export default function GroupOrderItemEditor({ shopGroups, onSave, onCancel, exi
           productId: '', // New product from wish
           product: {
             id: '',
-            name: wish.name,
+            name: wish.productName,
             imagePath: wish.imagePath,
             thumbnailPath: wish.thumbnailPath,
             createdAt: new Date().toISOString(),
@@ -513,7 +513,7 @@ export default function GroupOrderItemEditor({ shopGroups, onSave, onCancel, exi
                                           <optgroup label="心愿商品">
                                             {wishes.map((wish) => (
                                               <option key={`wish_${wish.id}`} value={`wish_${wish.id}`}>
-                                                {wish.name}
+                                                {wish.productName}
                                               </option>
                                             ))}
                                           </optgroup>

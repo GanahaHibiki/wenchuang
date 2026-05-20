@@ -170,7 +170,14 @@ export const imageApi = {
 
 // ==================== Wish API ====================
 
-export interface WishProduct extends Product {
+export interface WishProduct {
+  id: string
+  shopId: string
+  productId: string
+  productName: string
+  imagePath: string
+  thumbnailPath: string
+  createdAt: string
   shopName: string
 }
 
