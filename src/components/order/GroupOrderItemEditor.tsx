@@ -303,9 +303,31 @@ export default function GroupOrderItemEditor({ shopGroups, onSave, onCancel, exi
                             <input
                               type="text"
                               value={item.product.name}
-                              onChange={(e) => updateItem(group.shopId, itemIndex, {
-                                product: { ...item.product, name: e.target.value }
-                              })}
+                              onChange={(e) => {
+                                const newName = e.target.value
+                                // Check if the name matches an existing product
+                                const matchedProduct = existingProducts.find(
+                                  p => p.productName === newName
+                                )
+                                if (matchedProduct) {
+                                  // Auto-fill product info including image
+                                  updateItem(group.shopId, itemIndex, {
+                                    productId: matchedProduct.productId,
+                                    product: {
+                                      id: matchedProduct.productId,
+                                      name: matchedProduct.productName,
+                                      imagePath: matchedProduct.imagePath,
+                                      thumbnailPath: matchedProduct.thumbnailPath,
+                                      createdAt: new Date().toISOString(),
+                                    }
+                                  })
+                                } else {
+                                  // Just update the name
+                                  updateItem(group.shopId, itemIndex, {
+                                    product: { ...item.product, name: newName }
+                                  })
+                                }
+                              }}
                               list={`products-${group.shopId}-${itemIndex}`}
                               className="w-full px-3 py-2 border rounded-md"
                               placeholder="输入或选择商品名称"
