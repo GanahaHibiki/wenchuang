@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
+import { v4 as uuidv4 } from 'uuid'
 import type { OrderItem, Product, Specification } from '@/types'
 import { SPECIFICATION_TYPES } from '@/types'
 import ImageUploader from '@/components/common/ImageUploader'
@@ -87,6 +88,41 @@ export default function GroupOrderItemEditor({ shopGroups, onSave, onCancel, exi
       const newItems = group.items.filter((_, i) => i !== itemIndex)
       return { ...group, items: newItems }
     }))
+  }
+
+  const addShop = () => {
+    const newShopId = uuidv4()
+    const newItemId = `temp_${Date.now()}`
+    const newGroup: ShopItemsGroup = {
+      shopId: newShopId,
+      shopName: '',
+      items: [{
+        id: newItemId,
+        productId: '',
+        category: 'purchased',
+        specifications: [],
+        shopId: newShopId,
+        product: {
+          id: '',
+          name: '',
+          imagePath: '',
+          thumbnailPath: '',
+          createdAt: new Date().toISOString(),
+        }
+      }]
+    }
+    setEditedGroups(prev => [...prev, newGroup])
+    setExpandedShops(prev => new Set([...prev, newShopId]))
+  }
+
+  const removeShop = (shopId: string) => {
+    if (!confirm('确定要删除这个店铺及其所有商品吗？')) return
+    setEditedGroups(prev => prev.filter(g => g.shopId !== shopId))
+    setExpandedShops(prev => {
+      const next = new Set(prev)
+      next.delete(shopId)
+      return next
+    })
   }
 
   const handleImageChange = (itemId: string, file: File | null) => {
@@ -215,12 +251,21 @@ export default function GroupOrderItemEditor({ shopGroups, onSave, onCancel, exi
                   />
                   <span className="text-sm text-gray-600">({group.items.length} 件商品)</span>
                 </div>
-                <button
-                  onClick={() => toggleShop(group.shopId)}
-                  className="text-gray-600 hover:text-gray-800 px-2"
-                >
-                  {expandedShops.has(group.shopId) ? '▼' : '▶'}
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => removeShop(group.shopId)}
+                    className="text-red-500 hover:text-red-700 px-2 text-sm"
+                    title="删除店铺"
+                  >
+                    删除店铺
+                  </button>
+                  <button
+                    onClick={() => toggleShop(group.shopId)}
+                    className="text-gray-600 hover:text-gray-800 px-2"
+                  >
+                    {expandedShops.has(group.shopId) ? '▼' : '▶'}
+                  </button>
+                </div>
               </div>
 
               {expandedShops.has(group.shopId) && (
@@ -375,6 +420,14 @@ export default function GroupOrderItemEditor({ shopGroups, onSave, onCancel, exi
               )}
             </div>
           ))}
+
+          {/* Add new shop button */}
+          <button
+            onClick={addShop}
+            className="w-full py-3 border-2 border-dashed border-green-300 rounded-lg text-green-600 hover:border-green-500 hover:text-green-700 hover:bg-green-50 font-medium"
+          >
+            + 添加新店铺
+          </button>
         </div>
       </div>
     </div>

@@ -459,13 +459,19 @@ router.put('/:id', upload.any(), async (req, res, next) => {
       const parsedShopIds = JSON.parse(shopIdsData)
       const parsedShopNames = shopNamesData ? JSON.parse(shopNamesData) : {}
 
-      // Update shop names if provided
+      // Update or create shops
       for (const shopId of parsedShopIds) {
-        if (parsedShopNames[shopId]) {
-          const shop = await getShopById(shopId)
-          if (shop && shop.name !== parsedShopNames[shopId]) {
-            // Shop name changed, rename shop and sync all related data
-            await renameShop(shopId, parsedShopNames[shopId])
+        const shopName = parsedShopNames[shopId]
+        if (shopName) {
+          const existingShop = await getShopById(shopId)
+          if (existingShop) {
+            if (existingShop.name !== shopName) {
+              // Shop name changed, rename shop and sync all related data
+              await renameShop(shopId, shopName)
+            }
+          } else {
+            // New shop, create it with the provided ID
+            await findOrCreateShop(shopName, shopId)
           }
         }
       }
