@@ -10,16 +10,19 @@ interface ShopItemsGroup {
   items: (OrderItem & { product: Product })[]
 }
 
+interface ExistingProduct {
+  productId: string
+  productName: string
+  shopName: string
+  imagePath: string
+  thumbnailPath: string
+}
+
 interface Props {
   shopGroups: ShopItemsGroup[]
   onSave: (updatedGroups: ShopItemsGroup[], newImages: Map<string, File>) => void
   onCancel: () => void
-  existingProducts: Array<{
-    productId: string
-    productName: string
-    imagePath: string
-    thumbnailPath: string
-  }>
+  existingProducts: ExistingProduct[]
   existingShops?: Shop[]
 }
 
@@ -311,37 +314,43 @@ export default function GroupOrderItemEditor({ shopGroups, onSave, onCancel, exi
                               type="text"
                               value={item.product.name}
                               onChange={(e) => {
-                                const newName = e.target.value
-                                // Check if the name matches an existing product
-                                const matchedProduct = existingProducts.find(
-                                  p => p.productName === newName
-                                )
-                                if (matchedProduct) {
-                                  // Auto-fill product info including image
-                                  updateItem(group.shopId, itemIndex, {
-                                    productId: matchedProduct.productId,
-                                    product: {
-                                      id: matchedProduct.productId,
-                                      name: matchedProduct.productName,
-                                      imagePath: matchedProduct.imagePath,
-                                      thumbnailPath: matchedProduct.thumbnailPath,
-                                      createdAt: new Date().toISOString(),
-                                    }
-                                  })
-                                } else {
-                                  // Just update the name
-                                  updateItem(group.shopId, itemIndex, {
-                                    product: { ...item.product, name: newName }
-                                  })
+                                const inputValue = e.target.value
+                                // Check if input matches "商品名 (店铺名)" format
+                                const match = inputValue.match(/^(.+?)\s*\((.+)\)$/)
+                                if (match) {
+                                  const [, productName, shopName] = match
+                                  // Find matching product with both name and shop
+                                  const matchedProduct = existingProducts.find(
+                                    p => p.productName === productName.trim() && p.shopName === shopName.trim()
+                                  )
+                                  if (matchedProduct) {
+                                    // Auto-fill product info including image
+                                    updateItem(group.shopId, itemIndex, {
+                                      productId: matchedProduct.productId,
+                                      product: {
+                                        id: matchedProduct.productId,
+                                        name: matchedProduct.productName,
+                                        imagePath: matchedProduct.imagePath,
+                                        thumbnailPath: matchedProduct.thumbnailPath,
+                                        createdAt: new Date().toISOString(),
+                                      }
+                                    })
+                                    return
+                                  }
                                 }
+                                // Just update the name (strip shop suffix if user is typing)
+                                const cleanName = match ? match[1].trim() : inputValue
+                                updateItem(group.shopId, itemIndex, {
+                                  product: { ...item.product, name: cleanName }
+                                })
                               }}
                               list={`products-${group.shopId}-${itemIndex}`}
                               className="w-full px-3 py-2 border rounded-md"
                               placeholder="输入或选择商品名称"
                             />
                             <datalist id={`products-${group.shopId}-${itemIndex}`}>
-                              {existingProducts.map((p) => (
-                                <option key={p.productId} value={p.productName} />
+                              {existingProducts.map((p, idx) => (
+                                <option key={`${p.productId}-${idx}`} value={`${p.productName} (${p.shopName})`} />
                               ))}
                             </datalist>
                           </div>

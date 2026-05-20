@@ -28,6 +28,7 @@ export default function OrderDetailPage() {
   const [allProducts, setAllProducts] = useState<Array<{
     productId: string
     productName: string
+    shopName: string
     imagePath: string
     thumbnailPath: string
   }>>([])
@@ -62,19 +63,15 @@ export default function OrderDetailPage() {
             productApi.search('productName', '')
           ])
           setAllShops(shops)
-          // Transform products to the expected format
+          // Transform products to the expected format, keep all products (don't deduplicate)
           const productList = products.map(p => ({
             productId: p.id,
             productName: p.name,
+            shopName: p.shopName,
             imagePath: p.imagePath,
             thumbnailPath: p.thumbnailPath
           }))
-          // Deduplicate by product name
-          const uniqueProducts = productList.filter((product, index, self) => {
-            const nameLower = product.productName.trim().toLowerCase()
-            return index === self.findIndex(p => p.productName.trim().toLowerCase() === nameLower)
-          })
-          setAllProducts(uniqueProducts)
+          setAllProducts(productList)
         } catch (err) {
           console.error('Failed to load shops/products:', err)
         }
