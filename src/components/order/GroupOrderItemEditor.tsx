@@ -45,11 +45,41 @@ export default function GroupOrderItemEditor({ shopGroups, onSave, onCancel, exi
     setExpandedShops(newExpanded)
   }
 
-  const updateShopName = (shopId: string, newName: string) => {
-    setEditedGroups(prev => prev.map(group => {
-      if (group.shopId !== shopId) return group
-      return { ...group, shopName: newName }
-    }))
+  const updateShopName = (oldShopId: string, newName: string) => {
+    // Check if the new name matches an existing shop
+    const existingShop = existingShops.find(s => s.name === newName)
+
+    if (existingShop && existingShop.id !== oldShopId) {
+      // User selected an existing shop - update shopId for the group and all its items
+      const newShopId = existingShop.id
+
+      setEditedGroups(prev => prev.map(group => {
+        if (group.shopId !== oldShopId) return group
+        return {
+          ...group,
+          shopId: newShopId,
+          shopName: newName,
+          items: group.items.map(item => ({
+            ...item,
+            shopId: newShopId
+          }))
+        }
+      }))
+
+      // Update expandedShops set
+      setExpandedShops(prev => {
+        const next = new Set(prev)
+        next.delete(oldShopId)
+        next.add(newShopId)
+        return next
+      })
+    } else {
+      // Just update the name (new shop or same shop)
+      setEditedGroups(prev => prev.map(group => {
+        if (group.shopId !== oldShopId) return group
+        return { ...group, shopName: newName }
+      }))
+    }
   }
 
   const updateItem = (shopId: string, itemIndex: number, updates: Partial<OrderItem & { product: Product }>) => {
