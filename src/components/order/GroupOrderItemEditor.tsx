@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { v4 as uuidv4 } from 'uuid'
-import type { OrderItem, Product, Specification } from '@/types'
+import type { OrderItem, Product, Specification, Shop } from '@/types'
 import { SPECIFICATION_TYPES } from '@/types'
 import ImageUploader from '@/components/common/ImageUploader'
 
@@ -20,9 +20,10 @@ interface Props {
     imagePath: string
     thumbnailPath: string
   }>
+  existingShops?: Shop[]
 }
 
-export default function GroupOrderItemEditor({ shopGroups, onSave, onCancel, existingProducts }: Props) {
+export default function GroupOrderItemEditor({ shopGroups, onSave, onCancel, existingProducts, existingShops = [] }: Props) {
   const [editedGroups, setEditedGroups] = useState<ShopItemsGroup[]>(
     JSON.parse(JSON.stringify(shopGroups))
   )
@@ -246,9 +247,15 @@ export default function GroupOrderItemEditor({ shopGroups, onSave, onCancel, exi
                     value={group.shopName}
                     onChange={(e) => updateShopName(group.shopId, e.target.value)}
                     onClick={(e) => e.stopPropagation()}
+                    list={`shops-${group.shopId}`}
                     className="px-3 py-1 border rounded-md text-md font-medium flex-1"
                     placeholder="店铺名称"
                   />
+                  <datalist id={`shops-${group.shopId}`}>
+                    {existingShops.map((shop) => (
+                      <option key={shop.id} value={shop.name} />
+                    ))}
+                  </datalist>
                   <span className="text-sm text-gray-600">({group.items.length} 件商品)</span>
                 </div>
                 <div className="flex items-center gap-2">

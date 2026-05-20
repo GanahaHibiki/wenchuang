@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { orderApi } from '@/api/client'
-import type { OrderDetail, OrderItem, Product } from '@/types'
+import { orderApi, shopApi, productApi } from '@/api/client'
+import type { OrderDetail, OrderItem, Product, Shop } from '@/types'
 import ImageViewer from '@/components/common/ImageViewer'
 import LazyImage from '@/components/common/LazyImage'
 import OrderItemEditor from '@/components/order/OrderItemEditor'
@@ -24,6 +24,13 @@ export default function OrderDetailPage() {
   const [editedShopName, setEditedShopName] = useState('')
   const [isEditingGroupOrderName, setIsEditingGroupOrderName] = useState(false)
   const [editedGroupOrderName, setEditedGroupOrderName] = useState('')
+  const [allShops, setAllShops] = useState<Shop[]>([])
+  const [allProducts, setAllProducts] = useState<Array<{
+    productId: string
+    productName: string
+    imagePath: string
+    thumbnailPath: string
+  }>>([])
 
   useEffect(() => {
     if (!id) return
@@ -44,6 +51,37 @@ export default function OrderDetailPage() {
 
     loadOrder()
   }, [id])
+
+  // Load all shops and products when editing group order
+  useEffect(() => {
+    if (editingCategory === 'groupOrder') {
+      const loadData = async () => {
+        try {
+          const [shops, products] = await Promise.all([
+            shopApi.getAllShops(),
+            productApi.search('productName', '')
+          ])
+          setAllShops(shops)
+          // Transform products to the expected format
+          const productList = products.map(p => ({
+            productId: p.id,
+            productName: p.name,
+            imagePath: p.imagePath,
+            thumbnailPath: p.thumbnailPath
+          }))
+          // Deduplicate by product name
+          const uniqueProducts = productList.filter((product, index, self) => {
+            const nameLower = product.productName.trim().toLowerCase()
+            return index === self.findIndex(p => p.productName.trim().toLowerCase() === nameLower)
+          })
+          setAllProducts(uniqueProducts)
+        } catch (err) {
+          console.error('Failed to load shops/products:', err)
+        }
+      }
+      loadData()
+    }
+  }, [editingCategory])
 
   const handleSaveItems = async (
     category: 'purchased' | 'gift' | 'smallGift',
@@ -672,32 +710,20 @@ export default function OrderDetailPage() {
             items: order.purchasedItems.filter(item => item.shopId === shop.id)
           }))
 
-          // Collect all existing products
-          const allProducts = order.purchasedItems.map(item => ({
-            productId: item.productId,
-            productName: item.product.name,
-            imagePath: item.product.imagePath,
-            thumbnailPath: item.product.thumbnailPath
-          }))
-
-          const uniqueProducts = allProducts.filter((product, index, self) => {
-            const productNameLower = product.productName.trim().toLowerCase()
-            return index === self.findIndex(p => p.productName.trim().toLowerCase() === productNameLower)
-          })
-
           return (
             <GroupOrderItemEditor
               shopGroups={shopGroups}
               onSave={handleSaveGroupOrder}
               onCancel={() => setEditingCategory(null)}
-              existingProducts={uniqueProducts}
+              existingProducts={allProducts}
+              existingShops={allShops}
             />
           )
         }
 
         // Regular order editing
         // Build and deduplicate existing products list
-        const allProducts = [
+        const orderProducts = [
           ...order.purchasedItems.map(item => ({
             productId: item.productId,
             productName: item.product.name,
@@ -719,7 +745,7 @@ export default function OrderDetailPage() {
         ]
 
         // Deduplicate by product name (case-insensitive)
-        const uniqueProducts = allProducts.filter((product, index, self) => {
+        const uniqueProducts = orderProducts.filter((product, index, self) => {
           const productNameLower = product.productName.trim().toLowerCase()
           return index === self.findIndex(p => p.productName.trim().toLowerCase() === productNameLower)
         })
