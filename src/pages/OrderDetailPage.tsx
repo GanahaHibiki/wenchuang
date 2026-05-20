@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { orderApi, shopApi, productApi } from '@/api/client'
+import { orderApi, shopApi, productApi, wishApi } from '@/api/client'
 import type { OrderDetail, OrderItem, Product, Shop } from '@/types'
 import ImageViewer from '@/components/common/ImageViewer'
 import LazyImage from '@/components/common/LazyImage'
@@ -157,9 +157,10 @@ export default function OrderDetailPage() {
     updatedGroups: Array<{
       shopId: string
       shopName: string
-      items: (OrderItem & { product: Product })[]
+      items: (OrderItem & { product: Product; isFromWish?: boolean })[]
     }>,
-    newImages: Map<string, File>
+    newImages: Map<string, File>,
+    wishProductsToDelete: Array<{ shopName: string; productName: string }>
   ) => {
     if (!order || !id) return
 
@@ -195,6 +196,15 @@ export default function OrderDetailPage() {
       }
 
       await orderApi.update(id, formData)
+
+      // Delete wish products that were used
+      for (const wish of wishProductsToDelete) {
+        try {
+          await wishApi.deleteByProductName(wish.shopName, wish.productName)
+        } catch (err) {
+          console.error('Failed to delete wish product:', err)
+        }
+      }
 
       // Reload order data
       const refreshedOrder = await orderApi.getDetail(id)

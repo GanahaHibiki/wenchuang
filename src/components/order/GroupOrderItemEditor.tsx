@@ -1,13 +1,14 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { v4 as uuidv4 } from 'uuid'
 import type { OrderItem, Product, Specification, Shop } from '@/types'
 import { SPECIFICATION_TYPES } from '@/types'
 import ImageUploader from '@/components/common/ImageUploader'
+import { wishApi, type WishProduct } from '@/api/client'
 
 interface ShopItemsGroup {
   shopId: string
   shopName: string
-  items: (OrderItem & { product: Product })[]
+  items: (OrderItem & { product: Product; isFromWish?: boolean })[]
 }
 
 interface ExistingProduct {
@@ -20,7 +21,7 @@ interface ExistingProduct {
 
 interface Props {
   shopGroups: ShopItemsGroup[]
-  onSave: (updatedGroups: ShopItemsGroup[], newImages: Map<string, File>) => void
+  onSave: (updatedGroups: ShopItemsGroup[], newImages: Map<string, File>, wishProductsToDelete: Array<{ shopName: string; productName: string }>) => void
   onCancel: () => void
   existingProducts: ExistingProduct[]
   existingShops?: Shop[]
@@ -34,6 +35,37 @@ export default function GroupOrderItemEditor({ shopGroups, onSave, onCancel, exi
   const [expandedShops, setExpandedShops] = useState<Set<string>>(
     new Set(shopGroups.map(g => g.shopId))
   )
+  // Track which shops have confirmed names (dropdown closed)
+  const [confirmedShops, setConfirmedShops] = useState<Set<string>>(
+    new Set(shopGroups.filter(g => g.shopName).map(g => g.shopId))
+  )
+  // Track shop dropdown visibility
+  const [showShopDropdown, setShowShopDropdown] = useState<string | null>(null)
+  // Cache wish products by shop name
+  const [wishProductsCache, setWishProductsCache] = useState<Record<string, WishProduct[]>>({})
+  // Track which items came from wish products for deletion after save
+  const [wishItemsToDelete, setWishItemsToDelete] = useState<Array<{ shopName: string; productName: string }>>([])
+
+  // Load wish products for a shop when confirmed
+  const loadWishProductsForShop = async (shopName: string) => {
+    if (!shopName || wishProductsCache[shopName]) return
+    try {
+      const wishes = await wishApi.getByShop(shopName)
+      setWishProductsCache(prev => ({ ...prev, [shopName]: wishes }))
+    } catch (error) {
+      console.error('Failed to load wish products:', error)
+    }
+  }
+
+  // Load wish products when shop is confirmed
+  useEffect(() => {
+    confirmedShops.forEach(shopId => {
+      const group = editedGroups.find(g => g.shopId === shopId)
+      if (group?.shopName) {
+        loadWishProductsForShop(group.shopName)
+      }
+    })
+  }, [confirmedShops, editedGroups])
 
   const toggleShop = (shopId: string) => {
     const newExpanded = new Set(expandedShops)
@@ -73,6 +105,17 @@ export default function GroupOrderItemEditor({ shopGroups, onSave, onCancel, exi
         next.add(newShopId)
         return next
       })
+
+      // Update confirmedShops set
+      setConfirmedShops(prev => {
+        const next = new Set(prev)
+        next.delete(oldShopId)
+        next.add(newShopId)
+        return next
+      })
+
+      // Load wish products for this shop
+      loadWishProductsForShop(newName)
     } else {
       // Just update the name (new shop or same shop)
       setEditedGroups(prev => prev.map(group => {
@@ -80,6 +123,31 @@ export default function GroupOrderItemEditor({ shopGroups, onSave, onCancel, exi
         return { ...group, shopName: newName }
       }))
     }
+  }
+
+  const confirmShopName = (shopId: string) => {
+    const group = editedGroups.find(g => g.shopId === shopId)
+    if (group?.shopName) {
+      setConfirmedShops(prev => new Set([...prev, shopId]))
+      setShowShopDropdown(null)
+      loadWishProductsForShop(group.shopName)
+    }
+  }
+
+  const handleShopSelect = (shopId: string, shopName: string) => {
+    updateShopName(shopId, shopName)
+    setShowShopDropdown(null)
+  }
+
+  const handleShopInputBlur = (shopId: string) => {
+    // Delay to allow click on dropdown item
+    setTimeout(() => {
+      const group = editedGroups.find(g => g.shopId === shopId)
+      if (group?.shopName) {
+        confirmShopName(shopId)
+      }
+      setShowShopDropdown(null)
+    }, 200)
   }
 
   const updateItem = (shopId: string, itemIndex: number, updates: Partial<OrderItem & { product: Product }>) => {
@@ -96,7 +164,7 @@ export default function GroupOrderItemEditor({ shopGroups, onSave, onCancel, exi
     setEditedGroups(prev => prev.map(group => {
       if (group.shopId !== shopId) return group
 
-      const newItem: OrderItem & { product: Product } = {
+      const newItem: OrderItem & { product: Product; isFromWish?: boolean } = {
         id: `temp_${Date.now()}`,
         productId: '',
         category: 'purchased',
@@ -108,7 +176,8 @@ export default function GroupOrderItemEditor({ shopGroups, onSave, onCancel, exi
           imagePath: '',
           thumbnailPath: '',
           createdAt: new Date().toISOString(),
-        }
+        },
+        isFromWish: false
       }
 
       return { ...group, items: [...group.items, newItem] }
@@ -142,17 +211,24 @@ export default function GroupOrderItemEditor({ shopGroups, onSave, onCancel, exi
           imagePath: '',
           thumbnailPath: '',
           createdAt: new Date().toISOString(),
-        }
+        },
+        isFromWish: false
       }]
     }
     setEditedGroups(prev => [...prev, newGroup])
     setExpandedShops(prev => new Set([...prev, newShopId]))
+    // Don't mark as confirmed - user needs to enter/select shop name first
   }
 
   const removeShop = (shopId: string) => {
     if (!confirm('确定要删除这个店铺及其所有商品吗？')) return
     setEditedGroups(prev => prev.filter(g => g.shopId !== shopId))
     setExpandedShops(prev => {
+      const next = new Set(prev)
+      next.delete(shopId)
+      return next
+    })
+    setConfirmedShops(prev => {
       const next = new Set(prev)
       next.delete(shopId)
       return next
@@ -227,11 +303,66 @@ export default function GroupOrderItemEditor({ shopGroups, onSave, onCancel, exi
       }
     }
 
-    onSave(editedGroups, newImages)
+    // Collect wish products that need to be deleted
+    const wishesToDelete: Array<{ shopName: string; productName: string }> = []
+    for (const group of editedGroups) {
+      for (const item of group.items) {
+        if (item.isFromWish && group.shopName && item.product.name) {
+          wishesToDelete.push({
+            shopName: group.shopName,
+            productName: item.product.name
+          })
+        }
+      }
+    }
+
+    onSave(editedGroups, newImages, wishesToDelete)
   }
 
-  const handleProductSelect = (shopId: string, itemIndex: number, productId: string) => {
-    const product = existingProducts.find(p => p.productId === productId)
+  const handleProductSelect = (shopId: string, itemIndex: number, selection: string) => {
+    const group = editedGroups.find(g => g.shopId === shopId)
+    if (!group) return
+
+    if (selection === 'manual') {
+      // Clear selection for manual input
+      updateItem(shopId, itemIndex, {
+        productId: '',
+        product: {
+          id: '',
+          name: '',
+          imagePath: '',
+          thumbnailPath: '',
+          createdAt: new Date().toISOString(),
+        },
+        isFromWish: false
+      })
+      return
+    }
+
+    // Check if it's a wish product (prefixed with 'wish_')
+    if (selection.startsWith('wish_')) {
+      const wishId = selection.replace('wish_', '')
+      const wishes = wishProductsCache[group.shopName] || []
+      const wish = wishes.find(w => w.id === wishId)
+      if (wish) {
+        updateItem(shopId, itemIndex, {
+          productId: '', // New product from wish
+          product: {
+            id: '',
+            name: wish.name,
+            imagePath: wish.imagePath,
+            thumbnailPath: wish.thumbnailPath,
+            createdAt: new Date().toISOString(),
+          },
+          isFromWish: true
+        })
+      }
+      return
+    }
+
+    // Check if it's from shop products
+    const shopProducts = existingProducts.filter(p => p.shopName === group.shopName)
+    const product = shopProducts.find(p => p.productId === selection)
     if (product) {
       updateItem(shopId, itemIndex, {
         productId: product.productId,
@@ -241,9 +372,24 @@ export default function GroupOrderItemEditor({ shopGroups, onSave, onCancel, exi
           imagePath: product.imagePath,
           thumbnailPath: product.thumbnailPath,
           createdAt: new Date().toISOString(),
-        }
+        },
+        isFromWish: false
       })
     }
+  }
+
+  // Get filtered shop list based on input
+  const getFilteredShops = (shopName: string) => {
+    return existingShops.filter(shop =>
+      shop.name.toLowerCase().includes(shopName.toLowerCase())
+    )
+  }
+
+  // Get products for a specific shop (including wish products)
+  const getShopProducts = (shopName: string) => {
+    const shopProducts = existingProducts.filter(p => p.shopName === shopName)
+    const wishes = wishProductsCache[shopName] || []
+    return { shopProducts, wishes }
   }
 
   return (
@@ -275,20 +421,31 @@ export default function GroupOrderItemEditor({ shopGroups, onSave, onCancel, exi
               >
                 <div className="flex items-center gap-3 flex-1">
                   <span className="text-sm text-gray-600">店铺：</span>
-                  <input
-                    type="text"
-                    value={group.shopName}
-                    onChange={(e) => updateShopName(group.shopId, e.target.value)}
-                    onClick={(e) => e.stopPropagation()}
-                    list={`shops-${group.shopId}`}
-                    className="px-3 py-1 border rounded-md text-md font-medium flex-1"
-                    placeholder="店铺名称"
-                  />
-                  <datalist id={`shops-${group.shopId}`}>
-                    {existingShops.map((shop) => (
-                      <option key={shop.id} value={shop.name} />
-                    ))}
-                  </datalist>
+                  <div className="relative flex-1">
+                    <input
+                      type="text"
+                      value={group.shopName}
+                      onChange={(e) => updateShopName(group.shopId, e.target.value)}
+                      onFocus={() => setShowShopDropdown(group.shopId)}
+                      onBlur={() => handleShopInputBlur(group.shopId)}
+                      onClick={(e) => e.stopPropagation()}
+                      className="w-full px-3 py-1 border rounded-md text-md font-medium"
+                      placeholder="输入或选择店铺名"
+                    />
+                    {showShopDropdown === group.shopId && getFilteredShops(group.shopName).length > 0 && (
+                      <div className="absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-40 overflow-y-auto">
+                        {getFilteredShops(group.shopName).map(shop => (
+                          <div
+                            key={shop.id}
+                            className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                            onClick={() => handleShopSelect(group.shopId, shop.name)}
+                          >
+                            {shop.name}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                   <span className="text-sm text-gray-600">({group.items.length} 件商品)</span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -339,50 +496,60 @@ export default function GroupOrderItemEditor({ shopGroups, onSave, onCancel, exi
                         {/* Product name */}
                         <div className="flex-1 space-y-2">
                           <div>
-                            <label className="block text-sm font-medium mb-1">商品名称</label>
-                            <input
-                              type="text"
-                              value={item.product.name}
-                              onChange={(e) => {
-                                const inputValue = e.target.value
-                                // Check if input matches "商品名 (店铺名)" format
-                                const match = inputValue.match(/^(.+?)\s*\((.+)\)$/)
-                                if (match) {
-                                  const [, productName, shopName] = match
-                                  // Find matching product with both name and shop
-                                  const matchedProduct = existingProducts.find(
-                                    p => p.productName === productName.trim() && p.shopName === shopName.trim()
-                                  )
-                                  if (matchedProduct) {
-                                    // Auto-fill product info including image
+                            <label className="block text-sm font-medium mb-1">选择商品</label>
+                            {confirmedShops.has(group.shopId) ? (
+                              <>
+                                <select
+                                  onChange={(e) => handleProductSelect(group.shopId, itemIndex, e.target.value)}
+                                  value={item.productId || (item.isFromWish ? `wish_${item.product.name}` : 'manual')}
+                                  className="w-full px-3 py-2 border rounded-md mb-2"
+                                >
+                                  <option value="manual">手动输入商品名和图片</option>
+                                  {(() => {
+                                    const { shopProducts, wishes } = getShopProducts(group.shopName)
+                                    return (
+                                      <>
+                                        {wishes.length > 0 && (
+                                          <optgroup label="心愿商品">
+                                            {wishes.map((wish) => (
+                                              <option key={`wish_${wish.id}`} value={`wish_${wish.id}`}>
+                                                {wish.name}
+                                              </option>
+                                            ))}
+                                          </optgroup>
+                                        )}
+                                        {shopProducts.length > 0 && (
+                                          <optgroup label="同店铺商品">
+                                            {shopProducts.map((product) => (
+                                              <option key={product.productId} value={product.productId}>
+                                                {product.productName}
+                                              </option>
+                                            ))}
+                                          </optgroup>
+                                        )}
+                                      </>
+                                    )
+                                  })()}
+                                </select>
+                                <label className="block text-sm font-medium mb-1">商品名称</label>
+                                <input
+                                  type="text"
+                                  value={item.product.name}
+                                  onChange={(e) => {
                                     updateItem(group.shopId, itemIndex, {
-                                      productId: matchedProduct.productId,
-                                      product: {
-                                        id: matchedProduct.productId,
-                                        name: matchedProduct.productName,
-                                        imagePath: matchedProduct.imagePath,
-                                        thumbnailPath: matchedProduct.thumbnailPath,
-                                        createdAt: new Date().toISOString(),
-                                      }
+                                      product: { ...item.product, name: e.target.value },
+                                      isFromWish: false
                                     })
-                                    return
-                                  }
-                                }
-                                // Just update the name (strip shop suffix if user is typing)
-                                const cleanName = match ? match[1].trim() : inputValue
-                                updateItem(group.shopId, itemIndex, {
-                                  product: { ...item.product, name: cleanName }
-                                })
-                              }}
-                              list={`products-${group.shopId}-${itemIndex}`}
-                              className="w-full px-3 py-2 border rounded-md"
-                              placeholder="输入或选择商品名称"
-                            />
-                            <datalist id={`products-${group.shopId}-${itemIndex}`}>
-                              {existingProducts.map((p, idx) => (
-                                <option key={`${p.productId}-${idx}`} value={`${p.productName} (${p.shopName})`} />
-                              ))}
-                            </datalist>
+                                  }}
+                                  className="w-full px-3 py-2 border rounded-md"
+                                  placeholder="输入商品名称"
+                                />
+                              </>
+                            ) : (
+                              <div className="text-sm text-gray-500 py-2">
+                                请先确认店铺名称后再选择商品
+                              </div>
+                            )}
                           </div>
 
                           {/* Specifications */}
