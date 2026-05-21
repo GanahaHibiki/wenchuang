@@ -498,8 +498,10 @@ router.put('/:id', upload.any(), async (req, res, next) => {
               const oldImagePath = existingProduct.imagePath
               const { imagePath, thumbnailPath } = await saveImage(file.buffer, file.originalname, shopName, itemData.productName)
               await updateProduct(productId, { imagePath, thumbnailPath })
-              // Delete old image files
-              await deleteImage(oldImagePath)
+              // Delete old image files only if the path changed (different filename)
+              if (oldImagePath !== imagePath) {
+                await deleteImage(oldImagePath)
+              }
             } else if (file && nameChanged) {
               // Both name and image changed - create new product
               const { imagePath, thumbnailPath } = await saveImage(file.buffer, file.originalname, shopName, itemData.productName)
@@ -607,8 +609,10 @@ router.put('/:id', upload.any(), async (req, res, next) => {
             const oldImagePath = existingProduct.imagePath
             const { imagePath, thumbnailPath } = await saveImage(file.buffer, file.originalname, shopName, item.productName)
             await updateProduct(productId, { imagePath, thumbnailPath })
-            // Delete old image files
-            await deleteImage(oldImagePath)
+            // Delete old image files only if the path changed
+            if (oldImagePath !== imagePath) {
+              await deleteImage(oldImagePath)
+            }
           } else if (file && nameChanged) {
             // Both name and image changed - create new product
             const { imagePath, thumbnailPath } = await saveImage(file.buffer, file.originalname, shopName, item.productName)
@@ -666,8 +670,10 @@ router.put('/:id', upload.any(), async (req, res, next) => {
             const oldImagePath = existingProduct.imagePath
             const { imagePath, thumbnailPath } = await saveImage(file.buffer, file.originalname, shopName, item.productName)
             await updateProduct(productId, { imagePath, thumbnailPath })
-            // Delete old image files
-            await deleteImage(oldImagePath)
+            // Delete old image files only if the path changed
+            if (oldImagePath !== imagePath) {
+              await deleteImage(oldImagePath)
+            }
           } else if (file && nameChanged) {
             // Both name and image changed - create new product
             const { imagePath, thumbnailPath } = await saveImage(file.buffer, file.originalname, shopName, item.productName)
@@ -728,8 +734,10 @@ router.put('/:id', upload.any(), async (req, res, next) => {
             const oldImagePath = existingProduct.imagePath
             const { imagePath, thumbnailPath } = await saveImage(file.buffer, file.originalname, shopName, item.productName)
             await updateProduct(productId, { imagePath, thumbnailPath })
-            // Delete old image files
-            await deleteImage(oldImagePath)
+            // Delete old image files only if the path changed
+            if (oldImagePath !== imagePath) {
+              await deleteImage(oldImagePath)
+            }
           } else if (file && nameChanged) {
             // Both name and image changed - create new product
             const { imagePath, thumbnailPath } = await saveImage(file.buffer, file.originalname, shopName, item.productName)
