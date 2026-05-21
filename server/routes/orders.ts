@@ -9,8 +9,8 @@ import {
   deleteOrder,
   findOrCreateShop,
   findOrCreateProduct,
-  updateProductsByNameAndImage,
   updateProductNameById,
+  updateProduct,
   getShopById,
   getProductById,
   getAllProducts,
@@ -494,11 +494,10 @@ router.put('/:id', upload.any(), async (req, res, next) => {
             const nameChanged = existingProduct.name !== itemData.productName
 
             if (file && !nameChanged) {
-              // Only image changed (name stays the same) - update all products with same shop+name
+              // Only image changed (name stays the same) - update this product directly by ID
               const oldImagePath = existingProduct.imagePath
-              const oldImagePrefix = existingProduct.imagePath.replace(/\.[^.]+$/, '') // Remove extension to get prefix
               const { imagePath, thumbnailPath } = await saveImage(file.buffer, file.originalname, shopName, itemData.productName)
-              await updateProductsByNameAndImage(existingProduct.name, oldImagePrefix, imagePath, thumbnailPath)
+              await updateProduct(productId, { imagePath, thumbnailPath })
               // Delete old image files
               await deleteImage(oldImagePath)
             } else if (file && nameChanged) {
@@ -604,11 +603,10 @@ router.put('/:id', upload.any(), async (req, res, next) => {
           const nameChanged = existingProduct.name !== item.productName
 
           if (file && !nameChanged) {
-            // Only image changed (name stays the same) - update all products with same shop+name
+            // Only image changed (name stays the same) - update this product directly by ID
             const oldImagePath = existingProduct.imagePath
-            const oldImagePrefix = existingProduct.imagePath.replace(/\.[^.]+$/, '') // Remove extension to get prefix
             const { imagePath, thumbnailPath } = await saveImage(file.buffer, file.originalname, shopName, item.productName)
-            await updateProductsByNameAndImage(existingProduct.name, oldImagePrefix, imagePath, thumbnailPath)
+            await updateProduct(productId, { imagePath, thumbnailPath })
             // Delete old image files
             await deleteImage(oldImagePath)
           } else if (file && nameChanged) {
@@ -664,11 +662,10 @@ router.put('/:id', upload.any(), async (req, res, next) => {
           const nameChanged = existingProduct.name !== item.productName
 
           if (file && !nameChanged) {
-            // Only image changed (name stays the same) - update all products with same shop+name
+            // Only image changed (name stays the same) - update this product directly by ID
             const oldImagePath = existingProduct.imagePath
-            const oldImagePrefix = existingProduct.imagePath.replace(/\.[^.]+$/, '') // Remove extension to get prefix
             const { imagePath, thumbnailPath } = await saveImage(file.buffer, file.originalname, shopName, item.productName)
-            await updateProductsByNameAndImage(existingProduct.name, oldImagePrefix, imagePath, thumbnailPath)
+            await updateProduct(productId, { imagePath, thumbnailPath })
             // Delete old image files
             await deleteImage(oldImagePath)
           } else if (file && nameChanged) {
@@ -727,11 +724,10 @@ router.put('/:id', upload.any(), async (req, res, next) => {
           const nameChanged = existingProduct.name !== item.productName
 
           if (file && !nameChanged) {
-            // Only image changed (name stays the same) - update all products with same shop+name
+            // Only image changed (name stays the same) - update this product directly by ID
             const oldImagePath = existingProduct.imagePath
-            const oldImagePrefix = existingProduct.imagePath.replace(/\.[^.]+$/, '') // Remove extension to get prefix
             const { imagePath, thumbnailPath } = await saveImage(file.buffer, file.originalname, shopName, item.productName)
-            await updateProductsByNameAndImage(existingProduct.name, oldImagePrefix, imagePath, thumbnailPath)
+            await updateProduct(productId, { imagePath, thumbnailPath })
             // Delete old image files
             await deleteImage(oldImagePath)
           } else if (file && nameChanged) {
