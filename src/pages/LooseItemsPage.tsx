@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { productApi, LooseItemProduct } from '@/api/client'
+import { useProgressiveList } from '@/hooks/useProgressiveList'
 import LazyImage from '@/components/common/LazyImage'
 
 type CategoryKey = '折页' | '卡头' | '卡背' | '贴纸' | '贴纸包' | '衍生贴纸' | '售后卡' | '磨砂盒' | '其他衍生'
@@ -107,6 +108,8 @@ export default function LooseItemsPage() {
       return false
     })
   }, [products, selectedCategories])
+
+  const { visibleItems, hasMore, loadMoreRef } = useProgressiveList(filteredProducts, 'looseVisibleCount', !isLoading)
 
   const getProductQuantities = (product: LooseItemProduct): Array<{ label: string; quantity: number }> => {
     const quantities: Array<{ label: string; quantity: number }> = []
@@ -305,7 +308,7 @@ export default function LooseItemsPage() {
         </div>
       ) : (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-4">
-          {filteredProducts.map((product) => {
+          {visibleItems.map((product) => {
             const quantities = getProductQuantities(product)
 
             return (
@@ -341,6 +344,9 @@ export default function LooseItemsPage() {
             )
           })}
         </div>
+      )}
+      {hasMore && (
+        <div ref={loadMoreRef} className="text-center py-8 text-gray-400">加载更多...</div>
       )}
     </div>
   )

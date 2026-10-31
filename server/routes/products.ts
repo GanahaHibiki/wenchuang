@@ -4,10 +4,8 @@ import path from 'path'
 import sharp from 'sharp'
 import {
   getAllProducts,
-  getProductById,
   searchProducts,
   loadDatabase,
-  getAllShops,
   DATA_DIR,
 } from '../services/database.js'
 import type { ProductDetail, ProductEntry } from '../../src/types/index.js'
@@ -47,8 +45,8 @@ router.get('/search', async (req, res, next) => {
 router.get('/set-products', async (req, res, next) => {
   try {
     const db = await loadDatabase()
-    const shops = await getAllShops()
-    const shopMap = new Map(shops.map((s) => [s.id, s]))
+    const shopMap = new Map(db.shops.map((s) => [s.id, s]))
+    const productMap = new Map(db.products.map((p) => [p.id, p]))
 
     // Aggregate set quantities by shop+productName combination
     const productSetCounts = new Map<string, {
@@ -64,7 +62,7 @@ router.get('/set-products', async (req, res, next) => {
 
     for (const order of db.orders) {
       for (const item of order.items) {
-        const product = await getProductById(item.productId)
+        const product = productMap.get(item.productId)
         if (!product) continue
 
         // Determine shop name for this product
@@ -120,8 +118,8 @@ router.get('/set-products', async (req, res, next) => {
 router.get('/loose-items', async (req, res, next) => {
   try {
     const db = await loadDatabase()
-    const shops = await getAllShops()
-    const shopMap = new Map(shops.map((s) => [s.id, s]))
+    const shopMap = new Map(db.shops.map((s) => [s.id, s]))
+    const productMap = new Map(db.products.map((p) => [p.id, p]))
 
     // Aggregate loose item quantities by shop+productName combination
     const productLooseCounts = new Map<string, {
@@ -148,7 +146,7 @@ router.get('/loose-items', async (req, res, next) => {
 
     for (const order of db.orders) {
       for (const item of order.items) {
-        const product = await getProductById(item.productId)
+        const product = productMap.get(item.productId)
         if (!product) continue
 
         // Determine shop name for this product
@@ -246,15 +244,15 @@ router.get('/loose-items', async (req, res, next) => {
 router.get('/:id', async (req, res, next) => {
   try {
     const { id } = req.params
-    const product = await getProductById(id)
+    const db = await loadDatabase()
+    const productMap = new Map(db.products.map((p) => [p.id, p]))
+    const product = productMap.get(id)
 
     if (!product) {
       return res.status(404).json({ message: '商品不存在' })
     }
 
-    const db = await loadDatabase()
-    const shops = await getAllShops()
-    const shopMap = new Map(shops.map((s) => [s.id, s]))
+    const shopMap = new Map(db.shops.map((s) => [s.id, s]))
 
     // First, determine the shop for this product by finding its first order
     let productShopName: string | null = null
@@ -277,7 +275,7 @@ router.get('/:id', async (req, res, next) => {
     if (productShopName) {
       for (const order of db.orders) {
         for (const item of order.items) {
-          const itemProduct = await getProductById(item.productId)
+          const itemProduct = productMap.get(item.productId)
           if (!itemProduct) continue
 
           // Check if this item's shop matches

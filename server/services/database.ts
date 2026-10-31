@@ -519,9 +519,10 @@ export async function searchProducts(
 
 export async function getAllOrders(
   sortBy?: 'totalAmount' | 'giftTotal' | 'giftRatio',
-  order?: 'asc' | 'desc'
+  order?: 'asc' | 'desc',
+  snapshot?: Database
 ): Promise<Order[]> {
-  const db = await loadDatabase()
+  const db = snapshot ?? await loadDatabase()
   let orders = [...db.orders]
 
   // Migrate old orders that don't have giftTotal field
@@ -573,8 +574,8 @@ export async function getAllOrders(
   return orders
 }
 
-export async function getOrderById(id: string): Promise<Order | undefined> {
-  const db = await loadDatabase()
+export async function getOrderById(id: string, snapshot?: Database): Promise<Order | undefined> {
+  const db = snapshot ?? await loadDatabase()
   const order = db.orders.find((o) => o.id === id)
 
   // Migrate old orders to new schema

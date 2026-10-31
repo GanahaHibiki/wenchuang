@@ -15,6 +15,7 @@ import {
   getProductById,
   getAllProducts,
   renameShop,
+  loadDatabase,
 } from '../services/database.js'
 import { saveImage, copyAndRenameImage, deleteImage } from '../services/imageService.js'
 import type {
@@ -35,7 +36,9 @@ router.get('/', async (req, res, next) => {
     const sortBy = req.query.sortBy as 'totalAmount' | 'giftTotal' | 'giftRatio' | undefined
     const order = req.query.order as 'asc' | 'desc' | undefined
 
-    const orders = await getAllOrders(sortBy, order)
+    const db = await loadDatabase()
+    const orders = await getAllOrders(sortBy, order, db)
+    const shopMap = new Map(db.shops.map(shop => [shop.id, shop]))
 
     // Calculate group sequence numbers (order within group orders by createdAt)
     const groupOrders = orders
@@ -45,9 +48,8 @@ router.get('/', async (req, res, next) => {
     groupOrders.forEach((o, idx) => groupSeqMap.set(o.id, idx + 1))
 
     // Convert to summaries
-    const summaries: OrderSummary[] = await Promise.all(
-      orders.map(async (o) => {
-        const shop = await getShopById(o.shopId)
+    const summaries: OrderSummary[] = orders.map((o) => {
+        const shop = shopMap.get(o.shopId)
         // For group orders, show custom name or default "拼单"
         const displayName = o.orderType === 'group'
           ? (o.groupOrderName || '拼单')
@@ -68,7 +70,6 @@ router.get('/', async (req, res, next) => {
           shippingTime: o.shippingTime,
         }
       })
-    )
 
     res.json(summaries)
   } catch (err) {
@@ -80,7 +81,10 @@ router.get('/', async (req, res, next) => {
 router.get('/:id', async (req, res, next) => {
   try {
     const { id } = req.params
-    const order = await getOrderById(id)
+    const db = await loadDatabase()
+    const order = await getOrderById(id, db)
+    const shopMap = new Map(db.shops.map(shop => [shop.id, shop]))
+    const productMap = new Map(db.products.map(product => [product.id, product]))
 
     if (!order) {
       return res.status(404).json({ message: '订单不存在' })
@@ -89,7 +93,7 @@ router.get('/:id', async (req, res, next) => {
     // For group orders, shopId may be null - skip shop check
     let shop = null
     if (order.orderType !== 'group') {
-      shop = await getShopById(order.shopId)
+      shop = shopMap.get(order.shopId)
       if (!shop) {
         return res.status(404).json({ message: '店铺不存在' })
       }
@@ -100,13 +104,10 @@ router.get('/:id', async (req, res, next) => {
     let groupSequenceNumber: number | undefined
     if (order.orderType === 'group') {
       if (order.shopIds) {
-        shops = await Promise.all(
-          order.shopIds.map(async (shopId) => await getShopById(shopId))
-        )
-        shops = shops.filter(Boolean) // Remove null values
+        shops = order.shopIds.map(shopId => shopMap.get(shopId)).filter(Boolean)
       }
       // Calculate group sequence number
-      const allOrders = await getAllOrders()
+      const allOrders = await getAllOrders(undefined, undefined, db)
       const groupOrders = allOrders
         .filter(o => o.orderType === 'group')
         .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
@@ -119,7 +120,7 @@ router.get('/:id', async (req, res, next) => {
     const smallGifts: (OrderItem & { product: any })[] = []
 
     for (const item of order.items) {
-      const product = await getProductById(item.productId)
+      const product = productMap.get(item.productId)
       const itemWithProduct = { ...item, product }
 
       if (item.category === 'purchased') {

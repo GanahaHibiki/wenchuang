@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { productApi } from '@/api/client'
 import type { ProductDetail } from '@/types'
 import ImageViewer from '@/components/common/ImageViewer'
+import ProgressiveImage from '@/components/common/ProgressiveImage'
 import BackButton from '@/components/common/BackButton'
 import { sortSpecifications } from '@/utils/specificationSort'
 
@@ -77,10 +78,10 @@ export default function ProductDetailPage() {
               className="cursor-pointer"
               onClick={() => setShowViewer(true)}
             >
-              <img
+              <ProgressiveImage
                 src={`/images/original/${product.imagePath}`}
+                previewSrc={`/images/thumbnails/${product.thumbnailPath}`}
                 alt={product.name}
-                className="w-full rounded-lg hover:opacity-90 transition-opacity"
               />
               <p className="text-center text-sm text-gray-500 mt-2">点击查看大图</p>
             </div>

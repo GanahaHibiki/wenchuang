@@ -9,8 +9,28 @@ import type {
 } from '@/types'
 
 const API_BASE = '/api'
+const pendingReads = new Map<string, Promise<unknown>>()
 
-async function request<T>(
+// Share concurrent identical reads (including StrictMode's duplicate effects),
+// but never cache completed responses: edits and external changes remain visible.
+function request<T>(url: string, options?: RequestInit): Promise<T> {
+  const method = options?.method?.toUpperCase() || 'GET'
+  if (method !== 'GET') {
+    pendingReads.clear()
+    return performRequest<T>(url, options)
+  }
+  if (options) return performRequest<T>(url, options)
+
+  const existing = pendingReads.get(url)
+  if (existing) return existing as Promise<T>
+  const pending = performRequest<T>(url).finally(() => {
+    if (pendingReads.get(url) === pending) pendingReads.delete(url)
+  })
+  pendingReads.set(url, pending)
+  return pending
+}
+
+async function performRequest<T>(
   url: string,
   options?: RequestInit
 ): Promise<T> {

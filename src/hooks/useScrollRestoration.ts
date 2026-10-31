@@ -1,9 +1,9 @@
 import { useLayoutEffect, type RefObject } from 'react'
 import { useLocation } from 'react-router-dom'
-import { readScrollPosition, writeScrollPosition } from '@/utils/navigationState'
+import { flushNavigationState, getHistoryEntryKey, readScrollPosition, writeScrollPosition } from '@/utils/navigationState'
 
 export function useScrollRestoration(mainRef: RefObject<HTMLElement>) {
-  const { key } = useLocation()
+  const key = getHistoryEntryKey(useLocation())
 
   useLayoutEffect(() => {
     const main = mainRef.current
@@ -52,6 +52,7 @@ export function useScrollRestoration(mainRef: RefObject<HTMLElement>) {
     }
 
     const scheduleRestore = () => {
+      if (!restoring) return
       window.cancelAnimationFrame(frame)
       frame = window.requestAnimationFrame(restore)
     }
@@ -70,7 +71,7 @@ export function useScrollRestoration(mainRef: RefObject<HTMLElement>) {
     timeout = window.setTimeout(finishWhenReady, 10000)
     resizeObserver.observe(main)
     resizeObserver.observe(document.body)
-    mutationObserver.observe(main, { childList: true, subtree: true, attributes: true })
+    mutationObserver.observe(main, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-scroll-loading'] })
 
     // New history entries start at the top; POP/reload restores their own snapshot.
     window.scrollTo({ left: 0, top: 0, behavior: 'instant' })
@@ -87,9 +88,16 @@ export function useScrollRestoration(mainRef: RefObject<HTMLElement>) {
       }
     }
     // Capture before a link/row navigation, not after the old page has unmounted.
-    const handlePointer = () => cancelForUser()
+    const handlePointer = () => {
+      cancelForUser()
+      flushNavigationState()
+    }
+    const handlePageHide = () => {
+      capture()
+      flushNavigationState()
+    }
     window.addEventListener('scroll', capture, true)
-    window.addEventListener('pagehide', capture)
+    window.addEventListener('pagehide', handlePageHide)
     window.addEventListener('pointerdown', handlePointer, true)
     window.addEventListener('wheel', cancelForUser, { passive: true })
     window.addEventListener('touchstart', cancelForUser, { passive: true })
@@ -102,7 +110,7 @@ export function useScrollRestoration(mainRef: RefObject<HTMLElement>) {
       stopRestoring()
       window.history.scrollRestoration = previousMode
       window.removeEventListener('scroll', capture, true)
-      window.removeEventListener('pagehide', capture)
+      window.removeEventListener('pagehide', handlePageHide)
       window.removeEventListener('pointerdown', handlePointer, true)
       window.removeEventListener('wheel', cancelForUser)
       window.removeEventListener('touchstart', cancelForUser)

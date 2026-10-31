@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { productApi, SetProduct } from '@/api/client'
 import { useHistoryState } from '@/hooks/useHistoryState'
+import { useProgressiveList } from '@/hooks/useProgressiveList'
 import LazyImage from '@/components/common/LazyImage'
 
 export default function SetProductsPage() {
@@ -12,6 +13,7 @@ export default function SetProductsPage() {
   const selectedProducts = new Set(selectedPaths)
   const [isMerging, setIsMerging] = useState(false)
   const [mergeResult, setMergeResult] = useHistoryState<{ filename: string; path: string } | null>('setMergeResult', null)
+  const { visibleItems, hasMore, loadMoreRef } = useProgressiveList(products, 'setVisibleCount', !isLoading)
 
   useEffect(() => {
     const loadProducts = async () => {
@@ -140,7 +142,7 @@ export default function SetProductsPage() {
         </div>
       ) : (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-4">
-          {products.map((product) => {
+          {visibleItems.map((product) => {
             const isSelected = selectedProducts.has(product.imagePath)
             const canSelect = selectedProducts.size < 9 || isSelected
 
@@ -220,6 +222,9 @@ export default function SetProductsPage() {
             )
           })}
         </div>
+      )}
+      {hasMore && (
+        <div ref={loadMoreRef} className="text-center py-8 text-gray-400">加载更多...</div>
       )}
     </div>
   )

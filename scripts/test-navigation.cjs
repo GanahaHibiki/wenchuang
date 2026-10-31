@@ -97,6 +97,13 @@ async function follow(page, link) {
   await ready(page)
   return y
 }
+async function ensureGalleryItems(page, count) {
+  while (await page.locator('main a[href^="/products/"]').count() < count) {
+    await page.getByText('加载更多...', { exact: true }).scrollIntoViewIfNeeded()
+    await page.waitForTimeout(200)
+  }
+}
+
 async function back(page, path, y) {
   await page.getByRole('button', { name: '返回上一页', exact: true }).click()
   await page.waitForURL(`${base}${path}`)
@@ -121,6 +128,10 @@ async function back(page, path, y) {
     browser = await chromium.launch({ headless: true })
     const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
     const errors = []
+    const apiReads = []
+    page.on('request', request => {
+      if (request.method() === 'GET' && new URL(request.url()).pathname.startsWith('/api/')) apiReads.push(new URL(request.url()).pathname)
+    })
     page.on('pageerror', error => errors.push(error.message))
     await installMocks(page)
 
@@ -224,9 +235,13 @@ async function back(page, path, y) {
     assert(await page.locator('main a').count() >= 100)
     console.log('PASS: searched, expanded gallery returns to its previous position')
 
+    const previousSetReads = apiReads.filter(path => path === '/api/products/set-products').length
     await page.goto(`${base}/set-products`)
     await ready(page)
+    assert.equal(await page.locator('main a[href^="/products/"]').count(), 50)
+    assert.equal(apiReads.filter(path => path === '/api/products/set-products').length - previousSetReads, 1)
     await page.locator('main button.absolute').first().click()
+    await ensureGalleryItems(page, 81)
     const setY = await follow(page, page.locator('main a[href^="/products/"]').nth(80))
     await back(page, '/set-products', setY)
     assert.match(await page.locator('main').innerText(), /已选择\s*1\s*\/ 9/)
@@ -237,6 +252,8 @@ async function back(page, path, y) {
     await page.getByRole('button', { name: '折页', exact: true }).click()
     await ready(page)
     const loosePath = new URL(page.url()).pathname + new URL(page.url()).search
+    assert.equal(await page.locator('main a[href^="/products/"]').count(), 50)
+    await ensureGalleryItems(page, 81)
     const looseY = await follow(page, page.locator('main a[href^="/products/"]').nth(80))
     await back(page, loosePath, looseY)
     assert.equal(await page.getByRole('button', { name: '折页', exact: true }).getAttribute('class').then(x => x.includes('bg-blue-600')), true)
@@ -263,8 +280,19 @@ async function back(page, path, y) {
 
     const direct = await browser.newPage()
     await installMocks(direct)
+    await direct.route('**/images/original/1.png', async route => {
+      await new Promise(resolve => setTimeout(resolve, 1500))
+      await route.fulfill({ contentType: 'image/svg+xml', body: image.replace('height="480"', 'height="960"') })
+    })
     await direct.goto(`${base}/products/product-1`)
     await ready(direct)
+    assert(await direct.locator('img[src="/images/thumbnails/1_thumb.jpg"]').isVisible())
+    assert.match(await direct.locator('img[src="/images/original/1.png"]').getAttribute('class'), /opacity-0/)
+    await direct.waitForFunction(() => {
+      const img = document.querySelector('img[src="/images/original/1.png"]')
+      return img?.complete && img.naturalHeight === 960 && !img.classList.contains('opacity-0')
+    })
+    console.log('PASS: thumbnail preview is visible before slow original; portrait original replaces it intact')
     await direct.getByRole('button', { name: '返回上一页', exact: true }).click()
     await direct.waitForURL(`${base}/`)
     await ready(direct)
