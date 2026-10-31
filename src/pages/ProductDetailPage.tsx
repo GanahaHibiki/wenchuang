@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { productApi } from '@/api/client'
-import type { ProductDetail } from '@/types'
+import type { ProductDetail, ProductStyle } from '@/types'
 import ImageViewer from '@/components/common/ImageViewer'
+import StyleInput from '@/components/common/StyleInput'
 import ArtistInput from '@/components/common/ArtistInput'
 import ProgressiveImage from '@/components/common/ProgressiveImage'
 import BackButton from '@/components/common/BackButton'
@@ -18,6 +19,10 @@ export default function ProductDetailPage() {
   const [artistDraft, setArtistDraft] = useState('')
   const [savingArtist, setSavingArtist] = useState(false)
   const [artistError, setArtistError] = useState<string | null>(null)
+  const [editingStyle, setEditingStyle] = useState(false)
+  const [styleDraft, setStyleDraft] = useState<ProductStyle | ''>('')
+  const [savingStyle, setSavingStyle] = useState(false)
+  const [styleError, setStyleError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!id) return
@@ -40,7 +45,7 @@ export default function ProductDetailPage() {
   }, [id])
 
   const saveArtist = async () => {
-    if (!id || !product || savingArtist) return
+    if (!id || !product || savingArtist || savingStyle) return
     setSavingArtist(true)
     setArtistError(null)
     try {
@@ -51,6 +56,21 @@ export default function ProductDetailPage() {
       setArtistError(err instanceof Error ? err.message : '保存失败')
     } finally {
       setSavingArtist(false)
+    }
+  }
+
+  const saveStyle = async () => {
+    if (!id || !product || savingStyle || savingArtist) return
+    setSavingStyle(true)
+    setStyleError(null)
+    try {
+      const updated = await productApi.updateStyle(id, styleDraft)
+      setProduct(previous => previous ? { ...previous, style: updated.style } : previous)
+      setEditingStyle(false)
+    } catch (err) {
+      setStyleError(err instanceof Error ? err.message : '保存失败')
+    } finally {
+      setSavingStyle(false)
     }
   }
 
@@ -92,10 +112,10 @@ export default function ProductDetailPage() {
       <section className="bg-white rounded-lg shadow p-4">
         {editingArtist ? (
           <form onSubmit={event => { event.preventDefault(); saveArtist() }} className="space-y-3">
-            <ArtistInput value={artistDraft} onChange={setArtistDraft} disabled={savingArtist} />
+            <ArtistInput value={artistDraft} onChange={setArtistDraft} disabled={savingArtist || savingStyle} />
             <p className="text-xs text-gray-500">留空可清除。同店铺同名商品的历史记录会同步更新。</p>
             <div className="flex gap-3">
-              <button type="submit" disabled={savingArtist} className="px-3 py-1 bg-blue-600 text-white rounded disabled:opacity-50">
+              <button type="submit" disabled={savingArtist || savingStyle} className="px-3 py-1 bg-blue-600 text-white rounded disabled:opacity-50">
                 {savingArtist ? '保存中...' : '保存美工'}
               </button>
               <button type="button" disabled={savingArtist} onClick={() => { setEditingArtist(false); setArtistError(null) }}
@@ -117,6 +137,32 @@ export default function ProductDetailPage() {
           </div>
         )}
         {artistError && <p role="alert" className="mt-2 text-sm text-red-600">{artistError}</p>}
+        <div className="mt-4 border-t pt-4">
+          {editingStyle ? (
+            <form onSubmit={event => { event.preventDefault(); saveStyle() }} className="space-y-3">
+              <StyleInput value={styleDraft} onChange={setStyleDraft} disabled={savingStyle || savingArtist} />
+              <p className="text-xs text-gray-500">选择未分类可清除。同店铺同名商品的历史记录会同步更新。</p>
+              <div className="flex gap-3">
+                <button type="submit" disabled={savingStyle || savingArtist}
+                  className="px-3 py-1 bg-blue-600 text-white rounded disabled:opacity-50">
+                  {savingStyle ? '保存中...' : '保存分类'}
+                </button>
+                <button type="button" disabled={savingStyle} onClick={() => { setEditingStyle(false); setStyleError(null) }}
+                  className="px-3 py-1 bg-gray-200 rounded">取消</button>
+              </div>
+            </form>
+          ) : (
+            <div className="flex items-center gap-3">
+              <span className="text-gray-700">风格分类：{product.style || '未分类'}</span>
+              <button type="button" className="text-sm text-blue-600 hover:underline" onClick={() => {
+                setStyleDraft(product.style || '')
+                setStyleError(null)
+                setEditingStyle(true)
+              }}>编辑风格分类</button>
+            </div>
+          )}
+          {styleError && <p role="alert" className="mt-2 text-sm text-red-600">{styleError}</p>}
+        </div>
       </section>
 
       {/* Main Content - Left-Right Layout */}

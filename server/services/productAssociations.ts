@@ -1,4 +1,5 @@
-import type { Database, Order, Product } from '../../src/types/index.js'
+import type { Database, Order, Product, ProductStyle } from '../../src/types/index.js'
+import { PRODUCT_STYLES } from '../../src/types/index.js'
 
 // All indexes are scoped to a single database snapshot, never cached across requests.
 export function productGroupKey(shopName: string, productName: string): string {
@@ -69,41 +70,68 @@ export function setArtist(product: Product, artist: string | undefined): void {
   else delete product.artist
 }
 
+export function isValidProductStyle(value: unknown): value is ProductStyle {
+  return typeof value === 'string' && PRODUCT_STYLES.includes(value as ProductStyle)
+}
+
+export function isValidStyle(value: unknown): value is ProductStyle | '' {
+  return value === '' || isValidProductStyle(value)
+}
+
+export function hasInvalidStyles(items: Array<{ style?: unknown }>): boolean {
+  return items.some(item => Object.prototype.hasOwnProperty.call(item, 'style') && !isValidStyle(item.style))
+}
+
+export function setStyle(product: Product, style: ProductStyle | '' | undefined): void {
+  if (style) product.style = style
+  else delete product.style
+}
+
 export interface OrderArtistInput {
   productId: string
   artist?: string
+  style?: ProductStyle | ''
   // Preserve selected product information when editing creates a replacement ID.
   sourceProductId?: string
   shopId?: string
 }
 
-export function orderArtistInput(productId: string, item: { artist?: string; productId?: string; shopId?: string }): OrderArtistInput {
+export function orderArtistInput(productId: string, item: { artist?: string; style?: ProductStyle | ''; productId?: string; shopId?: string }): OrderArtistInput {
   return {
     productId,
     sourceProductId: item.productId,
     shopId: item.shopId,
     ...(Object.prototype.hasOwnProperty.call(item, 'artist') ? { artist: item.artist } : {}),
+    ...(Object.prototype.hasOwnProperty.call(item, 'style') ? { style: item.style } : {}),
   }
 }
 
 // Called inside the final order save. Include both the old associations and the
 // pending items so replacements inherit even when the old ID loses its last order.
 // Newly created IDs in this request are connected before inheritance as well.
+// The legacy helper name/export also handles style, independently of artist,
+// using the same request-local association index and final save.
 export function applyOrderArtists(db: Database, order: Order, inputs: OrderArtistInput[]): void {
   if (!inputs.length) return
   const index = buildProductAssociations({ ...db, orders: [...db.orders, order] })
   const groupArtists = new Map<string, string>()
+  const groupStyles = new Map<string, ProductStyle>()
   for (const [key, ids] of index.groups) {
     for (const id of ids) {
-      const artist = index.products.get(id)?.artist?.trim()
-      if (artist) {
-        groupArtists.set(key, artist)
-        break
-      }
+      const product = index.products.get(id)
+      const artist = product?.artist?.trim()
+      if (artist && !groupArtists.has(key)) groupArtists.set(key, artist)
+      if (isValidProductStyle(product?.style) && !groupStyles.has(key)) groupStyles.set(key, product.style)
     }
   }
 
-  const pending = new Map<string, { ids: Set<string>; artist: string | undefined; explicit: boolean }>()
+  const pending = new Map<string, {
+    ids: Set<string>
+    artist: string | undefined
+    explicit: boolean
+    style: ProductStyle | undefined
+    styleExplicit: boolean
+  }>()
   for (const input of inputs) {
     const product = index.products.get(input.productId)
     if (!product) continue
@@ -116,6 +144,8 @@ export function applyOrderArtists(db: Database, order: Order, inputs: OrderArtis
         ids: new Set(index.groups.get(key) || [product.id]),
         artist: groupArtists.get(key) || product.artist?.trim(),
         explicit: false,
+        style: groupStyles.get(key) || (isValidProductStyle(product.style) ? product.style : undefined),
+        styleExplicit: false,
       }
       pending.set(key, update)
     }
@@ -127,11 +157,21 @@ export function applyOrderArtists(db: Database, order: Order, inputs: OrderArtis
     } else if (!update.explicit && !update.artist && input.sourceProductId) {
       update.artist = index.products.get(input.sourceProductId)?.artist?.trim() || undefined
     }
+    if (Object.prototype.hasOwnProperty.call(input, 'style')) {
+      update.style = input.style || undefined
+      update.styleExplicit = true
+    } else if (!update.styleExplicit && !update.style && input.sourceProductId) {
+      const sourceStyle = index.products.get(input.sourceProductId)?.style
+      if (isValidProductStyle(sourceStyle)) update.style = sourceStyle
+    }
   }
   for (const update of pending.values()) {
     for (const id of update.ids) {
       const product = index.products.get(id)
-      if (product) setArtist(product, update.artist)
+      if (product) {
+        setArtist(product, update.artist)
+        setStyle(product, update.style)
+      }
     }
   }
 }

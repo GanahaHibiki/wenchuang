@@ -6,10 +6,11 @@ import {
   getAllProducts,
   searchProducts,
   updateProductArtist,
+  updateProductStyle,
   loadDatabase,
   DATA_DIR,
 } from '../services/database.js'
-import { buildProductAssociations, relatedProductIds, isValidArtist } from '../services/productAssociations.js'
+import { buildProductAssociations, relatedProductIds, isValidArtist, isValidStyle, isValidProductStyle } from '../services/productAssociations.js'
 import type { ProductDetail, ProductEntry, ProductSearchType } from '../../src/types/index.js'
 
 const router = Router()
@@ -36,7 +37,12 @@ router.get('/search', async (req, res, next) => {
       return res.status(400).json({ message: '无效的搜索类型' })
     }
 
-    const products = await searchProducts(type || 'productName', keyword, req.query.exact === 'true')
+    const style = req.query.style
+    if (style !== undefined && !isValidProductStyle(style)) {
+      return res.status(400).json({ message: '无效的风格分类' })
+    }
+
+    const products = await searchProducts(type || 'productName', keyword, req.query.exact === 'true', style)
     res.json(products)
   } catch (err) {
     next(err)
@@ -250,6 +256,23 @@ router.patch('/:id/artist', async (req, res, next) => {
       return res.status(400).json({ message: '美工必须为字符串' })
     }
     const product = await updateProductArtist(req.params.id, artist)
+    if (!product) {
+      return res.status(404).json({ message: '商品不存在' })
+    }
+    res.json(product)
+  } catch (err) {
+    next(err)
+  }
+})
+
+// PATCH /api/products/:id/style - Same-shop/name synchronization, independent of artist
+router.patch('/:id/style', async (req, res, next) => {
+  try {
+    const style = req.body?.style
+    if (!isValidStyle(style)) {
+      return res.status(400).json({ message: '无效的风格分类' })
+    }
+    const product = await updateProductStyle(req.params.id, style)
     if (!product) {
       return res.status(404).json({ message: '商品不存在' })
     }

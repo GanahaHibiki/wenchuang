@@ -17,7 +17,7 @@ import {
   loadDatabase,
 } from '../services/database.js'
 import { saveImage, copyAndRenameImage, deleteImage } from '../services/imageService.js'
-import { buildProductAssociations, productGroupKey, hasInvalidArtists, orderArtistInput } from '../services/productAssociations.js'
+import { buildProductAssociations, productGroupKey, hasInvalidArtists, hasInvalidStyles, orderArtistInput } from '../services/productAssociations.js'
 import type { OrderArtistInput } from '../services/productAssociations.js'
 import type {
   Order,
@@ -175,6 +175,9 @@ router.post('/', upload.any(), async (req, res, next) => {
     const parsedSmallGifts = smallGifts ? JSON.parse(smallGifts) : []
     if (hasInvalidArtists([...parsedPurchased, ...parsedGifts, ...parsedSmallGifts])) {
       return res.status(400).json({ message: '美工必须为字符串' })
+    }
+    if (hasInvalidStyles([...parsedPurchased, ...parsedGifts, ...parsedSmallGifts])) {
+      return res.status(400).json({ message: '无效的风格分类' })
     }
 
     // Create or find shop
@@ -346,6 +349,9 @@ router.post('/group', upload.any(), async (req, res, next) => {
     if (hasInvalidArtists(parsedShops.flatMap(shop => shop.items || []))) {
       return res.status(400).json({ message: '美工必须为字符串' })
     }
+    if (hasInvalidStyles(parsedShops.flatMap(shop => shop.items || []))) {
+      return res.status(400).json({ message: '无效的风格分类' })
+    }
     const associations = buildProductAssociations(await loadDatabase())
     const artists: OrderArtistInput[] = []
     const orderItems: OrderItem[] = []
@@ -486,6 +492,9 @@ router.put('/:id', upload.any(), async (req, res, next) => {
       if (hasInvalidArtists(parsedItems)) {
         return res.status(400).json({ message: '美工必须为字符串' })
       }
+      if (hasInvalidStyles(parsedItems)) {
+        return res.status(400).json({ message: '无效的风格分类' })
+      }
       const artists: OrderArtistInput[] = []
 
       // Update or create shops
@@ -583,13 +592,16 @@ router.put('/:id', upload.any(), async (req, res, next) => {
       return res.json(updated)
     }
 
-    // Handle regular order updates: validate artist before any shop/image mutations.
+    // Handle regular order updates: validate metadata before any shop/image mutations.
     const { purchasedItems, gifts, smallGifts } = req.body
     const parsedPurchased = purchasedItems ? JSON.parse(purchasedItems) : []
     const parsedGifts = gifts ? JSON.parse(gifts) : []
     const parsedSmallGifts = smallGifts ? JSON.parse(smallGifts) : []
     if (hasInvalidArtists([...parsedPurchased, ...parsedGifts, ...parsedSmallGifts])) {
       return res.status(400).json({ message: '美工必须为字符串' })
+    }
+    if (hasInvalidStyles([...parsedPurchased, ...parsedGifts, ...parsedSmallGifts])) {
+      return res.status(400).json({ message: '无效的风格分类' })
     }
     const artists: OrderArtistInput[] = []
 

@@ -10,10 +10,14 @@ export interface Product {
   id: string
   name: string
   artist?: string // Optional artwork creator; old records may omit this field
+  style?: ProductStyle | '' // Empty string is an editing-only clear value
   imagePath: string
   thumbnailPath: string
   createdAt: string
 }
+
+export type ProductStyle = '食物系' | '盐系' | '可爱系' | '花卉系' | '复古系' | '其他'
+export const PRODUCT_STYLES: ProductStyle[] = ['食物系', '盐系', '可爱系', '花卉系', '复古系', '其他']
 
 export type ProductSearchType = 'productName' | 'shopName' | 'artist'
 
@@ -141,6 +145,7 @@ export interface CreateShopRequest {
 export interface CreateProductRequest {
   name: string
   artist?: string
+  style?: ProductStyle | ''
   image: File
 }
 
@@ -149,6 +154,7 @@ export interface CreateOrderRequest {
   purchasedItems: {
     productName: string
     artist?: string
+    style?: ProductStyle | ''
     image: File
     specifications: Specification[]
   }[]
@@ -156,12 +162,14 @@ export interface CreateOrderRequest {
     giftType: GiftType
     productName: string
     artist?: string
+    style?: ProductStyle | ''
     image: File
     specifications: Omit<Specification, 'purchasePrice'>[]
   }[]
   smallGifts: {
     productName: string
     artist?: string
+    style?: ProductStyle | ''
     image: File
     specifications: Omit<Specification, 'purchasePrice'>[]
   }[]

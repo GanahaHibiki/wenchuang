@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
-import type { OrderItem, Product, Specification, GiftType } from '@/types'
+import type { OrderItem, Product, Specification, GiftType, ProductStyle } from '@/types'
 import { SPECIFICATION_TYPES, GIFT_TYPES, MULTI_ENTRY_TYPES } from '@/types'
 import { productApi } from '@/api/client'
+import StyleInput from '@/components/common/StyleInput'
 import ArtistInput from '@/components/common/ArtistInput'
 import ImageUploader from '@/components/common/ImageUploader'
 
@@ -15,6 +16,7 @@ interface OrderItemEditorProps {
     productId: string
     productName: string
     artist?: string
+    style?: ProductStyle | ''
     imagePath: string
     thumbnailPath: string
   }[]
@@ -78,6 +80,7 @@ export default function OrderItemEditor({
           id: existingProduct.productId,
           name: existingProduct.productName,
           artist: existingProduct.artist,
+          style: existingProduct.style,
           imagePath: existingProduct.imagePath,
           thumbnailPath: existingProduct.thumbnailPath
         }
@@ -102,6 +105,7 @@ export default function OrderItemEditor({
           id: product.id,
           name: product.name,
           artist: product.artist,
+          style: product.style,
           imagePath: product.imagePath,
           thumbnailPath: product.thumbnailPath
         }
@@ -359,6 +363,12 @@ export default function OrderItemEditor({
                   <ArtistInput value={item.product.artist} onChange={artist => {
                     setEditedItems(previous => previous.map((entry, index) => index === itemIndex
                       ? { ...entry, product: { ...entry.product, artist } }
+                      : entry))
+                  }} />
+
+                  <StyleInput value={item.product.style} onChange={style => {
+                    setEditedItems(previous => previous.map((entry, index) => index === itemIndex
+                      ? { ...entry, product: { ...entry.product, style } }
                       : entry))
                   }} />
 

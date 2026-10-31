@@ -1,8 +1,8 @@
 import fs from 'fs/promises'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import type { Database, Shop, Product, Order, WishItem, ProductSearchType } from '../../src/types/index.js'
-import { applyOrderArtists, buildProductAssociations, relatedProductIds, setArtist } from './productAssociations.js'
+import type { Database, Shop, Product, Order, WishItem, ProductSearchType, ProductStyle } from '../../src/types/index.js'
+import { applyOrderArtists, buildProductAssociations, relatedProductIds, setArtist, setStyle } from './productAssociations.js'
 import type { OrderArtistInput } from './productAssociations.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -427,6 +427,20 @@ export async function updateProductArtist(id: string, artist: string): Promise<P
   return product
 }
 
+export async function updateProductStyle(id: string, style: ProductStyle | ''): Promise<Product | null> {
+  const db = await loadDatabase()
+  const index = buildProductAssociations(db)
+  const product = index.products.get(id)
+  if (!product) return null
+
+  for (const relatedId of relatedProductIds(index, id)) {
+    const relatedProduct = index.products.get(relatedId)
+    if (relatedProduct) setStyle(relatedProduct, style)
+  }
+  await saveDatabase(db)
+  return product
+}
+
 export interface ProductWithShop extends Product {
   shopName: string
 }
@@ -434,7 +448,8 @@ export interface ProductWithShop extends Product {
 export async function searchProducts(
   type: ProductSearchType,
   keyword: string,
-  exact = false
+  exact = false,
+  style?: ProductStyle
 ): Promise<ProductWithShop[]> {
   const db = await loadDatabase()
   const lowerKeyword = keyword.toLowerCase().trim()
@@ -501,6 +516,10 @@ export async function searchProducts(
 
     matchingProducts = db.products.filter((p) => productIds.has(p.id))
   }
+
+  // Apply style as an AND condition before the existing dedup/sort pipeline.
+  // Unclassified products are not the enum value '其他'.
+  if (style !== undefined) matchingProducts = matchingProducts.filter(p => p.style === style)
 
   // Add shopName to each product
   const productsWithShop = matchingProducts

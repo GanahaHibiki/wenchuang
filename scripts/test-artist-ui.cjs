@@ -169,8 +169,8 @@ async function ready(page) {
 
     await page.goto(`${base}/group-order-entry`)
     await page.getByPlaceholder('输入或选择店铺名').fill('旧店铺')
-    await page.locator('main select').first().waitFor()
-    await page.locator('main select').first().selectOption('existing')
+    const productSelect = page.locator('main select').filter({ has: page.locator('option[value="existing"]') })
+    await productSelect.selectOption('existing')
     assert.equal(await page.getByPlaceholder('请输入美工名称').inputValue(), '画师乙')
     await page.getByLabel('大食量set', { exact: true }).check()
     await page.getByRole('button', { name: '添加新店铺', exact: true }).click()

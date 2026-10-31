@@ -33,10 +33,20 @@ const fixture = {
 }
 fixture.orders[1].items.push({ productId: 'missing', category: 'purchased', specifications: [] })
 const serialized = JSON.stringify(fixture)
+const typesModule = { exports: {} }
+vm.runInNewContext(ts.transpileModule(fs.readFileSync('src/types/index.ts', 'utf8'), {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+}).outputText, { module: typesModule, exports: typesModule.exports })
 const associationsModule = { exports: {} }
 vm.runInNewContext(ts.transpileModule(fs.readFileSync('server/services/productAssociations.ts', 'utf8'), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
-}).outputText, { module: associationsModule, exports: associationsModule.exports })
+}).outputText, {
+  module: associationsModule, exports: associationsModule.exports,
+  require(name) {
+    if (name === '../../src/types/index.js') return typesModule.exports
+    throw new Error(`Unexpected association dependency ${name}`)
+  },
+})
 
 function loadHandlers(source, filename) {
   const handlers = new Map()

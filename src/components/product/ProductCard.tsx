@@ -1,16 +1,18 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import type { Product } from '@/types'
+import type { Product, ProductStyle } from '@/types'
 import ImageViewer from '../common/ImageViewer'
 
 interface ProductCardProps {
   product: Product
   shopName?: string
+  styleFilter?: ProductStyle
 }
 
-export default function ProductCard({ product, shopName }: ProductCardProps) {
+export default function ProductCard({ product, shopName, styleFilter }: ProductCardProps) {
   const [showViewer, setShowViewer] = useState(false)
   const [imageLoaded, setImageLoaded] = useState(false)
+  const styleQuery = styleFilter ? `&style=${encodeURIComponent(styleFilter)}` : ''
 
   return (
     <>
@@ -38,7 +40,7 @@ export default function ProductCard({ product, shopName }: ProductCardProps) {
           </Link>
           {shopName && (
             <Link
-              to={`/?type=shopName&keyword=${encodeURIComponent(shopName)}&exact=true`}
+              to={`/?type=shopName&keyword=${encodeURIComponent(shopName)}&exact=true${styleQuery}`}
               className="block text-xs text-gray-500 mt-1 truncate hover:text-blue-600 hover:underline"
             >
               {shopName}
@@ -47,7 +49,7 @@ export default function ProductCard({ product, shopName }: ProductCardProps) {
           {product.artist && (
             <p className="text-xs text-gray-500 mt-1 truncate">
               美工：<Link
-                to={`/?type=artist&keyword=${encodeURIComponent(product.artist)}&exact=true`}
+                to={`/?type=artist&keyword=${encodeURIComponent(product.artist)}&exact=true${styleQuery}`}
                 className="hover:text-blue-600 hover:underline"
               >{product.artist}</Link>
             </p>

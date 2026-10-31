@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { orderApi, shopApi, productApi, wishApi } from '@/api/client'
-import type { OrderDetail, OrderItem, Product, Shop } from '@/types'
+import type { OrderDetail, OrderItem, Product, Shop, ProductStyle } from '@/types'
 import ImageViewer from '@/components/common/ImageViewer'
 import LazyImage from '@/components/common/LazyImage'
 import OrderItemEditor from '@/components/order/OrderItemEditor'
@@ -30,6 +30,7 @@ export default function OrderDetailPage() {
     productId: string
     productName: string
     artist?: string
+    style?: ProductStyle | ''
     shopName: string
     imagePath: string
     thumbnailPath: string
@@ -70,6 +71,7 @@ export default function OrderDetailPage() {
             productId: p.id,
             productName: p.name,
             artist: p.artist,
+            style: p.style,
             shopName: p.shopName,
             imagePath: p.imagePath,
             thumbnailPath: p.thumbnailPath
@@ -90,6 +92,10 @@ export default function OrderDetailPage() {
     const original = originalItemsById.get(item.id)
     // Omit unchanged metadata so other categories cannot overwrite an edit.
     return original?.product.artist === item.product.artist ? undefined : item.product.artist
+  }
+
+  const changedStyle = (item: OrderItem & { product: Product }) => {
+    return originalItemsById.get(item.id)?.product.style === item.product.style ? undefined : item.product.style
   }
 
   const handleSaveItems = async (
@@ -115,6 +121,7 @@ export default function OrderDetailPage() {
         productId: item.productId,
         productName: item.product.name,
         artist: changedArtist(item),
+        style: changedStyle(item),
         specifications: item.specifications,
       }))
 
@@ -123,6 +130,7 @@ export default function OrderDetailPage() {
         productId: item.productId,
         productName: item.product.name,
         artist: changedArtist(item),
+        style: changedStyle(item),
         giftType: item.giftType,
         customGiftType: item.customGiftType,
         specifications: item.specifications,
@@ -133,6 +141,7 @@ export default function OrderDetailPage() {
         productId: item.productId,
         productName: item.product.name,
         artist: changedArtist(item),
+        style: changedStyle(item),
         specifications: item.specifications,
       }))
 
@@ -196,6 +205,7 @@ export default function OrderDetailPage() {
             productId: item.productId,
             productName: item.product.name,
             artist: changedArtist(item),
+            style: changedStyle(item),
             specifications: item.specifications,
             shopId: item.shopId,
           })
@@ -757,6 +767,7 @@ export default function OrderDetailPage() {
             productId: item.productId,
             productName: item.product.name,
             artist: item.product.artist,
+            style: item.product.style,
             imagePath: item.product.imagePath,
             thumbnailPath: item.product.thumbnailPath
           })),
@@ -764,6 +775,7 @@ export default function OrderDetailPage() {
             productId: item.productId,
             productName: item.product.name,
             artist: item.product.artist,
+            style: item.product.style,
             imagePath: item.product.imagePath,
             thumbnailPath: item.product.thumbnailPath
           })) : []),
@@ -771,6 +783,7 @@ export default function OrderDetailPage() {
             productId: item.productId,
             productName: item.product.name,
             artist: item.product.artist,
+            style: item.product.style,
             imagePath: item.product.imagePath,
             thumbnailPath: item.product.thumbnailPath
           })) : [])

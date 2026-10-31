@@ -43,6 +43,7 @@ export default function OrderEntry() {
       const purchasedData = purchasedItems.map((item) => ({
         productName: item.productName,
         artist: item.artist,
+        style: item.style,
         specifications: item.specifications,
         existingImagePath: !item.image && item.imagePreview
           ? item.imagePreview.replace('/images/original/', '')
@@ -61,6 +62,7 @@ export default function OrderEntry() {
         customGiftType: item.customGiftType,
         productName: item.productName,
         artist: item.artist,
+        style: item.style,
         specifications: item.specifications,
         existingImagePath: !item.image && item.imagePreview
           ? item.imagePreview.replace('/images/original/', '')
@@ -77,6 +79,7 @@ export default function OrderEntry() {
       const smallGiftsData = smallGiftItems.map((item) => ({
         productName: item.productName,
         artist: item.artist,
+        style: item.style,
         specifications: item.specifications,
         existingImagePath: !item.image && item.imagePreview
           ? item.imagePreview.replace('/images/original/', '')
@@ -186,6 +189,7 @@ export default function OrderEntry() {
             previousItems={purchasedItems.map(item => ({
               productName: item.productName,
               artist: item.artist,
+              style: item.style,
               imagePreview: item.imagePreview,
               image: item.image
             }))}
@@ -204,12 +208,14 @@ export default function OrderEntry() {
               ...purchasedItems.map(item => ({
                 productName: item.productName,
                 artist: item.artist,
+                style: item.style,
                 imagePreview: item.imagePreview,
                 image: item.image
               })),
               ...giftItems.map(item => ({
                 productName: item.productName,
                 artist: item.artist,
+                style: item.style,
                 imagePreview: item.imagePreview,
                 image: item.image
               }))

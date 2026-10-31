@@ -6,6 +6,7 @@ import type {
   OrderDetail,
   ProductDetail,
   ProductSearchType,
+  ProductStyle,
   WishItem,
 } from '@/types'
 
@@ -109,8 +110,8 @@ export interface ProductWithShop extends Product {
 export const productApi = {
   getAll: () => request<Product[]>('/products'),
 
-  search: (type: ProductSearchType, keyword: string, exact = false) =>
-    request<ProductWithShop[]>(`/products/search?type=${type}&keyword=${encodeURIComponent(keyword)}${exact ? '&exact=true' : ''}`),
+  search: (type: ProductSearchType, keyword: string, exact = false, style?: ProductStyle) =>
+    request<ProductWithShop[]>(`/products/search?type=${type}&keyword=${encodeURIComponent(keyword)}${exact ? '&exact=true' : ''}${style ? `&style=${encodeURIComponent(style)}` : ''}`),
 
   getDetail: (id: string) => request<ProductDetail>(`/products/${id}`),
 
@@ -118,6 +119,12 @@ export const productApi = {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ artist }),
+  }),
+
+  updateStyle: (id: string, style: ProductStyle | '') => request<Product>(`/products/${id}/style`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ style }),
   }),
 
   getSetProducts: () => request<SetProduct[]>('/products/set-products'),

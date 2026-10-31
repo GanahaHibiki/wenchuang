@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
-import type { Specification, Product } from '@/types'
+import type { Specification, Product, ProductStyle } from '@/types'
 import { productApi, wishApi, type WishProduct } from '@/api/client'
+import StyleInput from '@/components/common/StyleInput'
 import ArtistInput from '@/components/common/ArtistInput'
 import ImageUploader from '@/components/common/ImageUploader'
 import SpecificationForm from './SpecificationForm'
@@ -8,6 +9,7 @@ import SpecificationForm from './SpecificationForm'
 export interface SmallGiftItemData {
   productName: string
   artist?: string
+  style?: ProductStyle | ''
   image: File | null
   imagePreview: string | null
   specifications: Specification[]
@@ -21,7 +23,7 @@ interface StepSmallGiftsProps {
   onBack: () => void
   isSubmitting: boolean
   shopName: string
-  previousItems: { productName: string; artist?: string; imagePreview: string | null; image: File | null }[]
+  previousItems: { productName: string; artist?: string; style?: ProductStyle | ''; imagePreview: string | null; image: File | null }[]
 }
 
 export default function StepSmallGifts({
@@ -115,7 +117,8 @@ export default function StepSmallGifts({
         if (matchingShopProduct) {
           updateCurrentItem({
             imagePreview: `/images/original/${matchingShopProduct.imagePath}`,
-            artist: currentItem.artist ?? matchingShopProduct.artist
+            artist: currentItem.artist ?? matchingShopProduct.artist,
+            style: currentItem.style ?? matchingShopProduct.style
           })
         } else {
           const matchingPreviousItem = previousItems.find(
@@ -125,7 +128,8 @@ export default function StepSmallGifts({
             updateCurrentItem({
               imagePreview: matchingPreviousItem.imagePreview,
               image: matchingPreviousItem.image,
-              artist: currentItem.artist ?? matchingPreviousItem.artist
+              artist: currentItem.artist ?? matchingPreviousItem.artist,
+              style: currentItem.style ?? matchingPreviousItem.style
             })
           } else {
             const matchingCurrentItem = items.find(
@@ -136,7 +140,8 @@ export default function StepSmallGifts({
               updateCurrentItem({
                 imagePreview: matchingCurrentItem.imagePreview,
                 image: matchingCurrentItem.image,
-                artist: currentItem.artist ?? matchingCurrentItem.artist
+                artist: currentItem.artist ?? matchingCurrentItem.artist,
+                style: currentItem.style ?? matchingCurrentItem.style
               })
             }
           }
@@ -174,7 +179,7 @@ export default function StepSmallGifts({
 
   const handleSelectProduct = async (selection: string) => {
     if (selection === 'manual') {
-      updateCurrentItem({ productName: '', artist: undefined, image: null, imagePreview: null, isFromWish: false })
+      updateCurrentItem({ productName: '', artist: undefined, style: undefined, image: null, imagePreview: null, isFromWish: false })
       return
     }
 
@@ -186,6 +191,7 @@ export default function StepSmallGifts({
         updateCurrentItem({
           productName: wish.productName,
           artist: undefined,
+          style: undefined,
           imagePreview: `/images/original/${wish.imagePath}`,
           isFromWish: true
         })
@@ -199,6 +205,7 @@ export default function StepSmallGifts({
       updateCurrentItem({
         productName: previousItem.productName,
         artist: previousItem.artist,
+        style: previousItem.style,
         imagePreview: previousItem.imagePreview,
         image: previousItem.image,
         isFromWish: false
@@ -212,6 +219,7 @@ export default function StepSmallGifts({
       updateCurrentItem({
         productName: product.name,
         artist: product.artist,
+        style: product.style,
         imagePreview: `/images/original/${product.imagePath}`,
         isFromWish: false
       })
@@ -401,6 +409,7 @@ export default function StepSmallGifts({
             </div>
 
             <ArtistInput value={currentItem.artist} onChange={artist => updateCurrentItem({ artist })} />
+            <StyleInput value={currentItem.style} onChange={style => updateCurrentItem({ style })} />
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
