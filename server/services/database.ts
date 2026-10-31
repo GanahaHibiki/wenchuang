@@ -1,7 +1,9 @@
 import fs from 'fs/promises'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import type { Database, Shop, Product, Order, WishItem } from '../../src/types/index.js'
+import type { Database, Shop, Product, Order, WishItem, ProductSearchType } from '../../src/types/index.js'
+import { applyOrderArtists, buildProductAssociations, relatedProductIds, setArtist } from './productAssociations.js'
+import type { OrderArtistInput } from './productAssociations.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const DATA_DIR = path.join(__dirname, '../../data')
@@ -411,30 +413,32 @@ export async function updateProductNameById(
   return db.products[index]
 }
 
+export async function updateProductArtist(id: string, artist: string): Promise<Product | null> {
+  const db = await loadDatabase()
+  const index = buildProductAssociations(db)
+  const product = index.products.get(id)
+  if (!product) return null
+
+  for (const relatedId of relatedProductIds(index, id)) {
+    const relatedProduct = index.products.get(relatedId)
+    if (relatedProduct) setArtist(relatedProduct, artist)
+  }
+  await saveDatabase(db)
+  return product
+}
+
 export interface ProductWithShop extends Product {
   shopName: string
 }
 
 export async function searchProducts(
-  type: 'productName' | 'shopName',
+  type: ProductSearchType,
   keyword: string
 ): Promise<ProductWithShop[]> {
   const db = await loadDatabase()
   const lowerKeyword = keyword.toLowerCase().trim()
 
-  // Build a map of productId -> shopName (first shop that sold this product)
-  const productShopMap = new Map<string, string>()
-  const shopMap = new Map(db.shops.map(s => [s.id, s.name]))
-
-  for (const order of db.orders) {
-    for (const item of order.items) {
-      if (!productShopMap.has(item.productId)) {
-        const shopId = order.orderType === 'group' ? item.shopId : order.shopId
-        const shopName = shopId ? shopMap.get(shopId) || '未知店铺' : '未知店铺'
-        productShopMap.set(item.productId, shopName)
-      }
-    }
-  }
+  const productShopMap = buildProductAssociations(db).searchShopNames
 
   let matchingProducts: Product[] = []
 
@@ -459,6 +463,10 @@ export async function searchProducts(
       (p) =>
         usedProductIds.has(p.id) &&
         p.name.toLowerCase().includes(lowerKeyword)
+    )
+  } else if (type === 'artist') {
+    matchingProducts = db.products.filter(p =>
+      productShopMap.has(p.id) && (p.artist || '').toLowerCase().includes(lowerKeyword)
     )
   } else {
     // Search by shop name
@@ -596,7 +604,10 @@ export async function getOrderById(id: string, snapshot?: Database): Promise<Ord
   return order
 }
 
-export async function createOrder(order: Omit<Order, 'sequenceNumber'>): Promise<Order> {
+export async function createOrder(
+  order: Omit<Order, 'sequenceNumber'>,
+  artists: OrderArtistInput[] = []
+): Promise<Order> {
   const db = await loadDatabase()
 
   const newOrder: Order = {
@@ -605,19 +616,26 @@ export async function createOrder(order: Omit<Order, 'sequenceNumber'>): Promise
   }
 
   db.nextOrderSequence++
+  applyOrderArtists(db, newOrder, artists)
   db.orders.push(newOrder)
   await saveDatabase(db)
 
   return newOrder
 }
 
-export async function updateOrder(id: string, updates: Partial<Order>): Promise<Order | null> {
+export async function updateOrder(
+  id: string,
+  updates: Partial<Order>,
+  artists: OrderArtistInput[] = []
+): Promise<Order | null> {
   const db = await loadDatabase()
   const index = db.orders.findIndex((o) => o.id === id)
 
   if (index === -1) return null
 
-  db.orders[index] = { ...db.orders[index], ...updates }
+  const updatedOrder = { ...db.orders[index], ...updates }
+  applyOrderArtists(db, updatedOrder, artists)
+  db.orders[index] = updatedOrder
   await saveDatabase(db)
 
   return db.orders[index]

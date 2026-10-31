@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { wishApi, shopApi, type WishProduct } from '@/api/client'
 import { useHistoryState } from '@/hooks/useHistoryState'
-import type { Shop } from '@/types'
+import type { Shop, ProductSearchType } from '@/types'
 import SearchBar from '@/components/common/SearchBar'
 import WishProductCard from '@/components/wish/WishProductCard'
 import AddWishModal from '@/components/wish/AddWishModal'
@@ -40,7 +40,8 @@ export default function WishListPage() {
     shopApi.getAllShops().then(setShops).catch(console.error)
   }, [])
 
-  const handleSearch = (type: 'productName' | 'shopName', keyword: string) => {
+  const handleSearch = (type: ProductSearchType, keyword: string) => {
+    if (type === 'artist') return
     // Search is a preference on this page, not another page to return through.
     setSearchParams(keyword ? { type, keyword } : { type }, { replace: true })
   }

@@ -33,6 +33,10 @@ const fixture = {
 }
 fixture.orders[1].items.push({ productId: 'missing', category: 'purchased', specifications: [] })
 const serialized = JSON.stringify(fixture)
+const associationsModule = { exports: {} }
+vm.runInNewContext(ts.transpileModule(fs.readFileSync('server/services/productAssociations.ts', 'utf8'), {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+}).outputText, { module: associationsModule, exports: associationsModule.exports })
 
 function loadHandlers(source, filename) {
   const handlers = new Map()
@@ -68,6 +72,7 @@ function loadHandlers(source, filename) {
     module: exported, exports: exported.exports,
     require(name) {
       if (name.includes('services/database')) return database
+      if (name.includes('services/productAssociations')) return associationsModule.exports
       if (name.includes('services/imageService')) return {}
       if (name === 'sharp') return () => { throw new Error('Image writes are not permitted in this test') }
       if (name === 'fs/promises') return {}

@@ -36,6 +36,9 @@ export default function ProductCard({ product, shopName }: ProductCardProps) {
           >
             {product.name}
           </Link>
+          {product.artist && (
+            <p className="text-xs text-gray-500 mt-1 truncate">美工作者：{product.artist}</p>
+          )}
           {shopName && (
             <p className="text-xs text-gray-500 mt-1 truncate">{shopName}</p>
           )}

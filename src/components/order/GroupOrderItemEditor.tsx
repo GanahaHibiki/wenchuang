@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { v4 as uuidv4 } from 'uuid'
 import type { OrderItem, Product, Specification, Shop } from '@/types'
 import { SPECIFICATION_TYPES } from '@/types'
+import ArtistInput from '@/components/common/ArtistInput'
 import ImageUploader from '@/components/common/ImageUploader'
 import { wishApi, type WishProduct } from '@/api/client'
 
@@ -14,6 +15,7 @@ interface ShopItemsGroup {
 interface ExistingProduct {
   productId: string
   productName: string
+  artist?: string
   shopName: string
   imagePath: string
   thumbnailPath: string
@@ -390,6 +392,7 @@ export default function GroupOrderItemEditor({ shopGroups, onSave, onCancel, exi
         product: {
           id: product.productId,
           name: product.productName,
+          artist: product.artist,
           imagePath: product.imagePath,
           thumbnailPath: product.thumbnailPath,
           createdAt: new Date().toISOString(),
@@ -572,6 +575,10 @@ export default function GroupOrderItemEditor({ shopGroups, onSave, onCancel, exi
                               </div>
                             )}
                           </div>
+
+                          <ArtistInput value={item.product.artist} onChange={artist => {
+                            updateItem(group.shopId, itemIndex, { product: { ...item.product, artist } })
+                          }} />
 
                           {/* Specifications */}
                           <div>

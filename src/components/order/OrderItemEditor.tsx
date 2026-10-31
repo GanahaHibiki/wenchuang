@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import type { OrderItem, Product, Specification, GiftType } from '@/types'
 import { SPECIFICATION_TYPES, GIFT_TYPES, MULTI_ENTRY_TYPES } from '@/types'
 import { productApi } from '@/api/client'
+import ArtistInput from '@/components/common/ArtistInput'
 import ImageUploader from '@/components/common/ImageUploader'
 
 interface OrderItemEditorProps {
@@ -13,6 +14,7 @@ interface OrderItemEditorProps {
   existingProducts: {
     productId: string
     productName: string
+    artist?: string
     imagePath: string
     thumbnailPath: string
   }[]
@@ -75,6 +77,7 @@ export default function OrderItemEditor({
           ...newItems[index].product,
           id: existingProduct.productId,
           name: existingProduct.productName,
+          artist: existingProduct.artist,
           imagePath: existingProduct.imagePath,
           thumbnailPath: existingProduct.thumbnailPath
         }
@@ -98,6 +101,7 @@ export default function OrderItemEditor({
           ...newItems[index].product,
           id: product.id,
           name: product.name,
+          artist: product.artist,
           imagePath: product.imagePath,
           thumbnailPath: product.thumbnailPath
         }
@@ -351,6 +355,12 @@ export default function OrderItemEditor({
                       placeholder="请输入商品名称"
                     />
                   </div>
+
+                  <ArtistInput value={item.product.artist} onChange={artist => {
+                    setEditedItems(previous => previous.map((entry, index) => index === itemIndex
+                      ? { ...entry, product: { ...entry.product, artist } }
+                      : entry))
+                  }} />
 
                   {/* Gift Type (only for gifts) */}
                   {category === 'gift' && (

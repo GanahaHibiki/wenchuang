@@ -93,6 +93,7 @@ export default function GroupOrderEntry() {
         shopName: shop.shopName,
         items: shop.items.map(item => ({
           productName: item.productName,
+          artist: item.artist,
           specifications: item.specifications,
           existingImagePath: !item.image && item.imagePreview
             ? item.imagePreview.replace('/images/original/', '')

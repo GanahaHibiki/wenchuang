@@ -1,13 +1,16 @@
 import { useState, useEffect } from 'react'
 
+import type { ProductSearchType } from '@/types'
+
 interface SearchBarProps {
-  onSearch: (type: 'productName' | 'shopName', keyword: string) => void
-  initialType?: 'productName' | 'shopName'
+  onSearch: (type: ProductSearchType, keyword: string) => void
+  initialType?: ProductSearchType
   initialKeyword?: string
+  enableArtist?: boolean
 }
 
-export default function SearchBar({ onSearch, initialType = 'productName', initialKeyword = '' }: SearchBarProps) {
-  const [searchType, setSearchType] = useState<'productName' | 'shopName'>(initialType)
+export default function SearchBar({ onSearch, initialType = 'productName', initialKeyword = '', enableArtist = false }: SearchBarProps) {
+  const [searchType, setSearchType] = useState<ProductSearchType>(initialType)
   const [keyword, setKeyword] = useState(initialKeyword)
 
   // Sync with parent state changes
@@ -30,11 +33,12 @@ export default function SearchBar({ onSearch, initialType = 'productName', initi
     <form onSubmit={handleSubmit} className="flex gap-2 items-center">
       <select
         value={searchType}
-        onChange={(e) => setSearchType(e.target.value as 'productName' | 'shopName')}
+        onChange={(e) => setSearchType(e.target.value as ProductSearchType)}
         className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
       >
         <option value="productName">商品名</option>
         <option value="shopName">店铺名</option>
+        {enableArtist && <option value="artist">美工作者</option>}
       </select>
 
       <input

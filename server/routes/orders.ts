@@ -13,11 +13,12 @@ import {
   updateProduct,
   getShopById,
   getProductById,
-  getAllProducts,
   renameShop,
   loadDatabase,
 } from '../services/database.js'
 import { saveImage, copyAndRenameImage, deleteImage } from '../services/imageService.js'
+import { buildProductAssociations, productGroupKey, hasInvalidArtists, orderArtistInput } from '../services/productAssociations.js'
+import type { OrderArtistInput } from '../services/productAssociations.js'
 import type {
   Order,
   OrderItem,
@@ -172,11 +173,15 @@ router.post('/', upload.any(), async (req, res, next) => {
     const parsedPurchased = purchasedItems ? JSON.parse(purchasedItems) : []
     const parsedGifts = gifts ? JSON.parse(gifts) : []
     const parsedSmallGifts = smallGifts ? JSON.parse(smallGifts) : []
+    if (hasInvalidArtists([...parsedPurchased, ...parsedGifts, ...parsedSmallGifts])) {
+      return res.status(400).json({ message: '美工作者必须为字符串' })
+    }
 
     // Create or find shop
     const shop = await findOrCreateShop(shopName, uuidv4())
 
     // Process items and calculate totals
+    const artists: OrderArtistInput[] = []
     const orderItems: OrderItem[] = []
     let totalAmount = 0
     let giftTotal = 0
@@ -207,6 +212,7 @@ router.post('/', upload.any(), async (req, res, next) => {
       }
 
       const product = await findOrCreateProduct(item.productName, uuidv4(), imagePath, thumbnailPath)
+      artists.push(orderArtistInput(product.id, item))
 
       const specs: Specification[] = item.specifications || []
       const itemTotal = specs.reduce(
@@ -244,6 +250,7 @@ router.post('/', upload.any(), async (req, res, next) => {
       }
 
       const product = await findOrCreateProduct(item.productName, uuidv4(), imagePath, thumbnailPath)
+      artists.push(orderArtistInput(product.id, item))
 
       const specs: Specification[] = item.specifications || []
       const itemTotal = specs.reduce(
@@ -283,6 +290,7 @@ router.post('/', upload.any(), async (req, res, next) => {
       }
 
       const product = await findOrCreateProduct(item.productName, uuidv4(), imagePath, thumbnailPath)
+      artists.push(orderArtistInput(product.id, item))
 
       const specs: Specification[] = item.specifications || []
       const itemTotal = specs.reduce(
@@ -311,7 +319,7 @@ router.post('/', upload.any(), async (req, res, next) => {
       smallGiftTotal,
       giftRatio,
       createdAt: new Date().toISOString(),
-    })
+    }, artists)
 
     res.status(201).json(order)
   } catch (err) {
@@ -335,6 +343,11 @@ router.post('/group', upload.any(), async (req, res, next) => {
       return res.status(400).json({ message: '至少需要一个店铺' })
     }
 
+    if (hasInvalidArtists(parsedShops.flatMap(shop => shop.items || []))) {
+      return res.status(400).json({ message: '美工作者必须为字符串' })
+    }
+    const associations = buildProductAssociations(await loadDatabase())
+    const artists: OrderArtistInput[] = []
     const orderItems: OrderItem[] = []
     let totalAmount = 0
     const shopIds: string[] = []
@@ -387,9 +400,10 @@ router.post('/group', upload.any(), async (req, res, next) => {
             renamed.thumbnailPath
           )
         } else {
-          // No file uploaded, try to find existing product by name
-          const allProducts = await getAllProducts()
-          const existingProduct = allProducts.find(p => p.name === item.productName)
+          // Reuse only a product associated with this shop, never a namesake from another shop.
+          const ids = associations.groups.get(productGroupKey(shop.name, item.productName))
+          const selectedId = ids?.has(item.productId) ? item.productId : ids?.values().next().value
+          const existingProduct = selectedId ? associations.products.get(selectedId) : undefined
 
           if (existingProduct) {
             product = existingProduct
@@ -399,6 +413,16 @@ router.post('/group', upload.any(), async (req, res, next) => {
             })
           }
         }
+
+        associations.products.set(product.id, product)
+        const key = productGroupKey(shop.name, item.productName)
+        let ids = associations.groups.get(key)
+        if (!ids) {
+          ids = new Set<string>()
+          associations.groups.set(key, ids)
+        }
+        ids.add(product.id)
+        artists.push(orderArtistInput(product.id, { ...item, shopId: shop.id }))
 
         const specs: Specification[] = item.specifications || []
         const itemTotal = specs.reduce(
@@ -431,7 +455,7 @@ router.post('/group', upload.any(), async (req, res, next) => {
       smallGiftTotal: 0,
       giftRatio: 0,
       createdAt: new Date().toISOString(),
-    })
+    }, artists)
 
     res.status(201).json(order)
   } catch (err) {
@@ -459,6 +483,10 @@ router.put('/:id', upload.any(), async (req, res, next) => {
       const parsedItems = JSON.parse(itemsData)
       const parsedShopIds = JSON.parse(shopIdsData)
       const parsedShopNames = shopNamesData ? JSON.parse(shopNamesData) : {}
+      if (hasInvalidArtists(parsedItems)) {
+        return res.status(400).json({ message: '美工作者必须为字符串' })
+      }
+      const artists: OrderArtistInput[] = []
 
       // Update or create shops
       for (const shopId of parsedShopIds) {
@@ -526,6 +554,7 @@ router.put('/:id', upload.any(), async (req, res, next) => {
           productId = product.id
         }
 
+        artists.push(orderArtistInput(productId, itemData))
         const specs: Specification[] = itemData.specifications || []
         const itemTotal = specs.reduce(
           (sum: number, s: Specification) => sum + s.quantity * (s.purchasePrice || 0),
@@ -549,12 +578,21 @@ router.put('/:id', upload.any(), async (req, res, next) => {
         giftTotal: 0,
         smallGiftTotal: 0,
         giftRatio: 0,
-      })
+      }, artists)
 
       return res.json(updated)
     }
 
-    // Handle regular order updates
+    // Handle regular order updates: validate artist before any shop/image mutations.
+    const { purchasedItems, gifts, smallGifts } = req.body
+    const parsedPurchased = purchasedItems ? JSON.parse(purchasedItems) : []
+    const parsedGifts = gifts ? JSON.parse(gifts) : []
+    const parsedSmallGifts = smallGifts ? JSON.parse(smallGifts) : []
+    if (hasInvalidArtists([...parsedPurchased, ...parsedGifts, ...parsedSmallGifts])) {
+      return res.status(400).json({ message: '美工作者必须为字符串' })
+    }
+    const artists: OrderArtistInput[] = []
+
     // Check if shop name is being updated
     const newShopName = req.body.shopName
     let shopId = existingOrder.shopId
@@ -575,14 +613,7 @@ router.put('/:id', upload.any(), async (req, res, next) => {
     const shop = await getShopById(shopId)
     const shopName = shop?.name || 'Unknown'
 
-    // Similar logic to POST, but update existing order
-    // For now, just update the items
-    const { purchasedItems, gifts, smallGifts } = req.body
-
-    const parsedPurchased = purchasedItems ? JSON.parse(purchasedItems) : []
-    const parsedGifts = gifts ? JSON.parse(gifts) : []
-    const parsedSmallGifts = smallGifts ? JSON.parse(smallGifts) : []
-
+    // Similar logic to POST, but update existing order items.
     const orderItems: OrderItem[] = []
     let totalAmount = 0
     let giftTotal = 0
@@ -636,6 +667,7 @@ router.put('/:id', upload.any(), async (req, res, next) => {
         productId = product.id
       }
 
+      artists.push(orderArtistInput(productId, item))
       const specs: Specification[] = item.specifications || []
       const itemTotal = specs.reduce(
         (sum: number, s: Specification) => sum + s.quantity * (s.purchasePrice || 0),
@@ -699,6 +731,7 @@ router.put('/:id', upload.any(), async (req, res, next) => {
         productId = product.id
       }
 
+      artists.push(orderArtistInput(productId, item))
       const specs: Specification[] = item.specifications || []
       const itemTotal = specs.reduce(
         (sum: number, s: Specification) => sum + s.quantity * s.originalPrice,
@@ -760,6 +793,7 @@ router.put('/:id', upload.any(), async (req, res, next) => {
         productId = product.id
       }
 
+      artists.push(orderArtistInput(productId, item))
       const specs: Specification[] = item.specifications || []
       const itemTotal = specs.reduce(
         (sum: number, s: Specification) => sum + s.quantity * s.originalPrice,
@@ -784,7 +818,7 @@ router.put('/:id', upload.any(), async (req, res, next) => {
       giftTotal,
       smallGiftTotal,
       giftRatio,
-    })
+    }, artists)
 
     res.json(updated)
   } catch (err) {

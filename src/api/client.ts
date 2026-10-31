@@ -5,6 +5,7 @@ import type {
   OrderSummary,
   OrderDetail,
   ProductDetail,
+  ProductSearchType,
   WishItem,
 } from '@/types'
 
@@ -108,10 +109,16 @@ export interface ProductWithShop extends Product {
 export const productApi = {
   getAll: () => request<Product[]>('/products'),
 
-  search: (type: 'productName' | 'shopName', keyword: string) =>
+  search: (type: ProductSearchType, keyword: string) =>
     request<ProductWithShop[]>(`/products/search?type=${type}&keyword=${encodeURIComponent(keyword)}`),
 
   getDetail: (id: string) => request<ProductDetail>(`/products/${id}`),
+
+  updateArtist: (id: string, artist: string) => request<Product>(`/products/${id}/artist`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ artist }),
+  }),
 
   getSetProducts: () => request<SetProduct[]>('/products/set-products'),
 

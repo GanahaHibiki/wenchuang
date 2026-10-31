@@ -2,13 +2,14 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { productApi, type ProductWithShop } from '@/api/client'
 import { useHistoryState } from '@/hooks/useHistoryState'
+import type { ProductSearchType } from '@/types'
 import SearchBar from '@/components/common/SearchBar'
 import ProductGrid from '@/components/product/ProductGrid'
 
 const ITEMS_PER_PAGE = 50
 
 interface GalleryView {
-  searchType: 'productName' | 'shopName'
+  searchType: ProductSearchType
   searchKeyword: string
   visibleCount: number
 }
@@ -16,9 +17,12 @@ interface GalleryView {
 export default function HomePage() {
   const [searchParams] = useSearchParams()
   const shopName = searchParams.get('shop') || ''
+  const requestedType = searchParams.get('type')
+  const initialSearchType: ProductSearchType = requestedType === 'artist' ? 'artist'
+    : requestedType === 'shopName' || shopName ? 'shopName' : 'productName'
   const [view, setView] = useHistoryState<GalleryView>('productGallery', {
-    searchType: shopName ? 'shopName' : 'productName',
-    searchKeyword: shopName,
+    searchType: initialSearchType,
+    searchKeyword: searchParams.get('keyword') ?? shopName,
     visibleCount: ITEMS_PER_PAGE,
   })
   const { searchType, searchKeyword, visibleCount } = view
@@ -65,7 +69,7 @@ export default function HomePage() {
   return (
     <div className="space-y-6">
       <div className="bg-white rounded-lg shadow p-4">
-        <SearchBar onSearch={handleSearch} initialType={searchType} initialKeyword={searchKeyword} />
+        <SearchBar onSearch={handleSearch} initialType={searchType} initialKeyword={searchKeyword} enableArtist />
       </div>
       <div className="text-gray-600">
         {searchKeyword ? (

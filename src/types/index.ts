@@ -9,10 +9,13 @@ export interface Shop {
 export interface Product {
   id: string
   name: string
+  artist?: string // Optional artwork creator; old records may omit this field
   imagePath: string
   thumbnailPath: string
   createdAt: string
 }
+
+export type ProductSearchType = 'productName' | 'shopName' | 'artist'
 
 export type SpecificationType =
   | '试吃set'
@@ -137,6 +140,7 @@ export interface CreateShopRequest {
 
 export interface CreateProductRequest {
   name: string
+  artist?: string
   image: File
 }
 
@@ -144,17 +148,20 @@ export interface CreateOrderRequest {
   shopName: string
   purchasedItems: {
     productName: string
+    artist?: string
     image: File
     specifications: Specification[]
   }[]
   gifts: {
     giftType: GiftType
     productName: string
+    artist?: string
     image: File
     specifications: Omit<Specification, 'purchasePrice'>[]
   }[]
   smallGifts: {
     productName: string
+    artist?: string
     image: File
     specifications: Omit<Specification, 'purchasePrice'>[]
   }[]

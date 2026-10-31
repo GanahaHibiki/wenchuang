@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react'
 import type { Specification, Product } from '@/types'
 import { productApi, wishApi, type WishProduct } from '@/api/client'
+import ArtistInput from '@/components/common/ArtistInput'
 import ImageUploader from '@/components/common/ImageUploader'
 import SpecificationForm from './SpecificationForm'
 
 export interface PurchasedItemData {
   productName: string
+  artist?: string
   image: File | null
   imagePreview: string | null
   specifications: Specification[]
@@ -56,7 +58,7 @@ export default function StepPurchased({
     loadProducts()
   }, [shopName])
 
-  const currentItem = items[currentIndex] || {
+  const currentItem: PurchasedItemData = items[currentIndex] || {
     productName: '',
     image: null,
     imagePreview: null,
@@ -142,7 +144,8 @@ export default function StepPurchased({
         )
         if (matchingShopProduct) {
           updateCurrentItem({
-            imagePreview: `/images/original/${matchingShopProduct.imagePath}`
+            imagePreview: `/images/original/${matchingShopProduct.imagePath}`,
+            artist: currentItem.artist ?? matchingShopProduct.artist
           })
         } else {
           // Check other items in current step
@@ -152,7 +155,8 @@ export default function StepPurchased({
           )
           if (matchingCurrentItem && matchingCurrentItem.imagePreview) {
             updateCurrentItem({
-              imagePreview: matchingCurrentItem.imagePreview
+              imagePreview: matchingCurrentItem.imagePreview,
+              artist: currentItem.artist ?? matchingCurrentItem.artist
             })
           }
         }
@@ -168,7 +172,7 @@ export default function StepPurchased({
   const handleSelectProduct = async (selection: string) => {
     if (selection === 'manual') {
       // Clear selection for manual input
-      updateCurrentItem({ productName: '', image: null, imagePreview: null, isFromWish: false })
+      updateCurrentItem({ productName: '', artist: undefined, image: null, imagePreview: null, isFromWish: false })
       return
     }
 
@@ -179,6 +183,7 @@ export default function StepPurchased({
       if (wish) {
         updateCurrentItem({
           productName: wish.productName,
+          artist: undefined,
           imagePreview: `/images/original/${wish.imagePath}`,
           isFromWish: true
         })
@@ -191,6 +196,7 @@ export default function StepPurchased({
     if (product) {
       updateCurrentItem({
         productName: product.name,
+        artist: product.artist,
         imagePreview: `/images/original/${product.imagePath}`,
         isFromWish: false
       })
@@ -337,6 +343,8 @@ export default function StepPurchased({
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
+
+          <ArtistInput value={currentItem.artist} onChange={artist => updateCurrentItem({ artist })} />
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">

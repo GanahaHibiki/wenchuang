@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { orderApi, shopApi, productApi, wishApi } from '@/api/client'
 import type { OrderDetail, OrderItem, Product, Shop } from '@/types'
@@ -29,6 +29,7 @@ export default function OrderDetailPage() {
   const [allProducts, setAllProducts] = useState<Array<{
     productId: string
     productName: string
+    artist?: string
     shopName: string
     imagePath: string
     thumbnailPath: string
@@ -68,6 +69,7 @@ export default function OrderDetailPage() {
           const productList = products.map(p => ({
             productId: p.id,
             productName: p.name,
+            artist: p.artist,
             shopName: p.shopName,
             imagePath: p.imagePath,
             thumbnailPath: p.thumbnailPath
@@ -80,6 +82,15 @@ export default function OrderDetailPage() {
       loadData()
     }
   }, [editingCategory])
+
+  const originalItemsById = useMemo(() => new Map([
+    ...(order?.purchasedItems || []), ...(order?.gifts || []), ...(order?.smallGifts || []),
+  ].map(item => [item.id, item])), [order])
+  const changedArtist = (item: OrderItem & { product: Product }) => {
+    const original = originalItemsById.get(item.id)
+    // Omit unchanged metadata so other categories cannot overwrite an edit.
+    return original?.product.artist === item.product.artist ? undefined : item.product.artist
+  }
 
   const handleSaveItems = async (
     category: 'purchased' | 'gift' | 'smallGift',
@@ -103,6 +114,7 @@ export default function OrderDetailPage() {
         id: item.id,
         productId: item.productId,
         productName: item.product.name,
+        artist: changedArtist(item),
         specifications: item.specifications,
       }))
 
@@ -110,6 +122,7 @@ export default function OrderDetailPage() {
         id: item.id,
         productId: item.productId,
         productName: item.product.name,
+        artist: changedArtist(item),
         giftType: item.giftType,
         customGiftType: item.customGiftType,
         specifications: item.specifications,
@@ -119,6 +132,7 @@ export default function OrderDetailPage() {
         id: item.id,
         productId: item.productId,
         productName: item.product.name,
+        artist: changedArtist(item),
         specifications: item.specifications,
       }))
 
@@ -181,6 +195,7 @@ export default function OrderDetailPage() {
             id: item.id,
             productId: item.productId,
             productName: item.product.name,
+            artist: changedArtist(item),
             specifications: item.specifications,
             shopId: item.shopId,
           })
@@ -376,6 +391,7 @@ export default function OrderDetailPage() {
         >
           {item.product.name}
         </Link>
+        {item.product.artist && <p className="text-xs text-gray-500 mb-2">美工作者：{item.product.artist}</p>}
         <div className="space-y-1">
           {sortedSpecs.map((spec, index) => {
             const typeName = getSpecTypeName(spec)
@@ -740,18 +756,21 @@ export default function OrderDetailPage() {
           ...order.purchasedItems.map(item => ({
             productId: item.productId,
             productName: item.product.name,
+            artist: item.product.artist,
             imagePath: item.product.imagePath,
             thumbnailPath: item.product.thumbnailPath
           })),
           ...(editingCategory !== 'purchased' ? order.gifts.map(item => ({
             productId: item.productId,
             productName: item.product.name,
+            artist: item.product.artist,
             imagePath: item.product.imagePath,
             thumbnailPath: item.product.thumbnailPath
           })) : []),
           ...(editingCategory === 'smallGift' ? order.smallGifts.map(item => ({
             productId: item.productId,
             productName: item.product.name,
+            artist: item.product.artist,
             imagePath: item.product.imagePath,
             thumbnailPath: item.product.thumbnailPath
           })) : [])

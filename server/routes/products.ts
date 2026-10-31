@@ -5,10 +5,12 @@ import sharp from 'sharp'
 import {
   getAllProducts,
   searchProducts,
+  updateProductArtist,
   loadDatabase,
   DATA_DIR,
 } from '../services/database.js'
-import type { ProductDetail, ProductEntry } from '../../src/types/index.js'
+import { buildProductAssociations, relatedProductIds, isValidArtist } from '../services/productAssociations.js'
+import type { ProductDetail, ProductEntry, ProductSearchType } from '../../src/types/index.js'
 
 const router = Router()
 const ORIGINAL_DIR = path.join(DATA_DIR, 'images', 'original')
@@ -27,10 +29,10 @@ router.get('/', async (req, res, next) => {
 // GET /api/products/search
 router.get('/search', async (req, res, next) => {
   try {
-    const type = req.query.type as 'productName' | 'shopName'
+    const type = req.query.type as ProductSearchType
     const keyword = (req.query.keyword as string) || ''
 
-    if (type && type !== 'productName' && type !== 'shopName') {
+    if (type && type !== 'productName' && type !== 'shopName' && type !== 'artist') {
       return res.status(400).json({ message: '无效的搜索类型' })
     }
 
@@ -240,13 +242,30 @@ router.get('/loose-items', async (req, res, next) => {
   }
 })
 
+// PATCH /api/products/:id/artist - Sync the same products aggregated by detail
+router.patch('/:id/artist', async (req, res, next) => {
+  try {
+    const artist = req.body?.artist
+    if (!isValidArtist(artist)) {
+      return res.status(400).json({ message: '美工作者必须为字符串' })
+    }
+    const product = await updateProductArtist(req.params.id, artist)
+    if (!product) {
+      return res.status(404).json({ message: '商品不存在' })
+    }
+    res.json(product)
+  } catch (err) {
+    next(err)
+  }
+})
+
 // GET /api/products/:id
 router.get('/:id', async (req, res, next) => {
   try {
     const { id } = req.params
     const db = await loadDatabase()
-    const productMap = new Map(db.products.map((p) => [p.id, p]))
-    const product = productMap.get(id)
+    const associations = buildProductAssociations(db)
+    const product = associations.products.get(id)
 
     if (!product) {
       return res.status(404).json({ message: '商品不存在' })
@@ -254,43 +273,7 @@ router.get('/:id', async (req, res, next) => {
 
     const shopMap = new Map(db.shops.map((s) => [s.id, s]))
 
-    // First, determine the shop for this product by finding its first order
-    let productShopName: string | null = null
-    for (const order of db.orders) {
-      for (const item of order.items) {
-        if (item.productId === id) {
-          const shopId = order.orderType === 'group' ? item.shopId : order.shopId
-          const shop = shopId ? shopMap.get(shopId) : null
-          productShopName = shop?.name || null
-          break
-        }
-      }
-      if (productShopName) break
-    }
-
-    // Find all productIds that match the same shop + product name combination
-    const matchingProductIds = new Set<string>()
-    matchingProductIds.add(id) // Always include the requested product
-
-    if (productShopName) {
-      for (const order of db.orders) {
-        for (const item of order.items) {
-          const itemProduct = productMap.get(item.productId)
-          if (!itemProduct) continue
-
-          // Check if this item's shop matches
-          const shopId = order.orderType === 'group' ? item.shopId : order.shopId
-          const shop = shopId ? shopMap.get(shopId) : null
-          const itemShopName = shop?.name || null
-
-          // Match by shop name + product name
-          if (itemShopName === productShopName &&
-              itemProduct.name.toLowerCase() === product.name.toLowerCase()) {
-            matchingProductIds.add(item.productId)
-          }
-        }
-      }
-    }
+    const matchingProductIds = relatedProductIds(associations, id)
 
     // Calculate group sequence numbers
     const groupOrders = db.orders

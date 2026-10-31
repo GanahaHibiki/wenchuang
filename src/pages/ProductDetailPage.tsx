@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { productApi } from '@/api/client'
 import type { ProductDetail } from '@/types'
 import ImageViewer from '@/components/common/ImageViewer'
+import ArtistInput from '@/components/common/ArtistInput'
 import ProgressiveImage from '@/components/common/ProgressiveImage'
 import BackButton from '@/components/common/BackButton'
 import { sortSpecifications } from '@/utils/specificationSort'
@@ -13,6 +14,10 @@ export default function ProductDetailPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showViewer, setShowViewer] = useState(false)
+  const [editingArtist, setEditingArtist] = useState(false)
+  const [artistDraft, setArtistDraft] = useState('')
+  const [savingArtist, setSavingArtist] = useState(false)
+  const [artistError, setArtistError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!id) return
@@ -33,6 +38,21 @@ export default function ProductDetailPage() {
 
     loadProduct()
   }, [id])
+
+  const saveArtist = async () => {
+    if (!id || !product || savingArtist) return
+    setSavingArtist(true)
+    setArtistError(null)
+    try {
+      const updated = await productApi.updateArtist(id, artistDraft.trim())
+      setProduct(previous => previous ? { ...previous, artist: updated.artist } : previous)
+      setEditingArtist(false)
+    } catch (err) {
+      setArtistError(err instanceof Error ? err.message : '保存失败')
+    } finally {
+      setSavingArtist(false)
+    }
+  }
 
   if (isLoading) {
     return <div data-scroll-loading className="text-center py-12 text-gray-500">加载中...</div>
@@ -68,6 +88,36 @@ export default function ProductDetailPage() {
         <h1 className="text-2xl font-bold">{product.name}</h1>
         <BackButton />
       </div>
+
+      <section className="bg-white rounded-lg shadow p-4">
+        {editingArtist ? (
+          <form onSubmit={event => { event.preventDefault(); saveArtist() }} className="space-y-3">
+            <ArtistInput value={artistDraft} onChange={setArtistDraft} disabled={savingArtist} />
+            <p className="text-xs text-gray-500">留空可清除。同店铺同名商品的历史记录会同步更新。</p>
+            <div className="flex gap-3">
+              <button type="submit" disabled={savingArtist} className="px-3 py-1 bg-blue-600 text-white rounded disabled:opacity-50">
+                {savingArtist ? '保存中...' : '保存美工作者'}
+              </button>
+              <button type="button" disabled={savingArtist} onClick={() => { setEditingArtist(false); setArtistError(null) }}
+                className="px-3 py-1 bg-gray-200 rounded">取消</button>
+            </div>
+          </form>
+        ) : (
+          <div className="flex items-center gap-3">
+            <span className="text-gray-700">美工作者：{product.artist ? (
+              <Link className="text-blue-600 hover:underline" to={`/?type=artist&keyword=${encodeURIComponent(product.artist)}`}>
+                {product.artist}
+              </Link>
+            ) : '未填写'}</span>
+            <button type="button" className="text-sm text-blue-600 hover:underline" onClick={() => {
+              setArtistDraft(product.artist || '')
+              setArtistError(null)
+              setEditingArtist(true)
+            }}>编辑美工作者</button>
+          </div>
+        )}
+        {artistError && <p role="alert" className="mt-2 text-sm text-red-600">{artistError}</p>}
+      </section>
 
       {/* Main Content - Left-Right Layout */}
       <div className="flex gap-6">

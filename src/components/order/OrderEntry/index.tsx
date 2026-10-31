@@ -42,6 +42,7 @@ export default function OrderEntry() {
       // Add purchased items
       const purchasedData = purchasedItems.map((item) => ({
         productName: item.productName,
+        artist: item.artist,
         specifications: item.specifications,
         existingImagePath: !item.image && item.imagePreview
           ? item.imagePreview.replace('/images/original/', '')
@@ -59,6 +60,7 @@ export default function OrderEntry() {
         giftType: item.giftType,
         customGiftType: item.customGiftType,
         productName: item.productName,
+        artist: item.artist,
         specifications: item.specifications,
         existingImagePath: !item.image && item.imagePreview
           ? item.imagePreview.replace('/images/original/', '')
@@ -74,6 +76,7 @@ export default function OrderEntry() {
       // Add small gifts
       const smallGiftsData = smallGiftItems.map((item) => ({
         productName: item.productName,
+        artist: item.artist,
         specifications: item.specifications,
         existingImagePath: !item.image && item.imagePreview
           ? item.imagePreview.replace('/images/original/', '')
@@ -182,6 +185,7 @@ export default function OrderEntry() {
             shopName={shopName}
             previousItems={purchasedItems.map(item => ({
               productName: item.productName,
+              artist: item.artist,
               imagePreview: item.imagePreview,
               image: item.image
             }))}
@@ -199,11 +203,13 @@ export default function OrderEntry() {
             previousItems={[
               ...purchasedItems.map(item => ({
                 productName: item.productName,
+                artist: item.artist,
                 imagePreview: item.imagePreview,
                 image: item.image
               })),
               ...giftItems.map(item => ({
                 productName: item.productName,
+                artist: item.artist,
                 imagePreview: item.imagePreview,
                 image: item.image
               }))

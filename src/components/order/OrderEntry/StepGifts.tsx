@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import type { Specification, GiftType, Product } from '@/types'
 import { GIFT_TYPES } from '@/types'
 import { productApi, wishApi, type WishProduct } from '@/api/client'
+import ArtistInput from '@/components/common/ArtistInput'
 import ImageUploader from '@/components/common/ImageUploader'
 import SpecificationForm from './SpecificationForm'
 
@@ -9,6 +10,7 @@ export interface GiftItemData {
   giftType: GiftType
   customGiftType?: string
   productName: string
+  artist?: string
   image: File | null
   imagePreview: string | null
   specifications: Specification[]
@@ -21,7 +23,7 @@ interface StepGiftsProps {
   onNext: () => void
   onBack: () => void
   shopName: string
-  previousItems: { productName: string; imagePreview: string | null; image: File | null }[]
+  previousItems: { productName: string; artist?: string; imagePreview: string | null; image: File | null }[]
 }
 
 export default function StepGifts({
@@ -119,7 +121,8 @@ export default function StepGifts({
         )
         if (matchingShopProduct) {
           updateCurrentItem({
-            imagePreview: `/images/original/${matchingShopProduct.imagePath}`
+            imagePreview: `/images/original/${matchingShopProduct.imagePath}`,
+            artist: currentItem.artist ?? matchingShopProduct.artist
           })
         } else {
           const matchingPreviousItem = previousItems.find(
@@ -128,7 +131,8 @@ export default function StepGifts({
           if (matchingPreviousItem && matchingPreviousItem.imagePreview) {
             updateCurrentItem({
               imagePreview: matchingPreviousItem.imagePreview,
-              image: matchingPreviousItem.image
+              image: matchingPreviousItem.image,
+              artist: currentItem.artist ?? matchingPreviousItem.artist
             })
           } else {
             const matchingCurrentItem = items.find(
@@ -138,7 +142,8 @@ export default function StepGifts({
             if (matchingCurrentItem && matchingCurrentItem.imagePreview) {
               updateCurrentItem({
                 imagePreview: matchingCurrentItem.imagePreview,
-                image: matchingCurrentItem.image
+                image: matchingCurrentItem.image,
+                artist: currentItem.artist ?? matchingCurrentItem.artist
               })
             }
           }
@@ -176,7 +181,7 @@ export default function StepGifts({
 
   const handleSelectProduct = async (selection: string) => {
     if (selection === 'manual') {
-      updateCurrentItem({ productName: '', image: null, imagePreview: null, isFromWish: false })
+      updateCurrentItem({ productName: '', artist: undefined, image: null, imagePreview: null, isFromWish: false })
       return
     }
 
@@ -187,6 +192,7 @@ export default function StepGifts({
       if (wish) {
         updateCurrentItem({
           productName: wish.productName,
+          artist: undefined,
           imagePreview: `/images/original/${wish.imagePath}`,
           isFromWish: true
         })
@@ -199,6 +205,7 @@ export default function StepGifts({
     if (previousItem) {
       updateCurrentItem({
         productName: previousItem.productName,
+        artist: previousItem.artist,
         imagePreview: previousItem.imagePreview,
         image: previousItem.image,
         isFromWish: false
@@ -211,6 +218,7 @@ export default function StepGifts({
     if (product) {
       updateCurrentItem({
         productName: product.name,
+        artist: product.artist,
         imagePreview: `/images/original/${product.imagePath}`,
         isFromWish: false
       })
@@ -417,6 +425,8 @@ export default function StepGifts({
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
+
+            <ArtistInput value={currentItem.artist} onChange={artist => updateCurrentItem({ artist })} />
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
