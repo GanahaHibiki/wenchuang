@@ -36,7 +36,7 @@ router.get('/search', async (req, res, next) => {
       return res.status(400).json({ message: '无效的搜索类型' })
     }
 
-    const products = await searchProducts(type || 'productName', keyword)
+    const products = await searchProducts(type || 'productName', keyword, req.query.exact === 'true')
     res.json(products)
   } catch (err) {
     next(err)
@@ -247,7 +247,7 @@ router.patch('/:id/artist', async (req, res, next) => {
   try {
     const artist = req.body?.artist
     if (!isValidArtist(artist)) {
-      return res.status(400).json({ message: '美工作者必须为字符串' })
+      return res.status(400).json({ message: '美工必须为字符串' })
     }
     const product = await updateProductArtist(req.params.id, artist)
     if (!product) {

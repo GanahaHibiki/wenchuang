@@ -431,6 +431,24 @@ async function groupOrders() {
   console.log('PASS group POST/PUT all edit/image branches, same-shop reuse, shop rename, inheritance and clear')
 }
 
+async function exactMetadataSearch() {
+  const db = fixture()
+  db.shops.push({ id: 'exact-shop', name: '店铺 & A?', createdAt: date }, { id: 'prefix-shop', name: '店铺 & A? Plus', createdAt: date })
+  db.products.push(product('exact-product', '精确名称商品', 'Painter & A?'), product('prefix-product', '相似名称商品', 'Painter & A? Team'))
+  db.orders.push(order('exact-order', 'exact-shop', [item('exact-item', 'exact-product')], 4), order('prefix-order', 'prefix-shop', [item('prefix-item', 'prefix-product')], 5))
+  db.nextOrderSequence = 6
+  const test = sandbox(db)
+  for (const [type, keyword] of [['shopName', ' 店铺 & A? '], ['artist', ' painter & a? ']]) {
+    const partial = await test.run('products', 'get', '/search', { query: { type, keyword } })
+    const exact = await test.run('products', 'get', '/search', { query: { type, keyword, exact: 'true' } })
+    assert.deepEqual(partial.data.map(product => product.id), ['exact-product', 'prefix-product'])
+    assert.deepEqual(exact.data.map(product => product.id), ['exact-product'])
+    assert.equal(exact.reads, 1)
+    assert.equal(exact.writes, 0)
+  }
+  console.log('PASS exact shop/artist matching excludes prefixed names; default search keeps substring matching')
+}
+
 async function readRegression() {
   const sources = Object.fromEntries(['server/routes/products.ts', 'server/routes/orders.ts', 'server/services/database.ts'].map(file => {
     return [path.join(root, file), execFileSync('git', ['show', `fd53cc0:${file}`], { cwd: root, encoding: 'utf8' })]
@@ -467,6 +485,7 @@ async function readRegression() {
   await invalidOrderArtists()
   await normalOrders()
   await groupOrders()
+  await exactMetadataSearch()
   await readRegression()
   console.log('All artist backend regressions passed (synthetic data only).')
 })().catch(error => { console.error(error); process.exitCode = 1 })

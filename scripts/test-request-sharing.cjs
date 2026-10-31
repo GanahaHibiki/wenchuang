@@ -49,4 +49,17 @@ const fulfill = (index, data) => requests[index].resolve({ ok: true, json: async
   fulfill(6, [])
   await retry
   console.log('PASS: rejected reads cleaned up and can be retried')
+
+  const exact = productApi.search('artist', 'Alice & A?', true)
+  const partial = productApi.search('artist', 'Alice & A?')
+  assert.equal(requests.length, 9)
+  const exactUrl = new URL(requests[7].url, 'http://example.test')
+  const partialUrl = new URL(requests[8].url, 'http://example.test')
+  assert.equal(exactUrl.searchParams.get('keyword'), 'Alice & A?')
+  assert.equal(exactUrl.searchParams.get('exact'), 'true')
+  assert.equal(partialUrl.searchParams.get('exact'), null)
+  fulfill(7, [])
+  fulfill(8, [])
+  await Promise.all([exact, partial])
+  console.log('PASS: exact/partial searches have separate requests and names are safely encoded')
 })().catch(error => { console.error(error); process.exitCode = 1 })

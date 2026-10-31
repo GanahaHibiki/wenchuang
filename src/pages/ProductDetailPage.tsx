@@ -96,7 +96,7 @@ export default function ProductDetailPage() {
             <p className="text-xs text-gray-500">留空可清除。同店铺同名商品的历史记录会同步更新。</p>
             <div className="flex gap-3">
               <button type="submit" disabled={savingArtist} className="px-3 py-1 bg-blue-600 text-white rounded disabled:opacity-50">
-                {savingArtist ? '保存中...' : '保存美工作者'}
+                {savingArtist ? '保存中...' : '保存美工'}
               </button>
               <button type="button" disabled={savingArtist} onClick={() => { setEditingArtist(false); setArtistError(null) }}
                 className="px-3 py-1 bg-gray-200 rounded">取消</button>
@@ -104,8 +104,8 @@ export default function ProductDetailPage() {
           </form>
         ) : (
           <div className="flex items-center gap-3">
-            <span className="text-gray-700">美工作者：{product.artist ? (
-              <Link className="text-blue-600 hover:underline" to={`/?type=artist&keyword=${encodeURIComponent(product.artist)}`}>
+            <span className="text-gray-700">美工：{product.artist ? (
+              <Link className="text-blue-600 hover:underline" to={`/?type=artist&keyword=${encodeURIComponent(product.artist)}&exact=true`}>
                 {product.artist}
               </Link>
             ) : '未填写'}</span>
@@ -113,7 +113,7 @@ export default function ProductDetailPage() {
               setArtistDraft(product.artist || '')
               setArtistError(null)
               setEditingArtist(true)
-            }}>编辑美工作者</button>
+            }}>编辑美工</button>
           </div>
         )}
         {artistError && <p role="alert" className="mt-2 text-sm text-red-600">{artistError}</p>}

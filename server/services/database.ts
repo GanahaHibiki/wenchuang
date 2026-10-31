@@ -433,10 +433,14 @@ export interface ProductWithShop extends Product {
 
 export async function searchProducts(
   type: ProductSearchType,
-  keyword: string
+  keyword: string,
+  exact = false
 ): Promise<ProductWithShop[]> {
   const db = await loadDatabase()
   const lowerKeyword = keyword.toLowerCase().trim()
+  const matches = (name: string) => exact
+    ? name.toLowerCase().trim() === lowerKeyword
+    : name.toLowerCase().includes(lowerKeyword)
 
   const productShopMap = buildProductAssociations(db).searchShopNames
 
@@ -462,17 +466,15 @@ export async function searchProducts(
     matchingProducts = db.products.filter(
       (p) =>
         usedProductIds.has(p.id) &&
-        p.name.toLowerCase().includes(lowerKeyword)
+        matches(p.name)
     )
   } else if (type === 'artist') {
     matchingProducts = db.products.filter(p =>
-      productShopMap.has(p.id) && (p.artist || '').toLowerCase().includes(lowerKeyword)
+      productShopMap.has(p.id) && matches(p.artist || '')
     )
   } else {
     // Search by shop name
-    const matchingShops = db.shops.filter((s) =>
-      s.name.toLowerCase().includes(lowerKeyword)
-    )
+    const matchingShops = db.shops.filter((s) => matches(s.name))
     const shopIds = new Set(matchingShops.map((s) => s.id))
 
     const productIds = new Set<string>()

@@ -391,7 +391,7 @@ export default function OrderDetailPage() {
         >
           {item.product.name}
         </Link>
-        {item.product.artist && <p className="text-xs text-gray-500 mb-2">美工作者：{item.product.artist}</p>}
+        {item.product.artist && <p className="text-xs text-gray-500 mb-2">美工：{item.product.artist}</p>}
         <div className="space-y-1">
           {sortedSpecs.map((spec, index) => {
             const typeName = getSpecTypeName(spec)

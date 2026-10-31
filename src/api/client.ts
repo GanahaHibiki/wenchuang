@@ -109,8 +109,8 @@ export interface ProductWithShop extends Product {
 export const productApi = {
   getAll: () => request<Product[]>('/products'),
 
-  search: (type: ProductSearchType, keyword: string) =>
-    request<ProductWithShop[]>(`/products/search?type=${type}&keyword=${encodeURIComponent(keyword)}`),
+  search: (type: ProductSearchType, keyword: string, exact = false) =>
+    request<ProductWithShop[]>(`/products/search?type=${type}&keyword=${encodeURIComponent(keyword)}${exact ? '&exact=true' : ''}`),
 
   getDetail: (id: string) => request<ProductDetail>(`/products/${id}`),
 

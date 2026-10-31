@@ -36,11 +36,21 @@ export default function ProductCard({ product, shopName }: ProductCardProps) {
           >
             {product.name}
           </Link>
-          {product.artist && (
-            <p className="text-xs text-gray-500 mt-1 truncate">美工作者：{product.artist}</p>
-          )}
           {shopName && (
-            <p className="text-xs text-gray-500 mt-1 truncate">{shopName}</p>
+            <Link
+              to={`/?type=shopName&keyword=${encodeURIComponent(shopName)}&exact=true`}
+              className="block text-xs text-gray-500 mt-1 truncate hover:text-blue-600 hover:underline"
+            >
+              {shopName}
+            </Link>
+          )}
+          {product.artist && (
+            <p className="text-xs text-gray-500 mt-1 truncate">
+              美工：<Link
+                to={`/?type=artist&keyword=${encodeURIComponent(product.artist)}&exact=true`}
+                className="hover:text-blue-600 hover:underline"
+              >{product.artist}</Link>
+            </p>
           )}
         </div>
       </div>

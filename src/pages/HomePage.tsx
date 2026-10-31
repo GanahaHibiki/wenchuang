@@ -12,6 +12,7 @@ interface GalleryView {
   searchType: ProductSearchType
   searchKeyword: string
   visibleCount: number
+  exact?: boolean
 }
 
 export default function HomePage() {
@@ -24,8 +25,9 @@ export default function HomePage() {
     searchType: initialSearchType,
     searchKeyword: searchParams.get('keyword') ?? shopName,
     visibleCount: ITEMS_PER_PAGE,
+    exact: searchParams.get('exact') === 'true',
   })
-  const { searchType, searchKeyword, visibleCount } = view
+  const { searchType, searchKeyword, visibleCount, exact = false } = view
   const [allProducts, setAllProducts] = useState<ProductWithShop[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -35,12 +37,12 @@ export default function HomePage() {
     let active = true
     setIsLoading(true)
     setError(null)
-    productApi.search(searchType, searchKeyword)
+    productApi.search(searchType, searchKeyword, exact)
       .then(data => { if (active) setAllProducts(data) })
       .catch(err => { if (active) setError(err instanceof Error ? err.message : '加载失败') })
       .finally(() => { if (active) setIsLoading(false) })
     return () => { active = false }
-  }, [searchType, searchKeyword])
+  }, [searchType, searchKeyword, exact])
 
   const handleSearch = (type: GalleryView['searchType'], keyword: string) => {
     setView({ searchType: type, searchKeyword: keyword, visibleCount: ITEMS_PER_PAGE })

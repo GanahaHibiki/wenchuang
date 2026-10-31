@@ -10,6 +10,7 @@ const spec = { type: '大食量set', sequenceNumber: 1, quantity: 1, purchasePri
 const products = [
   { id: 'old', name: '旧商品', shopName: '旧店铺', imagePath: 'old.png', thumbnailPath: 'old.jpg', createdAt: '2026-01-01' },
   { id: 'existing', name: '已有作者商品', artist: '画师乙', shopName: '旧店铺', imagePath: 'existing.png', thumbnailPath: 'existing.jpg', createdAt: '2026-01-01' },
+  { id: 'prefix', name: '相似名称商品', artist: '画师甲工作室', shopName: '旧店铺扩展', imagePath: 'prefix.png', thumbnailPath: 'prefix.jpg', createdAt: '2026-01-01' },
 ]
 const shops = [{ id: 'shop-old', name: '旧店铺', createdAt: '2026-01-01' }]
 let createdOrder
@@ -60,7 +61,10 @@ async function ready(page) {
       } else if (url.pathname === '/api/products/search') {
         const type = url.searchParams.get('type')
         const keyword = (url.searchParams.get('keyword') || '').toLowerCase()
-        data = products.filter(product => (type === 'artist' ? product.artist || '' : type === 'shopName' ? product.shopName : product.name).toLowerCase().includes(keyword))
+        data = products.filter(product => {
+          const name = (type === 'artist' ? product.artist || '' : type === 'shopName' ? product.shopName : product.name).toLowerCase()
+          return url.searchParams.get('exact') === 'true' ? name === keyword : name.includes(keyword)
+        })
       } else if (url.pathname.startsWith('/api/products/')) {
         data = { ...productById(url.pathname.split('/').pop()), entries: { purchased: [], gifts: [], smallGifts: [] } }
       } else if (url.pathname.startsWith('/api/shops')) {
@@ -98,12 +102,32 @@ async function ready(page) {
       await route.fulfill({ json: data })
     })
 
+    await page.goto(base)
+    await ready(page)
+    const existingCard = page.locator('main a[href="/products/existing"]').locator('..')
+    assert(await existingCard.evaluate(card => {
+      const shop = card.querySelector('a[href*="type=shopName"]')
+      const artist = card.querySelector('a[href*="type=artist"]')
+      return shop && artist && shop.getBoundingClientRect().top < artist.getBoundingClientRect().top
+    }))
+    await existingCard.getByRole('link', { name: '旧店铺', exact: true }).click()
+    await ready(page)
+    assert.equal(await page.locator('main select').inputValue(), 'shopName')
+    assert.equal(new URL(page.url()).searchParams.get('exact'), 'true')
+    assert.equal(await page.locator('main a[href^="/products/"]').count(), 2)
+    await page.getByRole('link', { name: '画师乙', exact: true }).click()
+    await ready(page)
+    assert.equal(await page.locator('main select').inputValue(), 'artist')
+    assert.equal(await page.locator('main a[href^="/products/"]').count(), 1)
+    assert.equal(await page.locator('main select option[value="artist"]').innerText(), '美工')
+    console.log('PASS: shop displayed above artist; both card names link to exact search results')
+
     await page.goto(`${base}/products/old`)
     await ready(page)
-    assert.match(await page.locator('main').innerText(), /美工作者：未填写/)
-    await page.getByRole('button', { name: '编辑美工作者' }).click()
-    await page.getByPlaceholder('请输入美工作者名称').fill('画师甲')
-    await page.getByRole('button', { name: '保存美工作者', exact: true }).click()
+    assert.match(await page.locator('main').innerText(), /美工：未填写/)
+    await page.getByRole('button', { name: '编辑美工' }).click()
+    await page.getByPlaceholder('请输入美工名称').fill('画师甲')
+    await page.getByRole('button', { name: '保存美工', exact: true }).click()
     await page.getByRole('link', { name: '画师甲', exact: true }).waitFor()
     await page.reload()
     await ready(page)
@@ -113,20 +137,25 @@ async function ready(page) {
     assert.equal(await page.locator('main a[href^="/products/"]').count(), 1)
     assert.match(await page.locator('main').innerText(), /旧商品/)
     console.log('PASS: old product artist can be saved; artist link filters the gallery')
+    await page.getByPlaceholder('输入关键词搜索...').fill('画师甲')
+    await page.getByRole('button', { name: '搜索', exact: true }).click()
+    await ready(page)
+    assert.equal(await page.locator('main a[href^="/products/"]').count(), 2)
+    console.log('PASS: manual artist search retains partial matching; clicked name excludes similarly named artists')
 
     await page.goto(`${base}/products/old`)
     await ready(page)
-    await page.getByRole('button', { name: '编辑美工作者' }).click()
-    await page.getByPlaceholder('请输入美工作者名称').fill('')
-    await page.getByRole('button', { name: '保存美工作者', exact: true }).click()
-    await page.waitForFunction(() => document.querySelector('main')?.textContent.includes('美工作者：未填写'))
+    await page.getByRole('button', { name: '编辑美工' }).click()
+    await page.getByPlaceholder('请输入美工名称').fill('')
+    await page.getByRole('button', { name: '保存美工', exact: true }).click()
+    await page.waitForFunction(() => document.querySelector('main')?.textContent.includes('美工：未填写'))
     console.log('PASS: old artist can be cleared without changing product data')
 
     await page.goto(`${base}/order-entry`)
     await page.getByPlaceholder('输入或选择店铺名').fill('新店铺')
     await page.getByRole('button', { name: '确认并进入下一步' }).click()
     await page.getByPlaceholder('请输入商品名称', { exact: true }).fill('新商品')
-    await page.getByPlaceholder('请输入美工作者名称').fill('画师丙')
+    await page.getByPlaceholder('请输入美工名称').fill('画师丙')
     await page.locator('input[type="file"]').setInputFiles(image)
     await page.getByLabel('大食量set', { exact: true }).check()
     await page.getByRole('button', { name: '进入下一步', exact: true }).click()
@@ -135,21 +164,21 @@ async function ready(page) {
     await page.waitForURL(`${base}/orders/new-order-1`)
     await ready(page)
     assert.equal(submitted[0].groups[0].items[0].artist, '画师丙')
-    assert.match(await page.locator('main').innerText(), /美工作者：画师丙/)
+    assert.match(await page.locator('main').innerText(), /美工：画师丙/)
     console.log('PASS: new shop order submits and displays artist')
 
     await page.goto(`${base}/group-order-entry`)
     await page.getByPlaceholder('输入或选择店铺名').fill('旧店铺')
     await page.locator('main select').first().waitFor()
     await page.locator('main select').first().selectOption('existing')
-    assert.equal(await page.getByPlaceholder('请输入美工作者名称').inputValue(), '画师乙')
+    assert.equal(await page.getByPlaceholder('请输入美工名称').inputValue(), '画师乙')
     await page.getByLabel('大食量set', { exact: true }).check()
     await page.getByRole('button', { name: '添加新店铺', exact: true }).click()
     await page.waitForTimeout(300)
     assert.equal(await page.getByLabel('大食量set', { exact: true }).isChecked(), false)
     await page.getByPlaceholder('输入或选择店铺名').fill('拼单新店铺')
     await page.getByPlaceholder('请输入商品名称', { exact: true }).fill('拼单新商品')
-    await page.getByPlaceholder('请输入美工作者名称').fill('画师丁')
+    await page.getByPlaceholder('请输入美工名称').fill('画师丁')
     await page.locator('input[type="file"]').setInputFiles(image)
     await page.getByLabel('大食量set', { exact: true }).check()
     await page.getByRole('button', { name: '提交拼单订单', exact: true }).click()
@@ -162,14 +191,14 @@ async function ready(page) {
     await page.goto(`${base}/orders/old-order`)
     await ready(page)
     await page.locator('section').filter({ has: page.getByRole('heading', { name: '已购商品', exact: true }) }).getByRole('button', { name: '编辑', exact: true }).click()
-    await page.getByPlaceholder('请输入美工作者名称').first().fill('画师新信息')
+    await page.getByPlaceholder('请输入美工名称').first().fill('画师新信息')
     await page.getByRole('button', { name: '保存', exact: true }).click()
     await page.getByRole('button', { name: '保存', exact: true }).waitFor({ state: 'hidden' })
     const edited = submitted[2]
     assert.equal(edited.purchasedItems[0].artist, '画师新信息')
     assert(!Object.hasOwn(edited.purchasedItems[1], 'artist'))
     assert(!Object.hasOwn(edited.gifts[0], 'artist'))
-    assert.match(await page.locator('main').innerText(), /美工作者：画师新信息/)
+    assert.match(await page.locator('main').innerText(), /美工：画师新信息/)
     console.log('PASS: existing order edit submits changed artist only; untouched categories do not overwrite it')
     assert.deepEqual(errors, [])
   } finally {

@@ -38,7 +38,7 @@ export default function SearchBar({ onSearch, initialType = 'productName', initi
       >
         <option value="productName">商品名</option>
         <option value="shopName">店铺名</option>
-        {enableArtist && <option value="artist">美工作者</option>}
+        {enableArtist && <option value="artist">美工</option>}
       </select>
 
       <input

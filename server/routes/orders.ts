@@ -174,7 +174,7 @@ router.post('/', upload.any(), async (req, res, next) => {
     const parsedGifts = gifts ? JSON.parse(gifts) : []
     const parsedSmallGifts = smallGifts ? JSON.parse(smallGifts) : []
     if (hasInvalidArtists([...parsedPurchased, ...parsedGifts, ...parsedSmallGifts])) {
-      return res.status(400).json({ message: '美工作者必须为字符串' })
+      return res.status(400).json({ message: '美工必须为字符串' })
     }
 
     // Create or find shop
@@ -344,7 +344,7 @@ router.post('/group', upload.any(), async (req, res, next) => {
     }
 
     if (hasInvalidArtists(parsedShops.flatMap(shop => shop.items || []))) {
-      return res.status(400).json({ message: '美工作者必须为字符串' })
+      return res.status(400).json({ message: '美工必须为字符串' })
     }
     const associations = buildProductAssociations(await loadDatabase())
     const artists: OrderArtistInput[] = []
@@ -484,7 +484,7 @@ router.put('/:id', upload.any(), async (req, res, next) => {
       const parsedShopIds = JSON.parse(shopIdsData)
       const parsedShopNames = shopNamesData ? JSON.parse(shopNamesData) : {}
       if (hasInvalidArtists(parsedItems)) {
-        return res.status(400).json({ message: '美工作者必须为字符串' })
+        return res.status(400).json({ message: '美工必须为字符串' })
       }
       const artists: OrderArtistInput[] = []
 
@@ -589,7 +589,7 @@ router.put('/:id', upload.any(), async (req, res, next) => {
     const parsedGifts = gifts ? JSON.parse(gifts) : []
     const parsedSmallGifts = smallGifts ? JSON.parse(smallGifts) : []
     if (hasInvalidArtists([...parsedPurchased, ...parsedGifts, ...parsedSmallGifts])) {
-      return res.status(400).json({ message: '美工作者必须为字符串' })
+      return res.status(400).json({ message: '美工必须为字符串' })
     }
     const artists: OrderArtistInput[] = []
 
