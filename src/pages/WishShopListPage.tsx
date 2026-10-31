@@ -28,7 +28,7 @@ export default function WishShopListPage() {
   }
 
   if (isLoading) {
-    return <div className="text-center py-12 text-gray-500">加载中...</div>
+    return <div data-scroll-loading className="text-center py-12 text-gray-500">加载中...</div>
   }
 
   if (error) {

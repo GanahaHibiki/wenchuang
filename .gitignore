@@ -1,6 +1,9 @@
 # Dependencies
 node_modules/
 
+# Local validation caches
+.cache/
+
 # Build output
 dist/
 

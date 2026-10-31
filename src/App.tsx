@@ -1,4 +1,4 @@
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, useLocation } from 'react-router-dom'
 import MainLayout from './components/layout/MainLayout'
 import HomePage from './pages/HomePage'
 import SetProductsPage from './pages/SetProductsPage'
@@ -13,9 +13,11 @@ import ShopListPage from './pages/ShopListPage'
 import WishShopListPage from './pages/WishShopListPage'
 
 function App() {
+  const location = useLocation()
+
   return (
     <MainLayout>
-      <Routes>
+      <Routes key={location.key}>
         <Route path="/" element={<HomePage />} />
         <Route path="/set-products" element={<SetProductsPage />} />
         <Route path="/loose-items" element={<LooseItemsPage />} />

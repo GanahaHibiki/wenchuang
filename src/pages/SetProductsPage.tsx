@@ -1,15 +1,17 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { productApi, SetProduct } from '@/api/client'
+import { useHistoryState } from '@/hooks/useHistoryState'
 import LazyImage from '@/components/common/LazyImage'
 
 export default function SetProductsPage() {
   const [products, setProducts] = useState<SetProduct[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set())
+  const [selectedPaths, setSelectedPaths] = useHistoryState<string[]>('setSelectedPaths', [])
+  const selectedProducts = new Set(selectedPaths)
   const [isMerging, setIsMerging] = useState(false)
-  const [mergeResult, setMergeResult] = useState<{ filename: string; path: string } | null>(null)
+  const [mergeResult, setMergeResult] = useHistoryState<{ filename: string; path: string } | null>('setMergeResult', null)
 
   useEffect(() => {
     const loadProducts = async () => {
@@ -30,14 +32,14 @@ export default function SetProductsPage() {
   }, [])
 
   const toggleSelection = (imagePath: string) => {
-    setSelectedProducts((prev) => {
+    setSelectedPaths((prev) => {
       const next = new Set(prev)
       if (next.has(imagePath)) {
         next.delete(imagePath)
       } else if (next.size < 9) {
         next.add(imagePath)
       }
-      return next
+      return Array.from(next)
     })
   }
 
@@ -51,7 +53,7 @@ export default function SetProductsPage() {
     try {
       const result = await productApi.mergeImages(Array.from(selectedProducts))
       setMergeResult({ filename: result.filename, path: result.path })
-      setSelectedProducts(new Set())
+      setSelectedPaths([])
     } catch (err) {
       setError(err instanceof Error ? err.message : '拼接失败')
     } finally {
@@ -60,7 +62,7 @@ export default function SetProductsPage() {
   }
 
   if (isLoading) {
-    return <div className="text-center py-12 text-gray-500">加载中...</div>
+    return <div data-scroll-loading className="text-center py-12 text-gray-500">加载中...</div>
   }
 
   if (error && !mergeResult) {
@@ -88,7 +90,7 @@ export default function SetProductsPage() {
           </span>
           {selectedProducts.size > 0 && (
             <button
-              onClick={() => setSelectedProducts(new Set())}
+              onClick={() => setSelectedPaths([])}
               className="text-sm text-gray-500 hover:text-gray-700"
             >
               清空选择
@@ -175,7 +177,7 @@ export default function SetProductsPage() {
                 </button>
 
                 <Link
-                  to={`/products/${product.productId}?from=set-products`}
+                  to={`/products/${product.productId}`}
                   className="block"
                 >
                   <div className="aspect-[4/3] bg-gray-100">

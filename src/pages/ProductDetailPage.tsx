@@ -1,16 +1,13 @@
 import { useState, useEffect } from 'react'
-import { useParams, Link, useSearchParams } from 'react-router-dom'
+import { useParams, Link } from 'react-router-dom'
 import { productApi } from '@/api/client'
 import type { ProductDetail } from '@/types'
 import ImageViewer from '@/components/common/ImageViewer'
+import BackButton from '@/components/common/BackButton'
 import { sortSpecifications } from '@/utils/specificationSort'
 
 export default function ProductDetailPage() {
   const { id } = useParams<{ id: string }>()
-  const [searchParams] = useSearchParams()
-  const fromOrderId = searchParams.get('from')
-  const fromPage = searchParams.get('from')
-  const categories = searchParams.get('categories')
   const [product, setProduct] = useState<ProductDetail | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -37,7 +34,7 @@ export default function ProductDetailPage() {
   }, [id])
 
   if (isLoading) {
-    return <div className="text-center py-12 text-gray-500">加载中...</div>
+    return <div data-scroll-loading className="text-center py-12 text-gray-500">加载中...</div>
   }
 
   if (error || !product) {
@@ -63,34 +60,12 @@ export default function ProductDetailPage() {
 
   const { entries } = product
 
-  // Determine back link based on source
-  const getBackLink = () => {
-    if (fromPage === 'set-products') {
-      return { url: '/set-products', label: '返回Set商品浏览' }
-    } else if (fromPage === 'loose-items') {
-      const categoriesParam = categories ? `?categories=${categories}` : ''
-      return { url: `/loose-items${categoriesParam}`, label: '返回散件商品浏览' }
-    } else if (fromOrderId && fromOrderId.startsWith('order-')) {
-      // Handle legacy order ID format
-      const orderId = fromOrderId.replace('order-', '')
-      return { url: `/orders/${orderId}`, label: '返回订单详情' }
-    } else if (fromOrderId) {
-      // Try to parse as order ID
-      return { url: `/orders/${fromOrderId}`, label: '返回订单详情' }
-    }
-    return { url: '/', label: '返回首页' }
-  }
-
-  const backLink = getBackLink()
-
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">{product.name}</h1>
-        <Link to={backLink.url} className="text-blue-500 hover:underline">
-          {backLink.label}
-        </Link>
+        <BackButton />
       </div>
 
       {/* Main Content - Left-Right Layout */}

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { orderApi } from '@/api/client'
+import { useHistoryState } from '@/hooks/useHistoryState'
 import type { OrderSummary, DeliveryStatus } from '@/types'
 
 type SortField = 'totalAmount' | 'giftTotal' | 'giftRatio'
@@ -11,8 +12,8 @@ export default function OrderListPage() {
   const [orders, setOrders] = useState<OrderSummary[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [sortField, setSortField] = useState<SortField | null>(null)
-  const [sortOrder, setSortOrder] = useState<SortOrder>('desc')
+  const [sortField, setSortField] = useHistoryState<SortField | null>('orderSortField', null)
+  const [sortOrder, setSortOrder] = useHistoryState<SortOrder>('orderSortOrder', 'desc')
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
   const [noteValue, setNoteValue] = useState('')
   const [editingOrderTimeId, setEditingOrderTimeId] = useState<string | null>(null)
@@ -260,7 +261,7 @@ export default function OrderListPage() {
   }
 
   if (isLoading) {
-    return <div className="text-center py-12 text-gray-500">加载中...</div>
+    return <div data-scroll-loading className="text-center py-12 text-gray-500">加载中...</div>
   }
 
   if (error) {

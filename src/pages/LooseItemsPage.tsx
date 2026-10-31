@@ -66,9 +66,9 @@ export default function LooseItemsPage() {
 
       // Update URL params
       if (next.size > 0) {
-        setSearchParams({ categories: Array.from(next).join(',') })
+        setSearchParams({ categories: Array.from(next).join(',') }, { replace: true })
       } else {
-        setSearchParams({})
+        setSearchParams({}, { replace: true })
       }
 
       return next
@@ -251,7 +251,7 @@ export default function LooseItemsPage() {
   }
 
   if (isLoading) {
-    return <div className="text-center py-12 text-gray-500">加载中...</div>
+    return <div data-scroll-loading className="text-center py-12 text-gray-500">加载中...</div>
   }
 
   if (error) {
@@ -290,7 +290,7 @@ export default function LooseItemsPage() {
           <button
             onClick={() => {
               setSelectedCategories(new Set())
-              setSearchParams({})
+              setSearchParams({}, { replace: true })
             }}
             className="mt-3 text-sm text-blue-600 hover:text-blue-700"
           >
@@ -308,16 +308,10 @@ export default function LooseItemsPage() {
           {filteredProducts.map((product) => {
             const quantities = getProductQuantities(product)
 
-            // Build the link with source and categories
-            const categoriesParam = selectedCategories.size > 0
-              ? `&categories=${Array.from(selectedCategories).join(',')}`
-              : ''
-            const productLink = `/products/${product.productId}?from=loose-items${categoriesParam}`
-
             return (
               <Link
                 key={product.productId}
-                to={productLink}
+                to={`/products/${product.productId}`}
                 className="bg-white rounded-lg shadow hover:shadow-md transition-shadow overflow-hidden"
               >
                 <div className="aspect-[4/3] bg-gray-100">

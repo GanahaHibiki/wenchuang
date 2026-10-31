@@ -6,6 +6,7 @@ import ImageViewer from '@/components/common/ImageViewer'
 import LazyImage from '@/components/common/LazyImage'
 import OrderItemEditor from '@/components/order/OrderItemEditor'
 import GroupOrderItemEditor from '@/components/order/GroupOrderItemEditor'
+import BackButton from '@/components/common/BackButton'
 import { sortSpecifications } from '@/utils/specificationSort'
 
 type ExtendedOrderDetail = OrderDetail & { groupSequenceNumber?: number; groupOrderName?: string }
@@ -320,7 +321,7 @@ export default function OrderDetailPage() {
   }
 
   if (isLoading) {
-    return <div className="text-center py-12 text-gray-500">加载中...</div>
+    return <div data-scroll-loading className="text-center py-12 text-gray-500">加载中...</div>
   }
 
   if (error || !order) {
@@ -370,7 +371,7 @@ export default function OrderDetailPage() {
           />
         </div>
         <Link
-          to={`/products/${item.product.id}?from=${order.id}`}
+          to={`/products/${item.product.id}`}
           className="font-medium text-blue-600 hover:underline text-sm mb-2 line-clamp-2"
         >
           {item.product.name}
@@ -575,12 +576,7 @@ export default function OrderDetailPage() {
           >
             {isDeleting ? '删除中...' : '删除订单'}
           </button>
-          <Link
-            to="/orders"
-            className="text-blue-500 hover:underline"
-          >
-            返回列表
-          </Link>
+          <BackButton fallback="/orders" />
         </div>
       </div>
 
