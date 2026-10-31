@@ -19,6 +19,7 @@ import {
 import { saveImage, copyAndRenameImage, deleteImage } from '../services/imageService.js'
 import { buildProductAssociations, productGroupKey, hasInvalidArtists, hasInvalidStyles, orderArtistInput } from '../services/productAssociations.js'
 import type { OrderArtistInput } from '../services/productAssociations.js'
+import { validateOrderRelations } from '../services/productRelations.js'
 import type {
   Order,
   OrderItem,
@@ -178,6 +179,12 @@ router.post('/', upload.any(), async (req, res, next) => {
     }
     if (hasInvalidStyles([...parsedPurchased, ...parsedGifts, ...parsedSmallGifts])) {
       return res.status(400).json({ message: '无效的风格分类' })
+    }
+
+    const relationItems = [...parsedPurchased, ...parsedGifts, ...parsedSmallGifts]
+    if (relationItems.some(item => Object.prototype.hasOwnProperty.call(item, 'relatedProductIds'))) {
+      const relationError = validateOrderRelations(await loadDatabase(), relationItems.map(item => ({ ...item, shopName, shopId: undefined })))
+      if (relationError) return res.status(400).json({ message: relationError })
     }
 
     // Create or find shop
@@ -352,7 +359,12 @@ router.post('/group', upload.any(), async (req, res, next) => {
     if (hasInvalidStyles(parsedShops.flatMap(shop => shop.items || []))) {
       return res.status(400).json({ message: '无效的风格分类' })
     }
-    const associations = buildProductAssociations(await loadDatabase())
+    const snapshot = await loadDatabase()
+    const relationError = validateOrderRelations(snapshot, parsedShops.flatMap(shop =>
+      (shop.items || []).map((item: object) => ({ ...item, shopName: shop.shopName?.trim(), shopId: undefined }))
+    ))
+    if (relationError) return res.status(400).json({ message: relationError })
+    const associations = buildProductAssociations(snapshot)
     const artists: OrderArtistInput[] = []
     const orderItems: OrderItem[] = []
     let totalAmount = 0
@@ -473,7 +485,8 @@ router.post('/group', upload.any(), async (req, res, next) => {
 router.put('/:id', upload.any(), async (req, res, next) => {
   try {
     const { id } = req.params
-    const existingOrder = await getOrderById(id)
+    const snapshot = await loadDatabase()
+    const existingOrder = await getOrderById(id, snapshot)
 
     if (!existingOrder) {
       return res.status(404).json({ message: '订单不存在' })
@@ -495,6 +508,11 @@ router.put('/:id', upload.any(), async (req, res, next) => {
       if (hasInvalidStyles(parsedItems)) {
         return res.status(400).json({ message: '无效的风格分类' })
       }
+      const relationError = validateOrderRelations(snapshot, parsedItems.map((item: { shopId?: string }) => ({
+        ...item,
+        shopName: item.shopId ? parsedShopNames[item.shopId] || snapshot.shops.find(shop => shop.id === item.shopId)?.name : undefined,
+      })))
+      if (relationError) return res.status(400).json({ message: relationError })
       const artists: OrderArtistInput[] = []
 
       // Update or create shops
@@ -603,6 +621,12 @@ router.put('/:id', upload.any(), async (req, res, next) => {
     if (hasInvalidStyles([...parsedPurchased, ...parsedGifts, ...parsedSmallGifts])) {
       return res.status(400).json({ message: '无效的风格分类' })
     }
+    const relationError = validateOrderRelations(snapshot, [...parsedPurchased, ...parsedGifts, ...parsedSmallGifts].map(item => ({
+      ...item,
+      shopId: existingOrder.shopId,
+      shopName: req.body.shopName?.trim() || snapshot.shops.find(shop => shop.id === existingOrder.shopId)?.name,
+    })))
+    if (relationError) return res.status(400).json({ message: relationError })
     const artists: OrderArtistInput[] = []
 
     // Check if shop name is being updated

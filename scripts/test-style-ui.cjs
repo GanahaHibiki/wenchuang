@@ -70,6 +70,8 @@ async function selectFilter(page, style) {
         if (style) product.style = style
         else delete product.style
         data = product
+      } else if (request.method() === 'GET' && url.pathname.endsWith('/relations')) {
+        data = []
       } else if (url.pathname === '/api/products/search') {
         const type = url.searchParams.get('type')
         const keyword = (url.searchParams.get('keyword') || '').trim().toLowerCase()

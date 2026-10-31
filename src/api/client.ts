@@ -7,6 +7,7 @@ import type {
   ProductDetail,
   ProductSearchType,
   ProductStyle,
+  ProductReference,
   WishItem,
 } from '@/types'
 
@@ -105,13 +106,28 @@ export interface LooseItemProduct {
 
 export interface ProductWithShop extends Product {
   shopName: string
+  linkedProducts?: ProductReference[]
 }
 
 export const productApi = {
   getAll: () => request<Product[]>('/products'),
 
-  search: (type: ProductSearchType, keyword: string, exact = false, style?: ProductStyle) =>
-    request<ProductWithShop[]>(`/products/search?type=${type}&keyword=${encodeURIComponent(keyword)}${exact ? '&exact=true' : ''}${style ? `&style=${encodeURIComponent(style)}` : ''}`),
+  search: (type: ProductSearchType, keyword: string, exact = false, style?: ProductStyle, groupRelated = false) =>
+    request<ProductWithShop[]>(`/products/search?type=${type}&keyword=${encodeURIComponent(keyword)}${exact ? '&exact=true' : ''}${style ? `&style=${encodeURIComponent(style)}` : ''}${groupRelated ? '&groupRelated=true' : ''}`),
+
+  getLinkCandidates: (shopName: string, keyword: string, productId?: string) => {
+    const params = new URLSearchParams({ shopName, keyword })
+    if (productId) params.set('productId', productId)
+    return request<ProductReference[]>(`/products/link-candidates?${params}`)
+  },
+
+  getRelations: (id: string) => request<ProductReference[]>(`/products/${id}/relations`),
+
+  updateRelations: (id: string, productIds: string[]) => request<ProductReference[]>(`/products/${id}/relations`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ productIds }),
+  }),
 
   getDetail: (id: string) => request<ProductDetail>(`/products/${id}`),
 

@@ -42,6 +42,8 @@ export default function OrderEntry() {
       // Add purchased items
       const purchasedData = purchasedItems.map((item) => ({
         productName: item.productName,
+        productId: item.sourceProductId,
+        relatedProductIds: item.relatedProducts?.map(product => product.id),
         artist: item.artist,
         style: item.style,
         specifications: item.specifications,
@@ -61,6 +63,8 @@ export default function OrderEntry() {
         giftType: item.giftType,
         customGiftType: item.customGiftType,
         productName: item.productName,
+        productId: item.sourceProductId,
+        relatedProductIds: item.relatedProducts?.map(product => product.id),
         artist: item.artist,
         style: item.style,
         specifications: item.specifications,
@@ -78,6 +82,8 @@ export default function OrderEntry() {
       // Add small gifts
       const smallGiftsData = smallGiftItems.map((item) => ({
         productName: item.productName,
+        productId: item.sourceProductId,
+        relatedProductIds: item.relatedProducts?.map(product => product.id),
         artist: item.artist,
         style: item.style,
         specifications: item.specifications,
@@ -188,6 +194,8 @@ export default function OrderEntry() {
             shopName={shopName}
             previousItems={purchasedItems.map(item => ({
               productName: item.productName,
+              sourceProductId: item.sourceProductId,
+              relatedProducts: item.relatedProducts,
               artist: item.artist,
               style: item.style,
               imagePreview: item.imagePreview,
@@ -207,6 +215,8 @@ export default function OrderEntry() {
             previousItems={[
               ...purchasedItems.map(item => ({
                 productName: item.productName,
+                sourceProductId: item.sourceProductId,
+                relatedProducts: item.relatedProducts,
                 artist: item.artist,
                 style: item.style,
                 imagePreview: item.imagePreview,
@@ -214,6 +224,8 @@ export default function OrderEntry() {
               })),
               ...giftItems.map(item => ({
                 productName: item.productName,
+                sourceProductId: item.sourceProductId,
+                relatedProducts: item.relatedProducts,
                 artist: item.artist,
                 style: item.style,
                 imagePreview: item.imagePreview,

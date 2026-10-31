@@ -94,15 +94,17 @@ export interface OrderArtistInput {
   // Preserve selected product information when editing creates a replacement ID.
   sourceProductId?: string
   shopId?: string
+  relatedProductIds?: string[]
 }
 
-export function orderArtistInput(productId: string, item: { artist?: string; style?: ProductStyle | ''; productId?: string; shopId?: string }): OrderArtistInput {
+export function orderArtistInput(productId: string, item: { artist?: string; style?: ProductStyle | ''; productId?: string; shopId?: string; relatedProductIds?: string[] }): OrderArtistInput {
   return {
     productId,
     sourceProductId: item.productId,
     shopId: item.shopId,
     ...(Object.prototype.hasOwnProperty.call(item, 'artist') ? { artist: item.artist } : {}),
     ...(Object.prototype.hasOwnProperty.call(item, 'style') ? { style: item.style } : {}),
+    ...(Object.prototype.hasOwnProperty.call(item, 'relatedProductIds') ? { relatedProductIds: item.relatedProductIds } : {}),
   }
 }
 

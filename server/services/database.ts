@@ -4,6 +4,9 @@ import { fileURLToPath } from 'url'
 import type { Database, Shop, Product, Order, WishItem, ProductSearchType, ProductStyle } from '../../src/types/index.js'
 import { applyOrderArtists, buildProductAssociations, relatedProductIds, setArtist, setStyle } from './productAssociations.js'
 import type { OrderArtistInput } from './productAssociations.js'
+import { applyOrderRelations, buildRelationIndex, cleanProductLinks, relationMembers, setProductRelations, validateRelationSelection } from './productRelations.js'
+import type { ProductReference } from './productRelations.js'
+import { selectImagesForSnapshot } from './imageResolution.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const DATA_DIR = path.join(__dirname, '../../data')
@@ -441,15 +444,29 @@ export async function updateProductStyle(id: string, style: ProductStyle | ''): 
   return product
 }
 
+export async function updateProductRelations(id: string, productIds: unknown): Promise<ProductReference[] | null> {
+  const db = await loadDatabase()
+  const index = buildRelationIndex(db)
+  if (!index.associations.products.has(id)) return null
+  const source = index.byId.get(id)
+  const error = validateRelationSelection(index, productIds, source?.reference || {})
+  if (error) throw Object.assign(new Error(error), { status: 400 })
+  const targets = setProductRelations(db, id, productIds as string[])
+  await saveDatabase(db)
+  return targets
+}
+
 export interface ProductWithShop extends Product {
   shopName: string
+  linkedProducts?: ProductReference[]
 }
 
 export async function searchProducts(
   type: ProductSearchType,
   keyword: string,
   exact = false,
-  style?: ProductStyle
+  style?: ProductStyle,
+  groupRelated = false
 ): Promise<ProductWithShop[]> {
   const db = await loadDatabase()
   const lowerKeyword = keyword.toLowerCase().trim()
@@ -457,7 +474,8 @@ export async function searchProducts(
     ? name.toLowerCase().trim() === lowerKeyword
     : name.toLowerCase().includes(lowerKeyword)
 
-  const productShopMap = buildProductAssociations(db).searchShopNames
+  const associations = buildProductAssociations(db)
+  const productShopMap = associations.searchShopNames
 
   let matchingProducts: Product[] = []
 
@@ -541,7 +559,36 @@ export async function searchProducts(
   }
 
   // Sort by creation date, most recent first
-  return deduplicated.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+  const sorted = deduplicated.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+  if (!groupRelated || !db.productLinks?.length) return sorted
+
+  const relations = buildRelationIndex(db, associations)
+  const selectImage = selectImagesForSnapshot(path.join(DATA_DIR, 'images', 'original'))
+  const seenGroups = new Set<Set<string>>()
+  const grouped: Promise<ProductWithShop>[] = []
+  // Every row here has passed ALL filters before grouping. Never combine a
+  // keyword match on one member with a style match on another member.
+  for (const product of sorted) {
+    const source = relations.byId.get(product.id)
+    const group = source && relations.groupByKey.get(source.key)
+    if (!group) {
+      grouped.push(Promise.resolve(product))
+      continue
+    }
+    if (seenGroups.has(group)) continue
+    seenGroups.add(group)
+    const members = relationMembers(relations, product.id)
+    const linkedProducts = members.map(member => member.reference)
+    const images = members.flatMap(member => [...member.ids].map(id => associations.products.get(id)!))
+    grouped.push(selectImage(images).then(image => ({
+      ...associations.products.get(linkedProducts[0].id)!,
+      name: linkedProducts.map(member => member.name).join('/'),
+      shopName: linkedProducts.map(member => member.shopName).join('/'),
+      ...(image ? { imagePath: image.imagePath, thumbnailPath: image.thumbnailPath } : {}),
+      linkedProducts,
+    })))
+  }
+  return Promise.all(grouped)
 }
 
 // ==================== Order Operations ====================
@@ -638,7 +685,9 @@ export async function createOrder(
 
   db.nextOrderSequence++
   applyOrderArtists(db, newOrder, artists)
+  applyOrderRelations(db, newOrder, artists)
   db.orders.push(newOrder)
+  cleanProductLinks(db)
   await saveDatabase(db)
 
   return newOrder
@@ -656,7 +705,9 @@ export async function updateOrder(
 
   const updatedOrder = { ...db.orders[index], ...updates }
   applyOrderArtists(db, updatedOrder, artists)
+  applyOrderRelations(db, updatedOrder, artists)
   db.orders[index] = updatedOrder
+  cleanProductLinks(db)
   await saveDatabase(db)
 
   return db.orders[index]
@@ -672,6 +723,10 @@ export async function deleteOrder(id: string): Promise<DeleteOrderResult> {
   const index = db.orders.findIndex((o) => o.id === id)
 
   if (index === -1) return { success: false, deletedProducts: [] }
+
+  // Expand historical IDs before removing the source order, so its logical
+  // product remains linked if another same-shop/name record survives.
+  cleanProductLinks(db)
 
   // Remove the order
   db.orders.splice(index, 1)
@@ -736,6 +791,7 @@ export async function deleteOrder(id: string): Promise<DeleteOrderResult> {
   db.products = db.products.filter(product =>
     usedProductIds.has(product.id)
   )
+  cleanProductLinks(db)
 
   await saveDatabase(db)
 

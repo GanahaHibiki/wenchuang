@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
-import type { Specification, Product, ProductStyle } from '@/types'
+import type { Specification, Product, ProductStyle, ProductReference } from '@/types'
 import { productApi, wishApi, type WishProduct } from '@/api/client'
+import RelatedProductSelector from '@/components/common/RelatedProductSelector'
 import StyleInput from '@/components/common/StyleInput'
 import ArtistInput from '@/components/common/ArtistInput'
 import ImageUploader from '@/components/common/ImageUploader'
@@ -10,6 +11,8 @@ export interface PurchasedItemData {
   productName: string
   artist?: string
   style?: ProductStyle | ''
+  sourceProductId?: string
+  relatedProducts?: ProductReference[]
   image: File | null
   imagePreview: string | null
   specifications: Specification[]
@@ -148,7 +151,8 @@ export default function StepPurchased({
           updateCurrentItem({
             imagePreview: `/images/original/${matchingShopProduct.imagePath}`,
             artist: currentItem.artist ?? matchingShopProduct.artist,
-            style: currentItem.style ?? matchingShopProduct.style
+            style: currentItem.style ?? matchingShopProduct.style,
+            sourceProductId: matchingShopProduct.id,
           })
         } else {
           // Check other items in current step
@@ -160,7 +164,9 @@ export default function StepPurchased({
             updateCurrentItem({
               imagePreview: matchingCurrentItem.imagePreview,
               artist: currentItem.artist ?? matchingCurrentItem.artist,
-              style: currentItem.style ?? matchingCurrentItem.style
+              style: currentItem.style ?? matchingCurrentItem.style,
+              sourceProductId: matchingCurrentItem.sourceProductId,
+              relatedProducts: currentItem.relatedProducts ?? matchingCurrentItem.relatedProducts,
             })
           }
         }
@@ -176,7 +182,7 @@ export default function StepPurchased({
   const handleSelectProduct = async (selection: string) => {
     if (selection === 'manual') {
       // Clear selection for manual input
-      updateCurrentItem({ productName: '', artist: undefined, style: undefined, image: null, imagePreview: null, isFromWish: false })
+      updateCurrentItem({ productName: '', artist: undefined, style: undefined, sourceProductId: undefined, relatedProducts: undefined, image: null, imagePreview: null, isFromWish: false })
       return
     }
 
@@ -189,6 +195,8 @@ export default function StepPurchased({
           productName: wish.productName,
           artist: undefined,
           style: undefined,
+          sourceProductId: undefined,
+          relatedProducts: undefined,
           imagePreview: `/images/original/${wish.imagePath}`,
           isFromWish: true
         })
@@ -203,6 +211,8 @@ export default function StepPurchased({
         productName: product.name,
         artist: product.artist,
         style: product.style,
+        sourceProductId: product.id,
+        relatedProducts: undefined,
         imagePreview: `/images/original/${product.imagePath}`,
         isFromWish: false
       })
@@ -352,6 +362,9 @@ export default function StepPurchased({
 
           <ArtistInput value={currentItem.artist} onChange={artist => updateCurrentItem({ artist })} />
           <StyleInput value={currentItem.style} onChange={style => updateCurrentItem({ style })} />
+          <RelatedProductSelector key={currentIndex} draft shopName={shopName} productId={currentItem.sourceProductId}
+            value={currentItem.relatedProducts} disabled={!currentItem.productName.trim()}
+            onChange={relatedProducts => updateCurrentItem({ relatedProducts })} />
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">

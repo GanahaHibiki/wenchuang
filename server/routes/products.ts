@@ -7,11 +7,14 @@ import {
   searchProducts,
   updateProductArtist,
   updateProductStyle,
+  updateProductRelations,
   loadDatabase,
   DATA_DIR,
 } from '../services/database.js'
 import { buildProductAssociations, relatedProductIds, isValidArtist, isValidStyle, isValidProductStyle } from '../services/productAssociations.js'
-import type { ProductDetail, ProductEntry, ProductSearchType } from '../../src/types/index.js'
+import { buildRelationIndex, linkCandidates, relationMembers, relationTargets } from '../services/productRelations.js'
+import { selectImagesForSnapshot } from '../services/imageResolution.js'
+import type { ProductDetail, ProductEntry, ProductSearchType, GiftType } from '../../src/types/index.js'
 
 const router = Router()
 const ORIGINAL_DIR = path.join(DATA_DIR, 'images', 'original')
@@ -42,9 +45,58 @@ router.get('/search', async (req, res, next) => {
       return res.status(400).json({ message: '无效的风格分类' })
     }
 
-    const products = await searchProducts(type || 'productName', keyword, req.query.exact === 'true', style)
+    const products = await searchProducts(type || 'productName', keyword, req.query.exact === 'true', style, req.query.groupRelated === 'true')
     res.json(products)
   } catch (err) {
+    next(err)
+  }
+})
+
+// GET /api/products/link-candidates - Explicit choices from other recorded shops
+router.get('/link-candidates', async (req, res, next) => {
+  try {
+    const shopName = req.query.shopName
+    const keyword = req.query.keyword ?? ''
+    const productId = req.query.productId
+    if (typeof shopName !== 'string' || !shopName.trim() || typeof keyword !== 'string' ||
+      (productId !== undefined && typeof productId !== 'string')) {
+      return res.status(400).json({ message: '请提供有效的源店铺和搜索参数' })
+    }
+    const index = buildRelationIndex(await loadDatabase())
+    if (productId !== undefined) {
+      const source = index.byId.get(productId)
+      if (!source || source.reference.shopName.trim().toLowerCase() !== shopName.trim().toLowerCase()) {
+        return res.status(400).json({ message: '源商品不存在或不属于当前店铺' })
+      }
+    }
+    res.json(linkCandidates(index, shopName, keyword, productId))
+  } catch (err) {
+    next(err)
+  }
+})
+
+router.get('/:id/relations', async (req, res, next) => {
+  try {
+    const db = await loadDatabase()
+    if (!db.products.some(product => product.id === req.params.id)) {
+      return res.status(404).json({ message: '商品不存在' })
+    }
+    if (!db.productLinks?.length) return res.json([])
+    res.json(relationTargets(buildRelationIndex(db), req.params.id))
+  } catch (err) {
+    next(err)
+  }
+})
+
+router.put('/:id/relations', async (req, res, next) => {
+  try {
+    const targets = await updateProductRelations(req.params.id, req.body?.productIds)
+    if (!targets) return res.status(404).json({ message: '商品不存在' })
+    res.json(targets)
+  } catch (err) {
+    if ((err as { status?: number }).status === 400) {
+      return res.status(400).json({ message: (err as Error).message })
+    }
     next(err)
   }
 })
@@ -297,6 +349,13 @@ router.get('/:id', async (req, res, next) => {
     const shopMap = new Map(db.shops.map((s) => [s.id, s]))
 
     const matchingProductIds = relatedProductIds(associations, id)
+    const relations = db.productLinks?.length ? buildRelationIndex(db, associations) : undefined
+    const members = relations ? relationMembers(relations, id) : []
+    const memberEntries = new Map(members.map(member => [member.key, {
+      purchased: [] as ProductEntry[],
+      gifts: [] as (ProductEntry & { giftType: GiftType })[],
+      smallGifts: [] as ProductEntry[],
+    }]))
 
     // Calculate group sequence numbers
     const groupOrders = db.orders
@@ -306,13 +365,15 @@ router.get('/:id', async (req, res, next) => {
     groupOrders.forEach((o, idx) => groupSeqMap.set(o.id, idx + 1))
 
     const purchased: ProductEntry[] = []
-    const gifts: (ProductEntry & { giftType: string })[] = []
+    const gifts: (ProductEntry & { giftType: GiftType })[] = []
     const smallGifts: ProductEntry[] = []
 
     for (const order of db.orders) {
       for (const item of order.items) {
-        // Match by any of the matching productIds (same shop + product name)
-        if (!matchingProductIds.has(item.productId)) continue
+        const isSource = matchingProductIds.has(item.productId)
+        const key = relations?.byId.get(item.productId)?.key
+        const linkedEntries = key ? memberEntries.get(key) : undefined
+        if (!isSource && !linkedEntries) continue
 
         // For group orders, use item.shopId; for regular orders, use order.shopId
         const shopId = order.orderType === 'group' ? item.shopId : order.shopId
@@ -328,12 +389,15 @@ router.get('/:id', async (req, res, next) => {
           specifications: item.specifications,
         }
 
-        if (item.category === 'purchased') {
-          purchased.push(entry)
-        } else if (item.category === 'gift') {
-          gifts.push({ ...entry, giftType: item.giftType! })
-        } else if (item.category === 'smallGift') {
-          smallGifts.push(entry)
+        for (const entries of [isSource ? { purchased, gifts, smallGifts } : undefined, linkedEntries]) {
+          if (!entries) continue
+          if (item.category === 'purchased') {
+            entries.purchased.push(entry)
+          } else if (item.category === 'gift') {
+            entries.gifts.push({ ...entry, giftType: item.giftType! })
+          } else if (item.category === 'smallGift') {
+            entries.smallGifts.push(entry)
+          }
         }
       }
     }
@@ -341,6 +405,13 @@ router.get('/:id', async (req, res, next) => {
     const detail: ProductDetail = {
       ...product,
       entries: { purchased, gifts, smallGifts },
+    }
+    if (relations && members.length > 1) {
+      detail.linkedProducts = members.map(member => ({ ...member.reference, entries: memberEntries.get(member.key)! }))
+      detail.relationTargets = relationTargets(relations, id)
+      const selectImage = selectImagesForSnapshot(ORIGINAL_DIR)
+      const image = await selectImage(members.flatMap(member => [...member.ids].map(productId => associations.products.get(productId)!)))
+      if (image) detail.displayImage = image
     }
 
     res.json(detail)

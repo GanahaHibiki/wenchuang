@@ -13,7 +13,18 @@ export interface Product {
   style?: ProductStyle | '' // Empty string is an editing-only clear value
   imagePath: string
   thumbnailPath: string
+  imageResolution?: { width: number; height: number }
   createdAt: string
+}
+
+export interface ProductReference extends Product {
+  shopId: string
+  shopName: string
+}
+
+export interface ProductLinkGroup {
+  id: string
+  productIds: string[]
 }
 
 export type ProductStyle = '食物系' | '盐系' | '可爱系' | '花卉系' | '复古系' | '其他'
@@ -155,6 +166,7 @@ export interface CreateOrderRequest {
     productName: string
     artist?: string
     style?: ProductStyle | ''
+    relatedProductIds?: string[]
     image: File
     specifications: Specification[]
   }[]
@@ -163,6 +175,7 @@ export interface CreateOrderRequest {
     productName: string
     artist?: string
     style?: ProductStyle | ''
+    relatedProductIds?: string[]
     image: File
     specifications: Omit<Specification, 'purchasePrice'>[]
   }[]
@@ -170,12 +183,20 @@ export interface CreateOrderRequest {
     productName: string
     artist?: string
     style?: ProductStyle | ''
+    relatedProductIds?: string[]
     image: File
     specifications: Omit<Specification, 'purchasePrice'>[]
   }[]
 }
 
+export interface LinkedProductDetail extends ProductReference {
+  entries: ProductDetail['entries']
+}
+
 export interface ProductDetail extends Product {
+  linkedProducts?: LinkedProductDetail[]
+  relationTargets?: ProductReference[]
+  displayImage?: { productId: string; imagePath: string; thumbnailPath: string }
   entries: {
     purchased: ProductEntry[]
     gifts: (ProductEntry & { giftType: GiftType })[]
@@ -236,4 +257,5 @@ export interface Database {
   products: Product[]
   orders: Order[]
   wishItems?: WishItem[]
+  productLinks?: ProductLinkGroup[]
 }

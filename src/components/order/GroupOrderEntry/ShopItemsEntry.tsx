@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { shopApi, productApi, wishApi, type WishProduct } from '@/api/client'
 import type { Shop, Product } from '@/types'
 import type { PurchasedItemData } from '../OrderEntry/StepPurchased'
+import RelatedProductSelector from '@/components/common/RelatedProductSelector'
 import StyleInput from '@/components/common/StyleInput'
 import ArtistInput from '@/components/common/ArtistInput'
 import ImageUploader from '@/components/common/ImageUploader'
@@ -177,7 +178,8 @@ export default function ShopItemsEntry({
           updateCurrentItem({
             imagePreview: `/images/original/${matchingShopProduct.imagePath}`,
             artist: currentItem.artist ?? matchingShopProduct.artist,
-            style: currentItem.style ?? matchingShopProduct.style
+            style: currentItem.style ?? matchingShopProduct.style,
+            sourceProductId: matchingShopProduct.id,
           })
         } else {
           const matchingCurrentItem = items.find(
@@ -188,7 +190,9 @@ export default function ShopItemsEntry({
             updateCurrentItem({
               imagePreview: matchingCurrentItem.imagePreview,
               artist: currentItem.artist ?? matchingCurrentItem.artist,
-              style: currentItem.style ?? matchingCurrentItem.style
+              style: currentItem.style ?? matchingCurrentItem.style,
+              sourceProductId: matchingCurrentItem.sourceProductId,
+              relatedProducts: currentItem.relatedProducts ?? matchingCurrentItem.relatedProducts,
             })
           }
         }
@@ -202,7 +206,7 @@ export default function ShopItemsEntry({
 
   const handleSelectProduct = (selection: string) => {
     if (selection === 'manual') {
-      updateCurrentItem({ productName: '', artist: undefined, style: undefined, image: null, imagePreview: null, isFromWish: false })
+      updateCurrentItem({ productName: '', artist: undefined, style: undefined, sourceProductId: undefined, relatedProducts: undefined, image: null, imagePreview: null, isFromWish: false })
       setLastCheckedProductName('')
       return
     }
@@ -216,6 +220,8 @@ export default function ShopItemsEntry({
           productName: wish.productName,
           artist: undefined,
           style: undefined,
+          sourceProductId: undefined,
+          relatedProducts: undefined,
           imagePreview: `/images/original/${wish.imagePath}`,
           isFromWish: true
         })
@@ -230,6 +236,8 @@ export default function ShopItemsEntry({
         productName: product.name,
         artist: product.artist,
         style: product.style,
+        sourceProductId: product.id,
+        relatedProducts: undefined,
         imagePreview: `/images/original/${product.imagePath}`,
         isFromWish: false
       })
@@ -378,6 +386,9 @@ export default function ShopItemsEntry({
 
           <ArtistInput value={currentItem.artist} onChange={artist => updateCurrentItem({ artist })} />
           <StyleInput value={currentItem.style} onChange={style => updateCurrentItem({ style })} />
+          <RelatedProductSelector key={currentIndex} draft shopName={shopName} productId={currentItem.sourceProductId}
+            value={currentItem.relatedProducts} disabled={!currentItem.productName.trim()}
+            onChange={relatedProducts => updateCurrentItem({ relatedProducts })} />
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">

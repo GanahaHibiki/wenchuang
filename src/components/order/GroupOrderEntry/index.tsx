@@ -93,6 +93,8 @@ export default function GroupOrderEntry() {
         shopName: shop.shopName,
         items: shop.items.map(item => ({
           productName: item.productName,
+          productId: item.sourceProductId,
+          relatedProductIds: item.relatedProducts?.map(product => product.id),
           artist: item.artist,
           style: item.style,
           specifications: item.specifications,

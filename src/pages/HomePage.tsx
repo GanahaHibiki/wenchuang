@@ -39,7 +39,7 @@ export default function HomePage() {
     let active = true
     setIsLoading(true)
     setError(null)
-    productApi.search(searchType, searchKeyword, exact, style)
+    productApi.search(searchType, searchKeyword, exact, style, true)
       .then(data => { if (active) setAllProducts(data) })
       .catch(err => { if (active) setError(err instanceof Error ? err.message : '加载失败') })
       .finally(() => { if (active) setIsLoading(false) })

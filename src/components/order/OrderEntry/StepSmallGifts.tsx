@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
-import type { Specification, Product, ProductStyle } from '@/types'
+import type { Specification, Product, ProductStyle, ProductReference } from '@/types'
+import type { PurchasedItemData } from './StepPurchased'
 import { productApi, wishApi, type WishProduct } from '@/api/client'
+import RelatedProductSelector from '@/components/common/RelatedProductSelector'
 import StyleInput from '@/components/common/StyleInput'
 import ArtistInput from '@/components/common/ArtistInput'
 import ImageUploader from '@/components/common/ImageUploader'
@@ -10,6 +12,8 @@ export interface SmallGiftItemData {
   productName: string
   artist?: string
   style?: ProductStyle | ''
+  sourceProductId?: string
+  relatedProducts?: ProductReference[]
   image: File | null
   imagePreview: string | null
   specifications: Specification[]
@@ -23,7 +27,7 @@ interface StepSmallGiftsProps {
   onBack: () => void
   isSubmitting: boolean
   shopName: string
-  previousItems: { productName: string; artist?: string; style?: ProductStyle | ''; imagePreview: string | null; image: File | null }[]
+  previousItems: Omit<PurchasedItemData, 'specifications' | 'isFromWish'>[]
 }
 
 export default function StepSmallGifts({
@@ -118,7 +122,8 @@ export default function StepSmallGifts({
           updateCurrentItem({
             imagePreview: `/images/original/${matchingShopProduct.imagePath}`,
             artist: currentItem.artist ?? matchingShopProduct.artist,
-            style: currentItem.style ?? matchingShopProduct.style
+            style: currentItem.style ?? matchingShopProduct.style,
+            sourceProductId: matchingShopProduct.id,
           })
         } else {
           const matchingPreviousItem = previousItems.find(
@@ -129,7 +134,9 @@ export default function StepSmallGifts({
               imagePreview: matchingPreviousItem.imagePreview,
               image: matchingPreviousItem.image,
               artist: currentItem.artist ?? matchingPreviousItem.artist,
-              style: currentItem.style ?? matchingPreviousItem.style
+              style: currentItem.style ?? matchingPreviousItem.style,
+              sourceProductId: matchingPreviousItem.sourceProductId,
+              relatedProducts: currentItem.relatedProducts ?? matchingPreviousItem.relatedProducts,
             })
           } else {
             const matchingCurrentItem = items.find(
@@ -141,7 +148,9 @@ export default function StepSmallGifts({
                 imagePreview: matchingCurrentItem.imagePreview,
                 image: matchingCurrentItem.image,
                 artist: currentItem.artist ?? matchingCurrentItem.artist,
-                style: currentItem.style ?? matchingCurrentItem.style
+                style: currentItem.style ?? matchingCurrentItem.style,
+                sourceProductId: matchingCurrentItem.sourceProductId,
+                relatedProducts: currentItem.relatedProducts ?? matchingCurrentItem.relatedProducts,
               })
             }
           }
@@ -179,7 +188,7 @@ export default function StepSmallGifts({
 
   const handleSelectProduct = async (selection: string) => {
     if (selection === 'manual') {
-      updateCurrentItem({ productName: '', artist: undefined, style: undefined, image: null, imagePreview: null, isFromWish: false })
+      updateCurrentItem({ productName: '', artist: undefined, style: undefined, sourceProductId: undefined, relatedProducts: undefined, image: null, imagePreview: null, isFromWish: false })
       return
     }
 
@@ -192,6 +201,8 @@ export default function StepSmallGifts({
           productName: wish.productName,
           artist: undefined,
           style: undefined,
+          sourceProductId: undefined,
+          relatedProducts: undefined,
           imagePreview: `/images/original/${wish.imagePath}`,
           isFromWish: true
         })
@@ -206,6 +217,8 @@ export default function StepSmallGifts({
         productName: previousItem.productName,
         artist: previousItem.artist,
         style: previousItem.style,
+        sourceProductId: previousItem.sourceProductId,
+        relatedProducts: previousItem.relatedProducts,
         imagePreview: previousItem.imagePreview,
         image: previousItem.image,
         isFromWish: false
@@ -220,6 +233,8 @@ export default function StepSmallGifts({
         productName: product.name,
         artist: product.artist,
         style: product.style,
+        sourceProductId: product.id,
+        relatedProducts: undefined,
         imagePreview: `/images/original/${product.imagePath}`,
         isFromWish: false
       })
@@ -410,6 +425,9 @@ export default function StepSmallGifts({
 
             <ArtistInput value={currentItem.artist} onChange={artist => updateCurrentItem({ artist })} />
             <StyleInput value={currentItem.style} onChange={style => updateCurrentItem({ style })} />
+            <RelatedProductSelector key={currentIndex} draft shopName={shopName} productId={currentItem.sourceProductId}
+              value={currentItem.relatedProducts} disabled={!currentItem.productName.trim() || isSubmitting}
+              onChange={relatedProducts => updateCurrentItem({ relatedProducts })} />
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">

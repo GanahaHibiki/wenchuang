@@ -58,6 +58,8 @@ async function ready(page) {
         const product = productById(url.pathname.split('/')[3])
         product.artist = request.postDataJSON().artist.trim()
         data = product
+      } else if (request.method() === 'GET' && url.pathname.endsWith('/relations')) {
+        data = []
       } else if (url.pathname === '/api/products/search') {
         const type = url.searchParams.get('type')
         const keyword = (url.searchParams.get('keyword') || '').toLowerCase()

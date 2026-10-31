@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { productApi } from '@/api/client'
-import type { ProductDetail, ProductStyle } from '@/types'
+import type { ProductDetail, ProductStyle, ProductReference } from '@/types'
 import ImageViewer from '@/components/common/ImageViewer'
 import StyleInput from '@/components/common/StyleInput'
 import ArtistInput from '@/components/common/ArtistInput'
+import RelatedProductSelector from '@/components/common/RelatedProductSelector'
 import ProgressiveImage from '@/components/common/ProgressiveImage'
 import BackButton from '@/components/common/BackButton'
-import { sortSpecifications } from '@/utils/specificationSort'
+import ProductOrderRecords from '@/components/product/ProductOrderRecords'
 
 export default function ProductDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -23,29 +24,26 @@ export default function ProductDetailPage() {
   const [styleDraft, setStyleDraft] = useState<ProductStyle | ''>('')
   const [savingStyle, setSavingStyle] = useState(false)
   const [styleError, setStyleError] = useState<string | null>(null)
+  const [editingRelations, setEditingRelations] = useState(false)
+  const [relationsDraft, setRelationsDraft] = useState<ProductReference[]>([])
+  const [savingRelations, setSavingRelations] = useState(false)
+  const [relationsError, setRelationsError] = useState<string | null>(null)
+  const saving = savingArtist || savingStyle || savingRelations
 
   useEffect(() => {
     if (!id) return
-
-    const loadProduct = async () => {
-      setIsLoading(true)
-      setError(null)
-
-      try {
-        const data = await productApi.getDetail(id)
-        setProduct(data)
-      } catch (err) {
-        setError(err instanceof Error ? err.message : '加载失败')
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    loadProduct()
+    let active = true
+    setIsLoading(true)
+    setError(null)
+    productApi.getDetail(id)
+      .then(data => { if (active) setProduct(data) })
+      .catch(err => { if (active) setError(err instanceof Error ? err.message : '加载失败') })
+      .finally(() => { if (active) setIsLoading(false) })
+    return () => { active = false }
   }, [id])
 
   const saveArtist = async () => {
-    if (!id || !product || savingArtist || savingStyle) return
+    if (!id || !product || saving) return
     setSavingArtist(true)
     setArtistError(null)
     try {
@@ -60,7 +58,7 @@ export default function ProductDetailPage() {
   }
 
   const saveStyle = async () => {
-    if (!id || !product || savingStyle || savingArtist) return
+    if (!id || !product || saving) return
     setSavingStyle(true)
     setStyleError(null)
     try {
@@ -74,285 +72,131 @@ export default function ProductDetailPage() {
     }
   }
 
-  if (isLoading) {
-    return <div data-scroll-loading className="text-center py-12 text-gray-500">加载中...</div>
-  }
-
-  if (error || !product) {
-    return <div className="text-center py-12 text-red-500">{error || '商品不存在'}</div>
-  }
-
-  // Helper function to display specification type with custom name
-  const getSpecTypeName = (spec: { type: string; customType?: string }) => {
-    if ((spec.type === '其他衍生' || spec.type === '其他贴纸') && spec.customType) {
-      return spec.customType
+  const saveRelations = async () => {
+    if (!id || !product || saving) return
+    setSavingRelations(true)
+    setRelationsError(null)
+    try {
+      await productApi.updateRelations(id, relationsDraft.map(entry => entry.id))
+      setProduct(await productApi.getDetail(id))
+      setEditingRelations(false)
+    } catch (err) {
+      setRelationsError(err instanceof Error ? err.message : '保存关联失败')
+    } finally {
+      setSavingRelations(false)
     }
-    return spec.type
   }
 
-  // Helper function to format order label based on order type
-  const getOrderLabel = (entry: { orderType?: string; orderSequence: number; groupSequenceNumber?: number; shopName: string }) => {
-    if (entry.orderType === 'group') {
-      const seq = entry.groupSequenceNumber || entry.orderSequence
-      return `拼单 #${seq} - ${entry.shopName}`
-    }
-    return `订单 #${entry.orderSequence} - ${entry.shopName}`
-  }
+  if (isLoading) return <div data-scroll-loading className="text-center py-12 text-gray-500">加载中...</div>
+  if (error || !product) return <div className="text-center py-12 text-red-500">{error || '商品不存在'}</div>
 
-  const { entries } = product
+  const members = product.linkedProducts || []
+  const grouped = members.length > 1
+  const title = grouped ? members.map(member => member.name).join(' / ') : product.name
+  const sourceShopName = [...product.entries.purchased, ...product.entries.gifts, ...product.entries.smallGifts]
+    .find(entry => entry.shopName && entry.shopName !== '未知店铺' && entry.shopName !== '拼单')?.shopName
+    || members.find(member => member.id === product.id)?.shopName || ''
+  const displayedImage = product.displayImage || product
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">{product.name}</h1>
+      <div className="flex items-center justify-between gap-4">
+        <h1 className="text-2xl font-bold break-words">{title}</h1>
         <BackButton />
       </div>
+      {grouped && <p className="text-sm text-gray-600">当前编辑商品：{product.name}（{sourceShopName || '未识别店铺'}）。美工和分类只修改该店铺的商品。</p>}
 
       <section className="bg-white rounded-lg shadow p-4">
         {editingArtist ? (
           <form onSubmit={event => { event.preventDefault(); saveArtist() }} className="space-y-3">
-            <ArtistInput value={artistDraft} onChange={setArtistDraft} disabled={savingArtist || savingStyle} />
+            <ArtistInput value={artistDraft} onChange={setArtistDraft} disabled={saving} />
             <p className="text-xs text-gray-500">留空可清除。同店铺同名商品的历史记录会同步更新。</p>
             <div className="flex gap-3">
-              <button type="submit" disabled={savingArtist || savingStyle} className="px-3 py-1 bg-blue-600 text-white rounded disabled:opacity-50">
+              <button type="submit" disabled={saving} className="px-3 py-1 bg-blue-600 text-white rounded disabled:opacity-50">
                 {savingArtist ? '保存中...' : '保存美工'}
               </button>
-              <button type="button" disabled={savingArtist} onClick={() => { setEditingArtist(false); setArtistError(null) }}
-                className="px-3 py-1 bg-gray-200 rounded">取消</button>
+              <button type="button" disabled={saving} onClick={() => { setEditingArtist(false); setArtistError(null) }} className="px-3 py-1 bg-gray-200 rounded">取消</button>
             </div>
           </form>
         ) : (
           <div className="flex items-center gap-3">
             <span className="text-gray-700">美工：{product.artist ? (
-              <Link className="text-blue-600 hover:underline" to={`/?type=artist&keyword=${encodeURIComponent(product.artist)}&exact=true`}>
-                {product.artist}
-              </Link>
+              <Link className="text-blue-600 hover:underline" to={`/?type=artist&keyword=${encodeURIComponent(product.artist)}&exact=true`}>{product.artist}</Link>
             ) : '未填写'}</span>
-            <button type="button" className="text-sm text-blue-600 hover:underline" onClick={() => {
-              setArtistDraft(product.artist || '')
-              setArtistError(null)
-              setEditingArtist(true)
+            <button type="button" disabled={saving} className="text-sm text-blue-600 hover:underline" onClick={() => {
+              setArtistDraft(product.artist || ''); setArtistError(null); setEditingArtist(true)
             }}>编辑美工</button>
           </div>
         )}
         {artistError && <p role="alert" className="mt-2 text-sm text-red-600">{artistError}</p>}
+
         <div className="mt-4 border-t pt-4">
           {editingStyle ? (
             <form onSubmit={event => { event.preventDefault(); saveStyle() }} className="space-y-3">
-              <StyleInput value={styleDraft} onChange={setStyleDraft} disabled={savingStyle || savingArtist} />
+              <StyleInput value={styleDraft} onChange={setStyleDraft} disabled={saving} />
               <p className="text-xs text-gray-500">选择未分类可清除。同店铺同名商品的历史记录会同步更新。</p>
               <div className="flex gap-3">
-                <button type="submit" disabled={savingStyle || savingArtist}
-                  className="px-3 py-1 bg-blue-600 text-white rounded disabled:opacity-50">
-                  {savingStyle ? '保存中...' : '保存分类'}
-                </button>
-                <button type="button" disabled={savingStyle} onClick={() => { setEditingStyle(false); setStyleError(null) }}
-                  className="px-3 py-1 bg-gray-200 rounded">取消</button>
+                <button type="submit" disabled={saving} className="px-3 py-1 bg-blue-600 text-white rounded disabled:opacity-50">{savingStyle ? '保存中...' : '保存分类'}</button>
+                <button type="button" disabled={saving} onClick={() => { setEditingStyle(false); setStyleError(null) }} className="px-3 py-1 bg-gray-200 rounded">取消</button>
               </div>
             </form>
           ) : (
             <div className="flex items-center gap-3">
               <span className="text-gray-700">风格分类：{product.style || '未分类'}</span>
-              <button type="button" className="text-sm text-blue-600 hover:underline" onClick={() => {
-                setStyleDraft(product.style || '')
-                setStyleError(null)
-                setEditingStyle(true)
+              <button type="button" disabled={saving} className="text-sm text-blue-600 hover:underline" onClick={() => {
+                setStyleDraft(product.style || ''); setStyleError(null); setEditingStyle(true)
               }}>编辑风格分类</button>
             </div>
           )}
           {styleError && <p role="alert" className="mt-2 text-sm text-red-600">{styleError}</p>}
         </div>
+
+        <div className="mt-4 border-t pt-4">
+          {editingRelations ? (
+            <form onSubmit={event => { event.preventDefault(); saveRelations() }} className="space-y-3">
+              <RelatedProductSelector shopName={sourceShopName} productId={product.id} value={relationsDraft} onChange={setRelationsDraft} disabled={saving} />
+              <p className="text-xs text-gray-500">保存会更新当前商品的同款关联；移除全部选项可解除当前商品关联。</p>
+              <div className="flex gap-3">
+                <button type="submit" disabled={saving} className="px-3 py-1 bg-blue-600 text-white rounded disabled:opacity-50">{savingRelations ? '保存中...' : '保存关联'}</button>
+                <button type="button" disabled={saving} onClick={() => { setEditingRelations(false); setRelationsError(null) }} className="px-3 py-1 bg-gray-200 rounded">取消</button>
+              </div>
+            </form>
+          ) : (
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="text-gray-700">同款关联：{grouped ? `${members.length} 个商品` : '未关联'}</span>
+              <button type="button" disabled={saving} className="text-sm text-blue-600 hover:underline" onClick={() => {
+                setRelationsDraft(product.relationTargets || members.filter(member => member.shopName !== sourceShopName && member.id !== product.id))
+                setRelationsError(null); setEditingRelations(true)
+              }}>编辑关联商品</button>
+            </div>
+          )}
+          {relationsError && <p role="alert" className="mt-2 text-sm text-red-600">{relationsError}</p>}
+        </div>
       </section>
 
-      {/* Main Content - Left-Right Layout */}
       <div className="flex gap-6">
-        {/* Left: Product Image */}
         <div className="w-[640px] flex-shrink-0">
           <div className="bg-white rounded-lg shadow p-6">
-            <div
-              className="cursor-pointer"
-              onClick={() => setShowViewer(true)}
-            >
-              <ProgressiveImage
-                src={`/images/original/${product.imagePath}`}
-                previewSrc={`/images/thumbnails/${product.thumbnailPath}`}
-                alt={product.name}
-              />
+            <div className="cursor-pointer" onClick={() => setShowViewer(true)}>
+              <ProgressiveImage src={`/images/original/${displayedImage.imagePath}`} previewSrc={`/images/thumbnails/${displayedImage.thumbnailPath}`} alt={title} />
               <p className="text-center text-sm text-gray-500 mt-2">点击查看大图</p>
+              {grouped && <p className="text-center text-xs text-gray-500 mt-1">{product.displayImage ? '展示同款组中分辨率最大的图片' : '图片尺寸暂不可用，使用当前商品图片'}</p>}
             </div>
           </div>
         </div>
-
-        {/* Right: All Records */}
-        <div className="flex-1 space-y-6">
-          {/* Purchased entries */}
-          {entries.purchased.length > 0 && (
-            <section className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-bold mb-4">已购商品记录</h2>
-              <div className="space-y-4">
-                {entries.purchased.map((entry, index) => {
-                  // Sort specifications by display order
-                  const sortedSpecs = sortSpecifications(entry.specifications)
-
-                  // Check which spec types have multiple entries in this order
-                  const specTypeCounts = new Map<string, number>()
-                  sortedSpecs.forEach(spec => {
-                    const typeName = getSpecTypeName(spec)
-                    specTypeCounts.set(typeName, (specTypeCounts.get(typeName) || 0) + 1)
-                  })
-
-                  return (
-                    <div key={index} className="border-l-4 border-blue-500 pl-4 py-2">
-                      <Link
-                        to={`/orders/${entry.orderId}`}
-                        className="font-medium text-blue-600 hover:underline"
-                      >
-                        {getOrderLabel(entry)}
-                      </Link>
-                      <div className="mt-2 space-y-1">
-                        {sortedSpecs
-                          .filter((s) => s.quantity > 0)
-                          .map((spec, i) => {
-                            const typeName = getSpecTypeName(spec)
-                            const hasMultiple = (specTypeCounts.get(typeName) || 0) > 1
-
-                            return (
-                              <div key={i} className="text-sm text-gray-600">
-                                {typeName}
-                                {hasMultiple && spec.sequenceNumber}:
-                                {' '}{spec.quantity} 个,
-                                购入价 ¥{spec.purchasePrice?.toFixed(2) || '0.00'},
-                                原价 ¥{spec.originalPrice.toFixed(2)}
-                              </div>
-                            )
-                          })}
-                      </div>
-                    </div>
-                  )
-                })}
+        <div className="flex-1 min-w-0 space-y-6">
+          {grouped ? members.map(member => (
+            <section key={member.id} aria-label={`${member.name}（${member.shopName}）订单记录`} className="space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 className="text-xl font-bold">{member.name} — {member.shopName}</h2>
+                {member.id !== product.id && <Link to={`/products/${member.id}`} className="text-sm text-blue-600 hover:underline">编辑该店铺商品</Link>}
               </div>
+              <ProductOrderRecords entries={member.entries} grouped />
             </section>
-          )}
-
-          {/* Gift entries */}
-          {entries.gifts.length > 0 && (
-            <section className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-bold mb-4">礼品记录</h2>
-              <div className="space-y-4">
-                {entries.gifts.map((entry, index) => {
-                  // Sort specifications by display order
-                  const sortedSpecs = sortSpecifications(entry.specifications)
-
-                  // Check which spec types have multiple entries in this order
-                  const specTypeCounts = new Map<string, number>()
-                  sortedSpecs.forEach(spec => {
-                    const typeName = getSpecTypeName(spec)
-                    specTypeCounts.set(typeName, (specTypeCounts.get(typeName) || 0) + 1)
-                  })
-
-                  return (
-                    <div key={index} className="border-l-4 border-green-500 pl-4 py-2">
-                      <Link
-                        to={`/orders/${entry.orderId}`}
-                        className="font-medium text-blue-600 hover:underline"
-                      >
-                        {getOrderLabel(entry)}
-                      </Link>
-                      <span className="ml-2 text-sm bg-green-100 text-green-700 px-2 py-0.5 rounded">
-                        {entry.giftType}
-                      </span>
-                      <div className="mt-2 space-y-1">
-                        {sortedSpecs
-                          .filter((s) => s.quantity > 0)
-                          .map((spec, i) => {
-                            const typeName = getSpecTypeName(spec)
-                            const hasMultiple = (specTypeCounts.get(typeName) || 0) > 1
-
-                            return (
-                              <div key={i} className="text-sm text-gray-600">
-                                {typeName}
-                                {hasMultiple && spec.sequenceNumber}:
-                                {' '}{spec.quantity} 个,
-                                原价 ¥{spec.originalPrice.toFixed(2)}
-                              </div>
-                            )
-                          })}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </section>
-          )}
-
-          {/* Small gift entries */}
-          {entries.smallGifts.length > 0 && (
-            <section className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-bold mb-4">小礼物记录</h2>
-              <div className="space-y-4">
-                {entries.smallGifts.map((entry, index) => {
-                  // Sort specifications by display order
-                  const sortedSpecs = sortSpecifications(entry.specifications)
-
-                  // Check which spec types have multiple entries in this order
-                  const specTypeCounts = new Map<string, number>()
-                  sortedSpecs.forEach(spec => {
-                    const typeName = getSpecTypeName(spec)
-                    specTypeCounts.set(typeName, (specTypeCounts.get(typeName) || 0) + 1)
-                  })
-
-                  return (
-                    <div key={index} className="border-l-4 border-purple-500 pl-4 py-2">
-                      <Link
-                        to={`/orders/${entry.orderId}`}
-                        className="font-medium text-blue-600 hover:underline"
-                      >
-                        {getOrderLabel(entry)}
-                      </Link>
-                      <div className="mt-2 space-y-1">
-                        {sortedSpecs
-                          .filter((s) => s.quantity > 0)
-                          .map((spec, i) => {
-                            const typeName = getSpecTypeName(spec)
-                            const hasMultiple = (specTypeCounts.get(typeName) || 0) > 1
-
-                            return (
-                              <div key={i} className="text-sm text-gray-600">
-                                {typeName}
-                                {hasMultiple && spec.sequenceNumber}:
-                                {' '}{spec.quantity} 个,
-                                原价 ¥{spec.originalPrice.toFixed(2)}
-                              </div>
-                            )
-                          })}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </section>
-          )}
-
-          {/* No entries */}
-          {entries.purchased.length === 0 &&
-            entries.gifts.length === 0 &&
-            entries.smallGifts.length === 0 && (
-              <div className="bg-white rounded-lg shadow p-6 text-center text-gray-500">
-                该商品暂无订单记录
-              </div>
-            )}
+          )) : <ProductOrderRecords entries={product.entries} />}
         </div>
       </div>
-
-      {/* Image Viewer */}
-      {showViewer && (
-        <ImageViewer
-          src={`/images/original/${product.imagePath}`}
-          alt={product.name}
-          onClose={() => setShowViewer(false)}
-        />
-      )}
+      {showViewer && <ImageViewer src={`/images/original/${displayedImage.imagePath}`} alt={title} onClose={() => setShowViewer(false)} />}
     </div>
   )
 }

@@ -2,8 +2,8 @@
 
 ## 1. 文档定位
 
-- **版本**：1.30（商品风格分类与组合筛选）
-- **核对基线**：Git `f9a7a59` 及本次分类功能；旧商品缺少style时保持未分类，不批量迁移用户数据。
+- **版本**：1.31（跨店铺同款商品关联）
+- **核对基线**：Git `d4ca471` 及本次同款关联；保留各店铺商品、订单、美工和分类，不迁移或覆盖原始图片。
 - **性质**：当前实现说明（as-built），不是未来架构提案或已通过测试的证明。
 - **依据**：`package.json`、`vite.config.ts`、`src/`、`server/`、`scripts/`；业务目标另见 `需求.md`。
 - **维护规则**：实现行为与需求不一致时，本文件记录实际行为，并在“限制与待改进”中列出差异；不得把未实现能力描述为已完成。
@@ -26,6 +26,7 @@
 8. 散件商品：规格数量汇总、分类多选过滤、保留返回时的分类参数。
 9. 美工：商品选填名称，已有商品可补填/修改/清除，普通及拼单录入/编辑支持，主页可按作者名称搜索。
 10. 风格分类：食物系、盐系、可爱系、花卉系、复古系、其他；商品浏览支持与名称搜索叠加的分类筛选，已有/新录入商品可编辑分类。
+11. 同款关联：不同店铺不同名字的已录入商品可人工关联；新订单也可选择关联，图库单卡、商品/店铺名称对应、最高像素图片、详情按各商品分别显示全部订单。
 
 ### 2.2 范围边界
 
@@ -163,6 +164,7 @@ interface Database {
   products: Product[]
   orders: Order[]
   wishItems?: WishItem[]
+  productLinks?: { id: string; productIds: string[] }[]
 }
 ```
 
@@ -208,6 +210,15 @@ interface Database {
 - 同店铺同名商品按现有详情关联规则同步分类；新同名商品未指定时继承已有分类，替换Product ID时可继承源商品分类。省略字段不擦除旧值，显式空字符串清除，同组多个显式值最后处理者生效。
 - 分类与美工信息独立。兼容导出 `OrderArtistInput` / `applyOrderArtists` 同时携带并应用两种元数据，共用请求内关联索引和最后一次Order JSON保存；修改分类不清除美工，修改美工不清除分类。前端编辑只提交确实改变的字段。
 - 本次不扩展WishItem；心愿商品转入订单时可填写分类。
+
+### 4.5 跨店铺同款关联
+
+- `Database.productLinks` 存储不相交的同款等价组，成员为原始Product IDs；不删除或合并原商品，不把美工、分类、规格或订单搬到另一个商品。
+- 同店铺同名历史记录按店铺显示名精确匹配＋商品名大小写无关自动展开，包括同名店铺的遗留重复Shop ID。明确关联目标只能是其他店铺、已被订单引用且店铺可识别的商品（包括礼品/小礼物，不含仅心愿或孤立商品）。店铺排除比较trim后大小写无关。
+- 添加已有同款组的成员会合并整组。更新源关联先从旧组移出源的同店铺同名条目，再与所选目标所属组合并；`[]`解除源关联，原组其余成员继续相互关联。
+- 订单项通过 `relatedProductIds?: string[]` 提交关联，未传时保留/继承已有同款关系；显式空数组断开，非空数组更新。新物理Product ID、同名重复录入及同店源的名称/图片替换可保留源关联。非法目标在店铺或图片变更前校验。
+- 删除前展开历史IDs，删除后清理消失商品；同店同名仍有订单记录时其关联保留，剩余只有一个逻辑商品的组无需保留。
+- `ProductReference` 提供id/name/shopId/shopName及图片等字段。分组图库返回 `linkedProducts`；关联详情另外返回每个成员的entries、relationTargets和可选displayImage，原entries仍是请求源商品历史。
 
 ## 5. 金额、排序和状态
 
@@ -290,6 +301,9 @@ giftRatio = totalAmount > 0
 - 网格为 `repeat(auto-fill,minmax(200px,1fr))`；商品卡片4:3缩略图、居中 `object-cover`，商品名跳转详情。商品名下先显示店铺名称链接，再显示“美工：名称”链接；分别跳到 `/?type=shopName|artist&keyword=编码名称&exact=true` 的对应搜索结果，点击名称不会打开图片查看器或商品详情。
 - 缩略图通过原生 `loading=lazy` 或 `LazyImage` 渐显，点击图库图片查看原图。
 - 搜索栏下面为“全部＋六种风格”按钮组，单选分类与现有商品名/店铺名/美工关键词及exact条件AND组合。选择“全部”仅清除分类，不清除搜索条件；手动重新搜索也保留当前分类。
+- HomePage调用搜索时附加 `groupRelated=true`；只有同款组中的某一个商品同时满足全部搜索/分类条件，该组才出现，不能把A成员的店铺条件与B成员的分类条件拼成匹配。展示时保留整组的完整名称信息。
+- 关联组在图库只有一张卡片，商品名与店铺名分别按同一成员顺序用“/”连接，名称链接仍可点击；图片来自所有关联历史商品中像素面积最大的原图对应缩略图。未关联商品保持原卡片行为。
+- 默认搜索不附加分组标志，仍返回单店商品，订单的商品下拉不会因分组而变成跨店铺合并名称。
 - 分类与搜索、已显示数量共同保存到历史项，返回时恢复过滤后的商品集合和滚动位置。点击卡片上的店铺/美工名称时附带当前style参数继续缩小范围；URL也支持直接初始化合法style。卡片不显示分类文字。
 - `/?shop=店铺名` 初始化店铺搜索；搜索组件同步初始参数并支持显式搜索。当前没有通用300ms去抖搜索层。
 
@@ -304,12 +318,12 @@ giftRatio = totalAmount > 0
 
 同名检测主要在失焦时于前端执行；不同商品添加数字后缀，同一商品/心愿确认可填充已有图片。检测范围与是否精确限定同店铺取决于调用方，不由数据库唯一约束保证。
 
-录入页每次只展示当前商品，可全局Ctrl+V粘贴；另支持共享上传组件的文件选择和拖拽。已购、礼品和小礼物表单均有选填美工和风格分类输入框，复用已有商品/本订单商品时带出两项信息。步骤可返回，最终组装multipart一次创建订单；成功后前端清理 `isFromWish` 对应心愿，再跳转详情。草稿没有持久化，刷新可能丢失。
+录入页每次只展示当前商品，可全局Ctrl+V粘贴；另支持共享上传组件的文件选择和拖拽。已购、礼品和小礼物表单均有选填美工和风格分类输入框，复用已有商品/本订单商品时带出两项信息。关联选择框输入其他店铺商品名会显示候选，候选带店铺名称和缩略图，可多选、移除；选择已有源商品会加载源关联，未指定时不会无意清除旧关系。步骤可返回，最终组装multipart一次创建订单；成功后前端清理 `isFromWish` 对应心愿，再跳转详情。草稿没有持久化，刷新可能丢失。
 
 ### 6.3 拼单录入与编辑
 
 - 录入按店铺标签切换，允许新增/删除店铺；至少保留一个店铺，不要求至少两个。
-- 每店铺多个商品，选择/手动输入商品、复用图片、规格购入价及原价、选填美工和风格分类；切换店铺时当前商品标签重置，已有商品选择会带出两项信息。
+- 每店铺多个商品，选择/手动输入商品、复用图片、规格购入价及原价、选填美工和风格分类；切换店铺时当前商品标签重置，已有商品选择会带出两项信息，也可通过同一候选控件选择其他店铺同款。
 - 新增店铺和提交前检查店铺名、商品名、图片或预览、至少一条规格。
 - 编辑器按稳定 `shopId` 管理店铺分组，支持折叠、新增/删除店铺、修改名称、选择已有商品及编辑规格。
 - 切换到已存在店铺时会更新组及各商品 `shopId`，保持商品集合；直接改名由后端 `renameShop` 同步关联数据。
@@ -334,6 +348,10 @@ giftRatio = totalAmount > 0
 - 单店铺分类编辑仍提交全部三类数组以保留其他栏目。PUT不是按单个栏目局部合并，调用方若遗漏数组可能清空该类别。
 
 ### 6.6 商品详情
+
+- 新增“编辑关联商品”：候选只能是其他店铺已录入商品，输入名称250ms后查询，最多50条；候选显示商品名和店铺。保存更新关系后重新取详情，清空选择解除当前商品关联。
+- 有同款组时详情标题组合成员名，按“商品名—店铺”分别列出各成员全部已购/礼品/小礼物订单记录，不叠加一份重复的源entries。可切换到成员页编辑该店铺商品，美工/分类仍只修改原同店同名范围。ProductOrderRecords复用原规格排序、非零数量、价格与订单链接逻辑。
+- 展示最高分辨率同款图；图片失败不影响订单展示，无法取得尺寸时使用源商品图片并提示。
 
 - 左侧容器固定640px，先展示640×480缩略预览，原图异步解码完成后替换为按容器宽度显示的完整原图；右侧自适应展示已购/礼品/小礼物记录。缩略图只是临时预览，最终原图不会按缩略图比例裁剪；原图来源不等于始终1:1像素展示。
 - 顶部新增美工信息区，可补填、修改、清空；保存仅更新该属性，不上传图片、不改变订单/规格记录。点击作者名称跳到 `/?type=artist&keyword=编码名称&exact=true` 自动筛选商品。
@@ -425,6 +443,12 @@ Set、散件、商品详情以及订单列表/详情的GET请求各读取一次�
 
 各图cover居中裁剪到单元格，白色背景，未填充格留白，按行优先排列；最终质量95 JPEG。写入 `data/append/merged_时间戳.jpg`，返回 `{success, filename, path: '/append/文件名', count}`。不写入db.json，也无自动清理拼接文件机制。
 
+### 8.4 同款图片分辨率选择
+
+`imageResolution.ts` 不访问数据库或写图片。仅有关联的查询会检查原图文件，以width×height选择最大像素面积，包含同店同名历史图；同面积按ID稳定选择。实际文件元数据优先，不能信任覆盖后可能过期的旧imageResolution字段。
+
+图片结果按完整路径及mtime/size缓存，最多512项；同请求对同文件只stat一次，最多8个并行元数据任务，图库不同组并发处理但维持返回顺序。缺图、非法路径或解码失败只影响图选择，不使整个页面失败。没有关联组时普通查询不额外建关联索引/检查尺寸；旧图尺寸不回写db.json。
+
 ## 9. HTTP API契约
 
 前端通用请求封装在 `src/api/client.ts`，以 `/api` 为base，非2xx尝试读取JSON `message` 并抛错；部分页面直接fetch PATCH，没有统一响应状态检查。
@@ -440,12 +464,15 @@ Set、散件、商品详情以及订单列表/详情的GET请求各读取一次�
 | GET | `/shops/all` | 全部非“拼单”店铺，Shop[] |
 | POST | `/shops` | JSON `{name}`，201 Shop；不强制去重 |
 | GET | `/products` | 全部持久化Product（不限有订单），Product[] |
-| GET | `/products/search` | query `type=productName\|shopName\|artist`、`keyword`、可选`exact=true`和`style`（六种合法值），组合过滤后的去重商品+shopName；非法/空style返回400 |
+| GET | `/products/search` | query `type=productName\|shopName\|artist`、`keyword`、可选`exact=true`、`style`（六种合法值）和`groupRelated=true`，组合过滤后的去重/同款商品+shopName；非法/空style返回400 |
 | PATCH | `/products/:id/artist` | JSON `{artist: string}`，trim后同步关联商品；空白清除，返回更新后的Product；非字符串400、缺失商品404 |
 | PATCH | `/products/:id/style` | JSON `{style: ProductStyle \| ''}`，同步关联商品分类，空字符串清除；非法分类400、缺失商品404，返回Product |
 | GET | `/products/set-products` | Set数量汇总数组 |
 | GET | `/products/loose-items` | 散件数量/字典汇总数组 |
 | GET | `/products/:id` | ProductDetail及分类entries |
+| GET | `/products/link-candidates` | query shopName/keyword/productId?，最多50个其他店铺已录入ProductReference；非法源参数400 |
+| GET | `/products/:id/relations` | 源商品同款组的其他店铺ProductReference[]，无关联[]，缺源404 |
+| PUT | `/products/:id/relations` | JSON `{productIds: string[]}`，更新/解除源关联并合并目标组，返回ProductReference[]；非法目标400、缺源404 |
 | POST | `/products/merge-images` | JSON `{imagePaths: string[]}`，拼接结果 |
 | POST | `/images/upload` | multipart `image`，`{imagePath, thumbnailPath}` |
 
@@ -471,7 +498,7 @@ PATCH成功返回更新后的Order；不存在订单/商品返回404，非法枚
 **multipart字段约定**：
 
 - 普通POST/PUT：`shopName`（PUT可选）、`purchasedItems`、`gifts`、`smallGifts` 均为字符串/JSON字符串；图片为 `purchasedImage_i`、`giftImage_i`、`smallGiftImage_i`。
-- POST项包含 `productName`、`specifications`、可选 `existingImagePath`、`artist`、`style`；礼品另有 `giftType/customGiftType`。有文件优先保存，否则复制已有路径，无图片来源返回400。各类POST/PUT在商品/图片变更前统一验证artist与style，style仅允许六个值或清除用空字符串。
+- POST项包含 `productName`、`specifications`、可选 `existingImagePath`、`artist`、`style`、`relatedProductIds`；礼品另有 `giftType/customGiftType`。有文件优先保存，否则复制已有路径，无图片来源返回400。各类POST/PUT在商品/图片变更前统一验证artist与style，style仅允许六个值或清除用空字符串。
 - 普通PUT项包含 `id/productId/productName/specifications`；已有Product无变更保留ID，仅改图更新Product，仅改名修改Product名，两者同时改变则创建新Product。已购处理中的Product ID替换映射会传给本次礼品/小礼物处理，不是全库事务级替换。
 - 拼单POST：`shops` JSON数组 `[{shopName, items:[...]}]`，商品项可包含artist；文件 `shop{店铺索引}_item{商品索引}`。无文件/已有路径时，仅复用同店铺同名商品，不再从其他店铺按名称兜底，避免带错图片及作者。
 - 拼单PUT：`orderType='group'`、`items`、`shopIds`、`shopNames`（ID→名称JSON对象）；文件 `item_{订单项id}`。前端临时项ID以 `temp_` 开头，后端转换UUID。
@@ -576,6 +603,9 @@ data/
 | `server/services/` | JSON及图片文件操作；productAssociations为商品详情/作者更新/继承建立请求内关联索引 |
 | `src/components/common/ArtistInput.tsx` | 新订单与编辑界面的统一可选美工输入框 |
 | `src/components/common/StyleInput.tsx` | 新订单与编辑界面的统一风格分类选择框 |
+| `src/components/common/RelatedProductSelector.tsx` | 可多选的其他店铺同款候选与已有源关联加载 |
+| `src/components/product/ProductOrderRecords.tsx` | 源商品及同款各成员的分类订单记录渲染 |
+| `server/services/productRelations.ts`、`imageResolution.ts` | 请求内关联索引/组更新/清理、只读分辨率缓存与选图 |
 | `src/hooks/useHistoryState.ts`、`src/hooks/useScrollRestoration.ts`、`src/utils/navigationState.ts` | 按历史项保存浏览偏好与滚动快照、等待异步布局恢复 |
 | `src/components/common/BackButton.tsx` | 历史返回与直接打开详情时的安全兜底 |
 | `src/hooks/useProgressiveList.ts` | Set/散件渐进渲染并按历史项保存批次数 |
@@ -648,6 +678,15 @@ NODE_PATH=/path/to/playwright/node_modules node scripts/test-style-ui.cjs
 
 后端模拟文件系统/图片服务验证六值enum、非法值400、旧数据与其他区分、关联同步/清除/继承、普通三类及拼单POST/PUT所有图片/名称编辑分支、美工字段独立、搜索条件与分类AND组合、exact、去重/排序及单快照不变。浏览器模拟API验证分类按钮位置、不显示卡片分类、店铺/美工范围内筛选、“全部”与手动搜索保留条件、名称链接携带分类、旧商品编辑/清除、新店铺/多店铺拼单录入及已有分类自动带出、仅发送修改字段，以及组合筛选＋加载批次＋深处返回恢复。
 
+### 12.8 同款关联验证
+
+```sh
+node scripts/test-relations.cjs
+NODE_PATH=/path/to/playwright/node_modules node scripts/test-relation-ui.cjs
+```
+
+实际后端代码以假JSON文件系统和注入图片元数据验证：候选资格/去重/50条上限、同款创建/合并/替换/解除、历史IDs展开和删除转移、普通三类与拼单POST/PUT继承及预写校验、不同店铺元数据/原金额/规格保留、搜索同成员AND条件、单卡名称店铺配对、各成员完整订单、最大历史图片及覆盖后的尺寸缓存失效、并发上限、未关联旧响应及单次DB读取。浏览器模拟API验证现有商品关联、候选店铺提示与排除同店/孤立商品、新店铺/多店铺录入、单卡与最高图路径、分成员记录、条件不泄漏和解除。未访问真实data或验证真实HTTP/真实图片解码。
+
 ## 13. 文档演进
 
 | 版本 | 记录 |
@@ -663,3 +702,4 @@ NODE_PATH=/path/to/playwright/node_modules node scripts/test-style-ui.cjs
 | **1.28** | 新增Product.artist可选属性、作者搜索及旧商品补填；普通/拼单录入编辑支持，关联历史商品同步、未指定值保留与继承，补充后端/浏览器回归测试。 |
 | **1.29** | 统一“美工”称谓；商品卡片先店铺后美工，两种名称链接跳到精确名称搜索结果；手动搜索保持包含匹配，补充顺序/链接/前缀名称隔离验证。 |
 | **1.30** | 新增六种商品风格及旧/新商品分类编辑；商品浏览分类与现有名称搜索AND组合，保留历史状态且卡片不显示分类；分类和美工独立同步/继承，补充后端与浏览器验证。 |
+| **1.31** | 新增跨店铺同款等价组、候选/维护及新录入关联；图库单卡、名称/店铺配对、实际文件最高像素图、详情每成员全部记录；默认订单查询不分组，历史/删除兼容并补充验证。 |

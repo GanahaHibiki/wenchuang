@@ -48,6 +48,17 @@ vm.runInNewContext(ts.transpileModule(fs.readFileSync('server/services/productAs
   },
 })
 
+const relationsModule = { exports: {} }
+vm.runInNewContext(ts.transpileModule(fs.readFileSync('server/services/productRelations.ts', 'utf8'), {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+}).outputText, {
+  module: relationsModule, exports: relationsModule.exports,
+  require(name) {
+    if (name === './productAssociations.js') return associationsModule.exports
+    throw new Error(`Unexpected relation dependency ${name}`)
+  },
+})
+
 function loadHandlers(source, filename) {
   const handlers = new Map()
   let reads = 0
@@ -83,6 +94,8 @@ function loadHandlers(source, filename) {
     require(name) {
       if (name.includes('services/database')) return database
       if (name.includes('services/productAssociations')) return associationsModule.exports
+      if (name.includes('services/productRelations')) return relationsModule.exports
+      if (name.includes('services/imageResolution')) return { selectImagesForSnapshot: () => async () => undefined }
       if (name.includes('services/imageService')) return {}
       if (name === 'sharp') return () => { throw new Error('Image writes are not permitted in this test') }
       if (name === 'fs/promises') return {}
