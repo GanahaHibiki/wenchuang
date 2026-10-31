@@ -1,1315 +1,561 @@
-# AI-Friendly Design Document - 文创商品订单管理系统
+# 文创商品订单管理系统 — 当前实现设计文档
 
-## Document Metadata
-- **System Name**: 文创商品订单管理系统 (Wenchuang Order Management System)
-- **Document Type**: Technical Design Specification
-- **Version**: 1.23
-- **Last Updated**: 2026-05-21
+## 1. 文档定位
 
----
+- **版本**：1.24（基于当前源码重整）
+- **核对基线**：Git `a2dc895` 的业务源码；本次仅更新文档。
+- **性质**：当前实现说明（as-built），不是未来架构提案或已通过测试的证明。
+- **依据**：`package.json`、`vite.config.ts`、`src/`、`server/`、`scripts/`；业务目标另见 `需求.md`。
+- **维护规则**：实现行为与需求不一致时，本文件记录实际行为，并在“限制与待改进”中列出差异；不得把未实现能力描述为已完成。
 
-## System Overview
+本文替代旧设计中 Electron/IPC、浏览器 LocalStorage、固定图库分页、内存常驻数据库等方案描述。历史版本1.0–1.23用于理解演进，不作为当前实现依据。
 
-### Purpose
-A **local desktop application** for Windows that manages merchandise orders, gifts, and promotional items from various shops, with analytics on gift-to-order ratios. All data stored locally without external database.
+## 2. 系统概述
 
-### Key Features
-1. Order entry with multi-step workflow
-2. Product catalog with image gallery
-3. Order details with financial analytics
-4. Product detail tracking across multiple contexts
+面向本地单用户的文创商品订单管理应用，以中文界面管理店铺、商品、订单和心愿商品。用户通过浏览器访问本地前端，后端操作JSON文件与图片文件，无需安装数据库。
 
-### Technical Constraints
-1. **Platform**: Windows local application (no server deployment)
-2. **Storage**: JSON file-based storage (no database installation required)
-3. **Images**: Local filesystem storage
-4. **Image Upload**: Support clipboard paste (Ctrl+V) and file selection
+### 2.1 已有功能
 
----
+1. 商品图库：按商品名或店铺名搜索、渐进显示、图片查看、跨订单商品详情。
+2. 单店铺订单：店铺→已购商品→礼品→小礼物的四步录入、分类编辑、删除。
+3. 拼单订单：按多个店铺录入商品、编辑店铺及商品、修改拼单名称、逐商品标记到货。
+4. 订单总览：店铺/拼单分栏、金额与占比排序、下单/发货时间、发货时长、到货状态、备注。
+5. 已购店铺与仅心愿店铺：从店铺列表跳转并按店铺筛选。
+6. 心愿商品：同店铺多商品添加、名称/店铺编辑、删除、录入订单时复用图片并清理对应心愿。
+7. Set商品：跨订单汇总数量、筛选符合条件商品、最多9张原图拼接。
+8. 散件商品：规格数量汇总、分类多选过滤、保留返回时的分类参数。
 
-## Technology Stack
+### 2.2 范围边界
 
-### Recommended Architecture
-```
-┌─────────────────────────────────────────────────────────┐
-│                    Electron App                         │
-│  ┌───────────────────────────────────────────────────┐ │
-│  │              React Frontend (Renderer)            │ │
-│  │  - React 18 + TypeScript                         │ │
-│  │  - React Router (SPA navigation)                 │ │
-│  │  - TailwindCSS (styling)                         │ │
-│  └───────────────────────────────────────────────────┘ │
-│  ┌───────────────────────────────────────────────────┐ │
-│  │              Node.js Backend (Main Process)       │ │
-│  │  - File system operations (fs)                   │ │
-│  │  - Image processing (sharp)                      │ │
-│  │  - JSON data management                          │ │
-│  └───────────────────────────────────────────────────┘ │
-│  ┌───────────────────────────────────────────────────┐ │
-│  │              Local Storage                        │ │
-│  │  - ./data/db.json (all data)                     │ │
-│  │  - ./data/images/original/ (full images)         │ │
-│  │  - ./data/images/thumbnails/ (640×480 thumbs)    │ │
-│  └───────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────┘
+当前没有 Electron 桌面包装、安装包生成、用户认证、多用户隔离、远程数据库、Excel导入导出或完整生产部署流程。`start.bat` 是Windows开发服务启动脚本，不是独立桌面程序。
+
+## 3. 架构与运行
+
+```text
+浏览器（React SPA）
+  │ fetch /api/*；图片 /images/*；拼接图 /append/*
+  ▼
+Vite 开发服务（默认5173）
+  │ /api 与 /images 代理到 localhost:3001
+  ▼
+Express（3001）
+  ├─ routes/：HTTP API、订单业务、统计与图片拼接
+  ├─ services/database.ts：JSON加载/保存、实体操作
+  ├─ services/imageService.ts：原图、缩略图、文件复制/改名/删除
+  └─ data/：db.json、images/、backups/、append/
 ```
 
-### Alternative: Pure Web App (Simpler)
-```
-┌─────────────────────────────────────────────────────────┐
-│           Browser-based SPA (localhost)                 │
-│  ┌───────────────────────────────────────────────────┐ │
-│  │              React Frontend                       │ │
-│  │  - Vite + React + TypeScript                     │ │
-│  │  - LocalStorage / IndexedDB for data             │ │
-│  │  - File System Access API for images             │ │
-│  └───────────────────────────────────────────────────┘ │
-│  Run: npm run dev → http://localhost:5173              │
-└─────────────────────────────────────────────────────────┘
-```
+`/append` 由Express提供，但当前Vite开发代理没有该项。因此生成文件成功不等于前端同源“查看图片”链接可用；完整转发是待改进项。
 
-### Dependencies
-```json
-{
-  "dependencies": {
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "react-router-dom": "^6.x",
-    "uuid": "^9.x"
-  },
-  "devDependencies": {
-    "vite": "^5.x",
-    "typescript": "^5.x",
-    "@types/react": "^18.x",
-    "tailwindcss": "^3.x"
-  }
-}
+### 3.1 技术栈
+
+| 层 | 当前依赖 |
+| --- | --- |
+| 前端 | React 18.3、React Router 6、TypeScript 5、Tailwind CSS 3 |
+| 开发构建 | Vite 5、@vitejs/plugin-react、PostCSS、autoprefixer |
+| 后端 | Node.js、Express 4、cors、multer内存上传 |
+| 图片 | sharp 0.33 |
+| ID | uuid 10 |
+| 开发进程 | tsx watch、concurrently |
+
+具体版本范围和锁定版本以 `package.json`、`package-lock.json` 为准。项目为ESM（`type: module`）；前端 `@/` 指向 `src/`，后端沿用带 `.js` 后缀的本地模块导入。
+
+### 3.2 启动与构建
+
+```sh
+npm ci                  # 使用现有锁文件安装依赖
+npm run dev             # 同时启动前后端
+npm run dev:client      # vite
+npm run dev:server      # tsx watch server/index.ts
+npm run build           # tsc && vite build
+npm run preview         # 仅前端构建预览
 ```
 
----
+- 前端默认 `http://localhost:5173`；Vite可能因端口冲突选择其他端口。
+- 后端固定3001，`app.listen(PORT)` 未显式限定loopback绑定地址，且启用了默认CORS；“本地用途”不等于已经限制外部访问。
+- `start.bat`：切换到项目根目录，缺少 `node_modules` 时 `npm install`，启动开发服务，等待5秒后打开浏览器。
+- `build` 的静态输出为 `dist/`。后端仍由tsx独立运行，Express当前不托管 `dist/`。
+- `preview` 不启动后端；不能把单独静态托管前端当作完整应用部署。
+- 当前没有 `test`、`lint`、`electron:build` 或生产后端打包/启动脚本。
+- `tsconfig.json` 覆盖 `src` 并引用 `tsconfig.node.json`；后者覆盖后端及Vite配置。两者启用严格与未使用检查，单次前端构建不应当作完整后端功能验证。
 
-## Data Model
+## 4. 数据模型
 
-### Core Entities
+定义源为 `src/types/index.ts`。时间字段持久化为字符串而非JavaScript `Date`；图片字段是文件名，不含 `images/original/` 前缀。以下为持久化实体概览。
 
-#### 1. Shop (店铺)
-```typescript
+```ts
 interface Shop {
-  id: string;
-  name: string;           // 店铺名称
-  createdAt: Date;
+  id: string
+  name: string
+  createdAt: string
 }
-```
 
-#### 2. Product (商品)
-```typescript
 interface Product {
-  id: string;
-  name: string;           // 商品名
-  imagePath: string;      // 本地图片路径 (相对路径: images/original/{id}.{ext})
-  imageResolution: {      // 原始图片分辨率
-    width: number;
-    height: number;
-  };
-  thumbnailPath: string;  // 缩略图路径 (images/thumbnails/{id}_thumb.{ext})
+  id: string
+  name: string
+  imagePath: string
+  thumbnailPath: string
+  createdAt: string
 }
-```
 
-#### 3. Specification (规格)
-```typescript
-type SpecificationType = 
-  | "试吃set"
-  | "小食量set"
-  | "大食量set"
-  | "折页"
-  | "异形折页"
-  | "卡背"
-  | "卡头"          // 支持多条追加
-  | "封口贴"        // 支持多条追加
-  | "长贴"          // 支持多条追加
-  | "贴纸包"
-  | "封箱贴"
-  | "售后卡"
-  | "豆丁贴"
-  | "gift贴"
-  | "磨砂盒"
-  | "其他衍生";
+type ItemCategory = 'purchased' | 'gift' | 'smallGift'
+type OrderType = 'shop' | 'group'
+type DeliveryStatus = '未到货' | '已到货'
 
 interface Specification {
-  type: SpecificationType;
-  customType?: string;       // Custom type name when type is '其他衍生'
-  sequenceNumber?: number;   // For 卡头/封口贴/长贴 multi-entry (1, 2, 3...)
-  quantity: number;          // 数量
-  purchasePrice?: number;    // 购入价 (only for purchased items)
-  originalPrice: number;     // 原价
+  type: SpecificationType
+  customType?: string
+  sequenceNumber: number
+  quantity: number
+  purchasePrice?: number
+  originalPrice: number
 }
-```
-
-#### 4. Order Item (订单商品)
-```typescript
-type ItemCategory = "purchased" | "gift" | "smallGift";
-
-type GiftType = "满赠礼" | "宣传礼" | "手速礼" | "高消礼";
 
 interface OrderItem {
-  id: string;
-  orderId: string;
-  productId: string;
-  category: ItemCategory;
-  giftType?: GiftType;       // Only for gift category
-  specifications: Specification[];
-  createdAt: Date;
+  id: string
+  productId: string
+  category: ItemCategory
+  giftType?: GiftType
+  customGiftType?: string
+  specifications: Specification[]
+  shopId?: string
+  arrived?: boolean
 }
-```
 
-#### 5. Order (订单)
-```typescript
 interface Order {
-  id: string;
-  sequenceNumber: number;    // 录入顺序 (auto-reordered on deletion)
-  shopId: string;
-  items: OrderItem[];
-  
-  // Calculated fields
-  totalAmount: number;       // 订单金额
-  smallGiftTotal: number;    // 小礼物总价
-  giftRatio: number;         // 小礼物占比 (保留1位小数)
-  
-  // Time tracking
-  orderTime?: string;        // 下单时间 (ISO format, precision to seconds)
-  shippingTime?: string;     // 发货时间 (ISO format, precision to day)
-  
-  createdAt: Date;
-}
-```
-
----
-
-## Calculation Logic
-
-### 1. Order Total Amount (订单金额)
-```typescript
-function calculateOrderTotal(order: Order): number {
-  const purchasedItems = order.items.filter(item => item.category === "purchased");
-  
-  return purchasedItems.reduce((sum, item) => {
-    const itemTotal = item.specifications.reduce((specSum, spec) => {
-      return specSum + (spec.quantity * (spec.purchasePrice || 0));
-    }, 0);
-    return sum + itemTotal;
-  }, 0);
-}
-```
-
-### 2. Small Gift Total (小礼物总价)
-```typescript
-function calculateSmallGiftTotal(order: Order): number {
-  const smallGifts = order.items.filter(item => item.category === "smallGift");
-  
-  return smallGifts.reduce((sum, item) => {
-    const itemTotal = item.specifications.reduce((specSum, spec) => {
-      return specSum + (spec.quantity * spec.originalPrice);
-    }, 0);
-    return sum + itemTotal;
-  }, 0);
-}
-```
-
-### 3. Gift Ratio (小礼物占比)
-```typescript
-function calculateGiftRatio(order: Order): number {
-  const smallGiftTotal = calculateSmallGiftTotal(order);
-  const orderTotal = calculateOrderTotal(order);
-  
-  if (orderTotal === 0) return 0;
-  
-  const ratio = (smallGiftTotal / orderTotal) * 100;
-  return Math.round(ratio * 10) / 10; // 保留1位小数
-}
-```
-
----
-
-## Page Specifications
-
-### Page 1: Home Page (主页)
-
-#### Layout Structure
-```
-┌─────────────┬────────────────────────────────────────────┐
-│             │  [Search Bar]                              │
-│  Menu       │  ┌──────────────────────────────────────┐  │
-│  - 订单录入  │  │ Search Type: [商品名 | 店铺名]       │  │
-│  - 订单详情  │  │ Keyword: [________] [Search Button]  │  │
-│  - 已购店铺  │  └──────────────────────────────────────┘  │
-│             │                                            │
-│             │  [Product Gallery]                         │
-│             │  ┌─────────────────────────────────────┐   │
-│             │  │ 总 xx 件商品 / 搜索到 xx 个商品      │   │
-│             │  └─────────────────────────────────────┘   │
-│             │  [Product Grid: 5 cols × 10 rows = 50]    │
-│             │                                            │
-│             │  [Pagination]                              │
-│             │  第 x 页，共 x 页  [<上一页] [下一页>]     │
-└─────────────┴────────────────────────────────────────────┘
-```
-
-#### Components
-
-**1.1 Navigation Menu**
-- Position: Left sidebar
-- Items:
-  - 订单录入 → Navigate to Order Entry Page
-  - 订单详情 → Navigate to Order List Page
-  - 已购店铺 → Navigate to Shop List Page
-
-**1.2 Search Bar**
-- Search Types:
-  - 商品名 (Product Name)
-  - 店铺名 (Shop Name)
-- Behavior:
-  - On search: Filter products and update gallery
-  - Display: "搜索到 xx 个商品"
-
-**1.3 Product Gallery**
-- Grid Layout: 5 columns × 10 rows = 50 items per page
-- Each Product Card:
-  - Container: Responsive width with aspect-[4/3] (4:3 aspect ratio)
-  - Image: Original image with object-cover (center crop to fill container)
-  - Responsive behavior: Container width adjusts to page width, maintaining 4:3 ratio
-  - Image scaling: Fills container completely via center crop at any size
-  - Note: Uses original images, not thumbnails
-  - Product Name (clickable → Product Detail Page)
-- Default: Show all purchased products (deduplicated by name, keep most recent)
-- Display: "总 xx 件商品"
-
-**1.4 Image Viewer**
-- Trigger: Click on thumbnail
-- Features:
-  - Display original resolution
-  - Mouse wheel zoom: 0.5x to 5x scale
-  - Drag to pan when zoomed in (cursor changes to grab/grabbing)
-  - Click outside image or press Esc to close
-  - No visible buttons or controls
-  - Instructions shown at bottom: "滚轮缩放 | 拖动平移 | 点击外部或按 Esc 关闭"
-
-**1.5 Pagination**
-- Display: "第 x 页，共 x 页"
-- Controls: 上一页, 下一页
-
----
-
-### Page 2: Order Entry (订单录入)
-
-#### Multi-Step Workflow
-
-**Step 1: Shop Information**
-```
-┌─────────────────────────────────────┐
-│ Step 1: 店铺信息                     │
-├─────────────────────────────────────┤
-│ 店铺名称: [_________________]        │
-│                                     │
-│           [确认并进入下一步]          │
-└─────────────────────────────────────┘
-```
-
-**Step 2: Purchased Items (已购商品)**
-```
-┌─────────────────────────────────────────────────┐
-│ Step 2: 已购商品录入                             │
-├─────────────────────────────────────────────────┤
-│ 商品名: [_________________]                      │
-│ 上传图片: [Choose File] [Preview]                │
-│ 💡 点击图片区域后可直接 Ctrl+V 粘贴              │
-│                                                 │
-│ 规格选择: (下拉框或列表，可添加多条)             │
-│ ☐ 试吃set      ☐ 小食量set    ☐ 大食量set        │
-│ ☐ 折页         ☐ 异形折页     ☐ 卡背             │
-│ ☐ 卡头         ☐ 封口贴       ☐ 长贴             │
-│ ☐ 贴纸包       ☐ 封箱贴       ☐ 售后卡           │
-│ ☐ 豆丁贴       ☐ gift贴       ☐ 磨砂盒           │
-│ ☐ 其他衍生 [自定义类别名: _________]             │
-│                                                 │
-│ For each selected specification:                │
-│ - 类型: [下拉选择]                               │
-│ - 数量: [____]                                   │
-│ - 购入价: [____]                                 │
-│ - 原价: [____]                                   │
-│                                                 │
-│ For 卡头/封口贴/长贴: [+ 添加更多]               │
-│                                                 │
-│ [继续添加新商品]  [进入下一步]                    │
-└─────────────────────────────────────────────────┘
-```
-
-**Step 3: Gifts (礼品)**
-```
-┌─────────────────────────────────────────────────┐
-│ Step 3: 礼品录入                                 │
-├─────────────────────────────────────────────────┤
-│ 礼品类型: ○ 满赠礼 ○ 宣传礼 ○ 手速礼 ○ 高消礼   │
-│                                                 │
-│ 商品名: [_________________]                      │
-│ 上传图片: [Choose File] [Preview]                │
-│                                                 │
-│ [Same specification checkboxes as Step 2]       │
-│                                                 │
-│ For each selected specification:                │
-│ - 数量: [____]                                   │
-│ - 原价: [____]                                   │
-│                                                 │
-│ For 卡头/封口贴/长贴: [+ 添加更多]               │
-│                                                 │
-│ [继续添加新礼品]  [进入下一步]                    │
-└─────────────────────────────────────────────────┘
-```
-
-**Step 4: Small Gifts (小礼物)**
-```
-┌─────────────────────────────────────────────────┐
-│ Step 4: 小礼物录入                               │
-├─────────────────────────────────────────────────┤
-│ 商品名: [_________________]                      │
-│ 上传图片: [Choose File] [Preview]                │
-│                                                 │
-│ [Same specification checkboxes as Step 2]       │
-│                                                 │
-│ For each selected specification:                │
-│ - 数量: [____]                                   │
-│ - 原价: [____]                                   │
-│                                                 │
-│ For 卡头/封口贴/长贴: [+ 添加更多]               │
-│                                                 │
-│ [继续添加新小礼物]  [录入完成]                    │
-└─────────────────────────────────────────────────┘
-```
-
-#### Validation Rules
-- Shop name: Required, non-empty
-- Product name: Required for each item
-- Image: Required for each item
-- Specifications: At least one must be selected
-- Quantity: Required, positive integer
-- Purchase Price (Step 2): Required, positive number
-- Original Price: Required, positive number
-
----
-
-### Page 3: Order List (订单总览)
-
-#### Table Layout
-```
-┌─────┬──────────┬──────────┬──────────┬────────────┬────────────┬────────────┬────────────┬──────────┬──────┐
-│ 序号 │ 店铺名称  │ 订单金额  │ 礼品总价  │ 小礼物总价  │ 小礼物占比  │ 下单时间    │ 发货时间    │ 到货情况  │ 备注  │
-├─────┼──────────┼──────────┼──────────┼────────────┼────────────┼────────────┼────────────┼──────────┼──────┤
-│  1  │ Shop A   │ ¥1000.00 │ ¥100.00  │ ¥150.00    │ 15.0%      │ 2026-01-01 │ 2026-01-05 │ 已到货    │ 备注  │
-│  2  │ Shop B   │ ¥800.00  │ ¥50.00   │ ¥80.00     │ 10.0%      │ 2026-01-02 │            │ 未到货    │      │
-└─────┴──────────┴──────────┴──────────┴────────────┴────────────┴────────────┴────────────┴──────────┴──────┘
-
-Sort by: [订单金额 ↕] [礼品总价 ↕] [小礼物占比 ↕]
-Default sort: Orders with orderTime sorted chronologically, orders without orderTime follow in entry order
-```
-
-#### Columns
-1. **序号**: Display sequence (1, 2, 3...), dynamically calculated based on current sort order
-2. **店铺名称**: Shop name (editable in order detail page)
-3. **订单金额**: Sum of (quantity × purchasePrice) for all purchased items
-4. **礼品总价**: Sum of (quantity × originalPrice) for all gifts
-5. **小礼物总价**: Sum of (quantity × originalPrice) for all small gifts
-6. **小礼物占比**: (小礼物总价 ÷ 订单金额) × 100%, rounded to 1 decimal
-7. **下单时间**: Order time (editable), input format: YYYY-MM-DD HH:mm:ss, display in local format
-8. **发货时间**: Shipping time (editable), input format: YYYY-MM-DD, display in local format
-9. **到货情况**: Delivery status dropdown (未到货/已到货)
-10. **备注**: User notes (editable inline)
-
-#### Sorting
-- **订单金额**: Ascending/Descending (manual)
-- **礼品总价**: Ascending/Descending (manual)
-- **小礼物占比**: Ascending/Descending (manual)
-- **Default (no manual sort)**: 
-  - Orders with orderTime: sorted chronologically (earliest first)
-  - Orders without orderTime: follow in original entry order after orders with orderTime
-
-#### Time Input Behavior
-- **下单时间**: Click cell to edit, enter time as `YYYY-MM-DD HH:mm:ss`, press Enter or blur to save
-  - After saving, orders automatically re-sort by orderTime
-  - Sequence numbers update to reflect new sort order
-- **发货时间**: Click cell to edit, enter date as `YYYY-MM-DD`, press Enter or blur to save
-  - Does not affect sort order
-
----
-
-### Page 4: Order Detail (订单详情页)
-
-#### Layout
-```
-┌─────────────────────────────────────────────────────────┐
-│ 订单详情 #1 - Shop Name [编辑]                          │
-├─────────────────────────────────────────────────────────┤
-│ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
-│ 订单金额: ¥xxx.xx                                       │
-│ 小礼物总价: ¥xxx.xx                                     │
-│ 小礼物占比: xx.x%                                       │
-│ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
-│                                                         │
-│ ━━━ 已购商品 ━━━                          [编辑]        │
-│                                                         │
-│ ┌─────┬─────┬─────┬─────┬─────┐  (Responsive Grid)    │
-│ │[IMG]│[IMG]│[IMG]│[IMG]│[IMG]│  5 cols on xl screens │
-│ │Name │Name │Name │Name │Name │  4 cols on lg         │
-│ │Spec │Spec │Spec │Spec │Spec │  3 cols on md         │
-│ └─────┴─────┴─────┴─────┴─────┘  2 cols on sm         │
-│                                                         │
-│ ━━━ 礼品 ━━━                              [编辑]        │
-│                                                         │
-│ [满赠礼]                                                │
-│ ┌─────┬─────┬─────┬─────┬─────┐                        │
-│ │[IMG]│[IMG]│[IMG]│[IMG]│[IMG]│                        │
-│ │Name │Name │Name │Name │Name │                        │
-│ │Spec │Spec │Spec │Spec │Spec │                        │
-│ └─────┴─────┴─────┴─────┴─────┘                        │
-│                                                         │
-│ ━━━ 小礼物 ━━━                            [编辑]        │
-│                                                         │
-│ ┌─────┬─────┬─────┬─────┬─────┐                        │
-│ │[IMG]│[IMG]│[IMG]│[IMG]│[IMG]│                        │
-│ │Name │Name │Name │Name │Name │                        │
-│ │Spec │Spec │Spec │Spec │Spec │                        │
-│ └─────┴─────┴─────┴─────┴─────┘                        │
-│                                                         │
-│ 💡 编辑提示: 点击图片上传区域使其获得焦点后可 Ctrl+V   │
-└─────────────────────────────────────────────────────────┘
-```
-
-#### Sections
-1. **Summary Section** (Top, after header)
-   - Display: 订单金额, 小礼物总价, 小礼物占比
-
-2. **已购商品** (Purchased Items)
-   - Display: Responsive grid layout (2/3/4/5 columns based on screen width)
-   - Each item card: Image (4:3 aspect ratio) + Name + Specifications with 购入价
-   - Sequence numbers only shown when multiple entries of same type exist in this order
-   - [编辑] button to modify
-
-3. **礼品** (Gifts)
-   - Grouped by gift type (满赠礼, 宣传礼, 手速礼, 高消礼)
-   - Display: Responsive grid layout per group
-   - Each item card: Image + Name + Specifications with 原价
-   - Sequence numbers only shown when multiple entries of same type exist in this order
-   - [编辑] button to modify
-
-4. **小礼物** (Small Gifts)
-   - Display: Responsive grid layout
-   - Each item card: Image + Name + Specifications with 原价
-   - Sequence numbers only shown when multiple entries of same type exist in this order
-   - [编辑] button to modify
-
-#### Responsive Grid Breakpoints
-- Small screens (sm): 2 columns (`grid-cols-2`)
-- Medium screens (md): 3 columns (`md:grid-cols-3`)
-- Large screens (lg): 4 columns (`lg:grid-cols-4`)
-- Extra large screens (xl): 5 columns (`xl:grid-cols-5`)
-
-#### Interactions
-- Click product name → Navigate to Product Detail Page
-- Click [编辑] next to shop name → Enter edit mode with input field and Save/Cancel buttons
-- Click [编辑] on item category → Enter edit mode for that category
-  - In edit mode, click image upload area to focus it, then Ctrl+V to paste image
-- Shop name changes are saved via PUT /api/orders/:id with shopName parameter
-
----
-
-### Page 5: Product Detail (商品详情页)
-
-#### Layout
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│ 商品详情 - Product Name                              [返回首页]      │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                     │
-│ ┌──────────────┬────────────────────────────────────────────────┐  │
-│ │              │  ━━━ 已购商品记录 ━━━                          │  │
-│ │              │                                                │  │
-│ │              │  订单1 - Shop A (点击跳转)                     │  │
-│ │              │  - 规格1: 数量 x 个, 购入价¥xx.xx, 原价¥xx.xx  │  │
-│ │  [Product    │  - 规格2: 数量 x 个, 购入价¥xx.xx, 原价¥xx.xx  │  │
-│ │   Image]     │                                                │  │
-│ │              │  订单2 - Shop B (点击跳转)                     │  │
-│ │  640px       │  - 规格1: 数量 x 个, 购入价¥xx.xx, 原价¥xx.xx  │  │
-│ │  fixed       │                                                │  │
-│ │              │  ━━━ 礼品记录 ━━━                              │  │
-│ │  点击查看    │                                                │  │
-│ │  大图        │  订单3 - Shop C [满赠礼] (点击跳转)            │  │
-│ │              │  - 规格1: 数量 x 个, 原价¥xx.xx                │  │
-│ │              │                                                │  │
-│ │              │  ━━━ 小礼物记录 ━━━                            │  │
-│ │              │                                                │  │
-│ │              │  订单1 - Shop A (点击跳转)                     │  │
-│ │              │  - 规格1: 数量 x 个, 原价¥xx.xx                │  │
-│ │              │                                                │  │
-│ └──────────────┴────────────────────────────────────────────────┘  │
-│                                                                     │
-└─────────────────────────────────────────────────────────────────────┘
-```
-
-#### Content Rules
-1. **Layout**: Left-right split - Image (640px fixed) + Records (flexible width)
-2. **Display Original Image**: Full resolution, not thumbnail; click to open viewer with zoom/pan
-3. **Group by Category**: 已购商品, 礼品, 小礼物 (all in right column)
-4. **Multiple Entries**: Same product can appear multiple times in same category
-5. **Show Non-Zero Specs Only**: Only display specifications with quantity > 0
-6. **Sequence Number Display**: Only show sequence numbers (e.g., "封口贴1", "封口贴2") when multiple entries of the same spec type exist in that order
-7. **Price Display**:
-   - 已购商品: Show both 购入价 and 原价
-   - 礼品/小礼物: Show only 原价
-8. **Order Links**: Each entry is clickable, navigates to corresponding order detail page
-
----
-
-## UI/UX Specifications
-
-### Image Handling
-
-#### 1. Upload Methods (支持两种上传方式)
-
-**Method A: File Selection (文件选择)**
-```typescript
-// React component for file upload
-function ImageUploader({ onImageSelect }: Props) {
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file && isValidImageType(file)) {
-      onImageSelect(file);
-    }
-  };
-
-  return (
-    <input 
-      type="file" 
-      accept="image/jpeg,image/png,image/webp"
-      onChange={handleFileSelect}
-    />
-  );
-}
-```
-
-**Method B: Clipboard Paste (剪贴板粘贴 - Ctrl+V)**
-
-**Important**: Clipboard paste is focus-based. When multiple image upload areas exist on a page:
-1. Click on the specific upload area to give it focus (blue ring indicator appears)
-2. Then press Ctrl+V to paste the image to that specific uploader
-3. This prevents accidental pasting to the wrong image field
-
-```typescript
-// React hook for clipboard paste
-function useClipboardPaste(onImagePaste: (file: File) => void) {
-  useEffect(() => {
-    const handlePaste = async (e: ClipboardEvent) => {
-      const items = e.clipboardData?.items;
-      if (!items) return;
-
-      for (const item of items) {
-        if (item.type.startsWith('image/')) {
-          const file = item.getAsFile();
-          if (file) {
-            onImagePaste(file);
-            e.preventDefault();
-          }
-          break;
-        }
-      }
-    };
-
-    document.addEventListener('paste', handlePaste);
-    return () => document.removeEventListener('paste', handlePaste);
-  }, [onImagePaste]);
+  id: string
+  sequenceNumber: number
+  orderType: OrderType
+  shopId: string
+  shopIds?: string[]
+  groupOrderName?: string
+  items: OrderItem[]
+  totalAmount: number
+  giftTotal: number
+  smallGiftTotal: number
+  giftRatio: number
+  note?: string
+  deliveryStatus?: DeliveryStatus
+  orderTime?: string
+  shippingTime?: string
+  createdAt: string
 }
 
-// Usage in component
-function ImageUploadArea({ onImageSelect, enableClipboard = false }: Props) {
-  const [isDragOver, setIsDragOver] = useState(false);
-  const [preview, setPreview] = useState<string | null>(null);
-  const [isFocused, setIsFocused] = useState(false);
-
-  // Handle clipboard paste - only when focused
-  useClipboardPaste((file) => {
-    if (enableClipboard && isFocused) {
-      handleImage(file);
-    }
-  });
-
-  const handleImage = (file: File) => {
-    if (!isValidImageType(file)) {
-      alert('仅支持 JPG、PNG、WebP 格式');
-      return;
-    }
-    if (file.size > 10 * 1024 * 1024) {
-      alert('文件大小不能超过 10MB');
-      return;
-    }
-    
-    // Show preview
-    const url = URL.createObjectURL(file);
-    setPreview(url);
-    onImageSelect(file);
-  };
-
-  return (
-    <div 
-      className={`upload-area ${isDragOver ? 'drag-over' : ''} ${isFocused ? 'focused' : ''}`}
-      tabIndex={enableClipboard ? 0 : -1}
-      onFocus={() => setIsFocused(true)}
-      onBlur={() => setIsFocused(false)}
-      onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
-      onDragLeave={() => setIsDragOver(false)}
-      onDrop={(e) => {
-        e.preventDefault();
-        setIsDragOver(false);
-        const file = e.dataTransfer.files[0];
-        if (file) handleImage(file);
-      }}
-    >
-      {preview ? (
-        <img src={preview} alt="Preview" className="preview-image" />
-      ) : (
-        <div className="upload-placeholder">
-          <p>点击选择图片 或 拖拽图片到此处</p>
-          {enableClipboard && (
-            <p className="hint">点击此区域后可直接 Ctrl+V 粘贴图片</p>
-          )}
-        </div>
-      )}
-      <input 
-        type="file"
-        accept="image/jpeg,image/png,image/webp"
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) handleImage(file);
-        }}
-        className="file-input"
-      />
-    </div>
-  );
+interface WishItem {
+  id: string
+  shopId: string
+  productId: string
+  productName: string
+  imagePath: string
+  thumbnailPath: string
+  createdAt: string
 }
-```
 
-**Upload Area UI Layout**
-```
-┌─────────────────────────────────────────────────────┐
-│                                                     │
-│         ┌─────────────────────────────┐            │
-│         │                             │            │
-│         │      [Preview Image]        │            │
-│         │         or                  │            │
-│         │   📷 点击选择图片            │            │
-│         │      或 拖拽到此处           │            │
-│         │                             │            │
-│         │ 💡 点击此区域后可 Ctrl+V     │            │
-│         │    (需启用 enableClipboard)  │            │
-│         │                             │            │
-│         └─────────────────────────────┘            │
-│         Blue ring appears when focused              │
-│                                                     │
-│   支持格式: JPG, PNG, WebP | 最大 10MB              │
-│                                                     │
-└─────────────────────────────────────────────────────┘
-```
-
-#### 2. Image Processing (本地图片处理)
-```typescript
-// Image processing service
-class ImageService {
-  private originalDir = './data/images/original';
-  private thumbnailDir = './data/images/thumbnails';
-
-  async saveImage(file: File, productId: string, shopName?: string, productName?: string): Promise<{
-    imagePath: string;
-    thumbnailPath: string;
-    resolution: { width: number; height: number };
-  }> {
-    // Get file extension
-    const ext = this.getExtension(file.type);
-    
-    // Generate filename with shop and product name if provided
-    let filename: string;
-    if (shopName && productName) {
-      const sanitizedShop = shopName.replace(/[/\\?%*:|"<>\s]/g, '_');
-      const sanitizedProduct = productName.replace(/[/\\?%*:|"<>\s]/g, '_');
-      filename = `${sanitizedShop}_${sanitizedProduct}.${ext}`;
-    } else {
-      filename = `${productId}.${ext}`;
-    }
-    
-    // Save original
-    const originalPath = `${this.originalDir}/${filename}`;
-    const buffer = await file.arrayBuffer();
-    await fs.writeFile(originalPath, Buffer.from(buffer));
-    
-    // Get dimensions
-    const dimensions = await this.getImageDimensions(originalPath);
-    
-    // Generate thumbnail (640×480)
-    const thumbnailPath = `${this.thumbnailDir}/${filename.replace(/\.\w+$/, '_thumb.jpg')}`;
-    await this.createThumbnail(originalPath, thumbnailPath, 640, 480);
-    
-    return {
-      imagePath: `images/original/${filename}`,
-      thumbnailPath: `images/thumbnails/${filename.replace(/\.\w+$/, '_thumb.jpg')}`,
-      resolution: dimensions
-    };
-  }
-
-  private async createThumbnail(
-    sourcePath: string,
-    destPath: string,
-    width: number,
-    height: number
-  ): Promise<void> {
-    // Using canvas for browser, or sharp for Node.js/Electron
-    const img = await loadImage(sourcePath);
-    const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
-    
-    const ctx = canvas.getContext('2d')!;
-    
-    // Calculate crop to maintain aspect ratio
-    const srcRatio = img.width / img.height;
-    const dstRatio = width / height;
-    
-    let sx = 0, sy = 0, sw = img.width, sh = img.height;
-    
-    if (srcRatio > dstRatio) {
-      sw = img.height * dstRatio;
-      sx = (img.width - sw) / 2;
-    } else {
-      sh = img.width / dstRatio;
-      sy = (img.height - sh) / 2;
-    }
-    
-    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, width, height);
-    
-    // Convert to blob and save
-    const blob = await new Promise<Blob>(resolve => 
-      canvas.toBlob(b => resolve(b!), 'image/jpeg', 0.85)
-    );
-    await this.saveBlob(blob, destPath);
-  }
-
-  private getExtension(mimeType: string): string {
-    const map: Record<string, string> = {
-      'image/jpeg': 'jpg',
-      'image/png': 'png',
-      'image/webp': 'webp'
-    };
-    return map[mimeType] || 'jpg';
-  }
-}
-```
-
-#### 3. Display
-- Product Gallery: Original images with object-cover (responsive 4:3 aspect ratio, center crop fill)
-- Order Detail Thumbnails: 640×480 with object-cover
-- Original: Full resolution in lightbox/detail view
-
-#### 4. Lightbox Features
-- Click to view original image
-- Mouse wheel zoom: 0.5x to 5x scale range
-- Drag to pan when zoomed (grab cursor)
-- Close: Click outside image or press Esc key
-- No visible UI buttons or controls
-
-### Form Validation
-- Real-time validation on blur
-- Clear error messages
-- Disable submit until valid
-- Highlight invalid fields in red
-
-### Responsive Behavior
-- Desktop: Full layout as specified
-- Tablet: 3-4 columns for product grid
-- Mobile: 2 columns, stacked forms
-
----
-
-## Search & Filter Logic
-
-### Search Types
-
-#### 1. By Product Name (商品名)
-```typescript
-function searchByProductName(keyword: string, products: Product[]): Product[] {
-  const lowerKeyword = keyword.toLowerCase().trim();
-  return products.filter(product => 
-    product.name.toLowerCase().includes(lowerKeyword)
-  );
-}
-```
-
-#### 2. By Shop Name (店铺名)
-```typescript
-function searchByShopName(keyword: string, orders: Order[], shops: Shop[], products: Product[]): Product[] {
-  const lowerKeyword = keyword.toLowerCase().trim();
-  
-  // Find matching shops
-  const matchingShops = shops.filter(shop => 
-    shop.name.toLowerCase().includes(lowerKeyword)
-  );
-  
-  // Get all products from orders of matching shops
-  const shopIds = new Set(matchingShops.map(s => s.id));
-  const matchingOrders = orders.filter(order => shopIds.has(order.shopId));
-  
-  // Extract unique products from purchased items
-  const productIds = new Set<string>();
-  matchingOrders.forEach(order => {
-    order.items
-      .filter(item => item.category === "purchased")
-      .forEach(item => productIds.add(item.productId));
-  });
-  
-  const matchingProducts = Array.from(productIds)
-    .map(id => products.find(p => p.id === id))
-    .filter(p => p !== undefined);
-  
-  // Deduplicate by product name, keep most recent
-  const productsByName = new Map<string, Product>();
-  for (const product of matchingProducts) {
-    const existing = productsByName.get(product.name);
-    if (!existing || product.createdAt > existing.createdAt) {
-      productsByName.set(product.name, product);
-    }
-  }
-  
-  return Array.from(productsByName.values());
-}
-```
-
----
-
-## Local Storage Schema (JSON File-Based)
-
-### Directory Structure
-```
-./data/
-├── db.json                          # All application data
-├── images/
-│   ├── original/                    # Original uploaded images
-│   │   ├── {product-id}.jpg
-│   │   ├── {product-id}.png
-│   │   └── ...
-│   └── thumbnails/                  # Auto-generated 480×640 thumbnails
-│       ├── {product-id}_thumb.jpg
-│       └── ...
-└── backups/                         # Auto-backup on each save
-    ├── db_2026-04-04_120000.json
-    └── ...
-```
-
-### db.json Schema
-```typescript
 interface Database {
-  version: string;           // Schema version for migrations
-  lastModified: string;      // ISO timestamp
-  
-  shops: Shop[];
-  products: Product[];
-  orders: Order[];
-  
-  // Sequence counter for order numbering
-  nextOrderSequence: number;
+  version: string
+  lastModified: string
+  nextOrderSequence: number
+  shops: Shop[]
+  products: Product[]
+  orders: Order[]
+  wishItems?: WishItem[]
 }
 ```
 
-### Example db.json
-```json
-{
-  "version": "1.0",
-  "lastModified": "2026-04-04T12:00:00.000Z",
-  "nextOrderSequence": 3,
-  "shops": [
-    {
-      "id": "shop-uuid-1",
-      "name": "萌物小店",
-      "createdAt": "2026-04-01T10:00:00.000Z"
-    }
-  ],
-  "products": [
-    {
-      "id": "prod-uuid-1",
-      "name": "可爱猫咪贴纸",
-      "imagePath": "images/original/prod-uuid-1.jpg",
-      "imageResolution": { "width": 1920, "height": 2560 },
-      "thumbnailPath": "images/thumbnails/prod-uuid-1_thumb.jpg"
-    }
-  ],
-  "orders": [
-    {
-      "id": "order-uuid-1",
-      "sequenceNumber": 1,
-      "shopId": "shop-uuid-1",
-      "items": [...],
-      "totalAmount": 150.00,
-      "smallGiftTotal": 20.00,
-      "giftRatio": 13.3,
-      "createdAt": "2026-04-01T10:30:00.000Z"
-    }
-  ]
-}
+### 4.1 关联与兼容行为
+
+- 店铺订单使用顶层 `Order.shopId`；拼单使用 `shopIds` 及每个 `OrderItem.shopId` 关联实际店铺。
+- 拼单顶层 `shopId` 指向名为“拼单”的特殊店铺记录，并非固定字符串 `GROUP`。店铺列表接口按名称排除该记录。
+- `Product` 没有直接的 `shopId`，店铺归属从订单及订单项推导。
+- 新录入通常为各订单项创建新的Product UUID；`findOrCreateProduct` 实际总是新增，不按名称复用。相同图片文件名可能被多个Product引用。
+- 心愿条目保存独立的名称/图片字段；创建时生成 `productId`，但不向 `db.products` 插入对应Product，不能把心愿 `productId` 当作已有商品外键。
+- 单店铺POST当前未显式写入 `orderType`。读取订单时缺少 `orderType` 视为 `'shop'`，缺少 `giftTotal` 补0；这属于返回对象兼容处理，不是完整的持久化迁移。
+- 订单详情返回 `shop`（拼单为null）、可选 `shops`、以及带Product的 `purchasedItems/gifts/smallGifts`。列表返回 `OrderSummary`；商品详情返回 `ProductDetail.entries`。
+- 当前订单详情响应不带备注、到货状态和下单/发货时间，即使共享类型允许这些字段；这些信息在列表摘要中提供。
+
+### 4.2 规格与礼品类型
+
+规格输入顺序：
+
+> 试吃set、小食量set、大食量set、折页、异形折页、卡背、卡头、封口贴、长贴、其他贴纸、贴纸包、吊牌、封箱贴、售后卡、豆丁贴、gift贴、磨砂盒、其他衍生。
+
+显示顺序将前三项改为 **大食量set、小食量set、试吃set**，其余顺序相同。同类型再按 `sequenceNumber` 排序，源为 `SPECIFICATION_DISPLAY_ORDER` 和 `sortSpecifications()`。
+
+- 多条追加类型：卡头、封口贴、长贴、其他贴纸、其他衍生。
+- 其他贴纸/其他衍生通过 `customType` 输入自定义名称。
+- 录入表单选中新规格默认为数量1、原价0；已购另有购入价0。价格输入 `min=0`，不是旧设计中的“严格正数”。数量使用整数解析，空/0输入回退1；HTML约束不等于后端验证。
+- 追加序号取当前同类型最大序号+1，删除不保证立即连续重排。
+- 详情页按单条订单项的“显示名称”统计多条规格，只有同名多条时显示序号，不是整个订单跨商品统一计数。
+- 礼品类型：满赠礼、宣传礼、手速礼、高消礼、小时礼、新客礼、回购礼、其他。`giftType: '其他'` 时可保存 `customGiftType`。
+
+## 5. 金额、排序和状态
+
+### 5.1 金额计算
+
+由订单POST/PUT计算并保存：
+
+```text
+订单金额 totalAmount = Σ 已购规格(quantity × (purchasePrice || 0))
+礼品总价 giftTotal = Σ 礼品规格(quantity × originalPrice)
+小礼物总价 smallGiftTotal = Σ 小礼物规格(quantity × originalPrice)
+giftRatio = totalAmount > 0
+  ? Math.round(smallGiftTotal / totalAmount × 1000) / 10
+  : 0
 ```
 
-### Data Operations
-```typescript
-// Data service for JSON file operations
-class DataService {
-  private dbPath = './data/db.json';
-  private data: Database;
+金额使用JavaScript Number计算，显示两位小数；占比保存到一位小数，订单金额≤0时详情/列表显示 `-`。拼单仅计算已购金额，礼品总价、小礼物总价及占比保存0。尚无整数分币或统一高精度金额层。
 
-  // Load database from file
-  async load(): Promise<Database> {
-    const content = await fs.readFile(this.dbPath, 'utf-8');
-    this.data = JSON.parse(content);
-    return this.data;
-  }
+### 5.2 三种编号
 
-  // Save database to file (with auto-backup)
-  async save(): Promise<void> {
-    this.data.lastModified = new Date().toISOString();
-    
-    // Create backup before saving
-    await this.createBackup();
-    
-    await fs.writeFile(
-      this.dbPath,
-      JSON.stringify(this.data, null, 2),
-      'utf-8'
-    );
-  }
+| 编号 | 来源与含义 |
+| --- | --- |
+| `Order.id` | 稳定UUID，用于路由与关联 |
+| `sequenceNumber` | 持久化的全部订单录入序号；单店铺详情/商品记录使用它 |
+| `groupSequenceNumber` | 按拼单 `createdAt` 升序即时计算的独立序号，用于拼单详情/商品记录 |
+| 列表序号 | 店铺与拼单各栏按当前排序结果 `index + 1` 显示 |
 
-  // Create timestamped backup
-  private async createBackup(): Promise<void> {
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const backupPath = `./data/backups/db_${timestamp}.json`;
-    await fs.copyFile(this.dbPath, backupPath);
-    
-    // Keep only last 10 backups
-    await this.cleanOldBackups(10);
-  }
-}
+新增订单使用 `nextOrderSequence` 后自增。删除订单时按 `createdAt` 重排全部订单的 `sequenceNumber`；当前删除逻辑没有同步重置 `nextOrderSequence`，后续加载可能再次纠正空缺。不要假定列表序号和详情编号总一致。
+
+### 5.3 默认与手动排序
+
+- 默认：有 `orderTime` 的订单按时间升序，随后无时间订单按持久化序号升序。
+- 点击订单金额、礼品总价、小礼物占比列：首次降序，再次点击切换升/降序；后端排序后前端分栏。
+- 当前没有显式“恢复默认排序”按钮。
+- 修改下单时间后重新加载列表，仍保留当前手动排序条件；发货时间不参与排序。
+
+### 5.4 时间、备注与到货
+
+- 下单输入提示 `YYYY-MM-DD HH:mm:ss`，按浏览器Date解析转ISO；发货输入 `YYYY-MM-DD`，按本地午夜转ISO。显示为浏览器本地时间，不是所有字段都强制北京时间。
+- 时间和备注通过Enter或失焦PATCH保存，Esc取消；空时间清除字段。
+- 发货时长：无下单时间显示 `-`；有发货时间用本地归零后的日期差；无发货时间用偏移计算的北京时间当前日期，最终 `Math.floor(毫秒差/86400000)` 显示天数。没有定时器驱动实时刷新，跨时区/DST一致性仍需验证。
+- 整单到货下拉默认未到货，已到货绿色、未到货红色。
+- 拼单商品 `arrived` 通过专用PATCH更新；全部商品已到货时把整单改为已到货。取消某项到货时保留原整单状态；整单下拉也不反向修改商品，当前不是双向同步。
+
+## 6. 页面与交互
+
+路由集中在 `src/App.tsx`，所有页面由 `MainLayout` 与左侧 `Sidebar` 包裹。
+
+| 路由 | 页面/主要职责 |
+| --- | --- |
+| `/` | HomePage：商品搜索与图库 |
+| `/wishes` | WishListPage：心愿图库与添加 |
+| `/set-products` | SetProductsPage：Set汇总与拼接 |
+| `/loose-items` | LooseItemsPage：散件汇总与分类过滤 |
+| `/order-entry` | OrderEntryPage：单店铺四步录入 |
+| `/group-order-entry` | GroupOrderEntryPage：拼单按店铺录入 |
+| `/orders` | OrderListPage：订单总览、排序、行内编辑 |
+| `/orders/:id` | OrderDetailPage：商品分类、编辑与删除 |
+| `/products/:id` | ProductDetailPage：商品与跨订单记录 |
+| `/shops` | ShopListPage：有订单的店铺 |
+| `/wish-shops` | WishShopListPage：仅心愿店铺 |
+
+### 6.1 商品图库
+
+- `productApi.search` 一次获取全量结果，在前端渐进显示，不是后端分页。
+- 初始显示50项，用IntersectionObserver检测底部加载，展示总数、已显示数量和全部加载提示。
+- 当前主页 `loadMore` 的切片终点多加一批，首次触底会从50直接增至最多150，而非严格每次50；心愿页按50增加。
+- 网格为 `repeat(auto-fill,minmax(200px,1fr))`；商品卡片4:3缩略图、居中 `object-cover`，商品名跳转详情，店铺名作为辅助信息。
+- 缩略图通过原生 `loading=lazy` 或 `LazyImage` 渐显，点击图库图片查看原图。
+- `/?shop=店铺名` 初始化店铺搜索；搜索组件同步初始参数并支持显式搜索。当前没有通用300ms去抖搜索层。
+
+### 6.2 单店铺订单录入
+
+`components/order/OrderEntry/` 以React state保存未提交草稿：
+
+1. **店铺信息**：输入店铺名；失焦发现同名时确认是否同一店铺，不同则添加后缀。
+2. **已购商品**：商品标签页、手动输入/已有商品及心愿选择、图片、规格、购入价和原价。新商品的规格选择清空。
+3. **礼品**：可选本订单/同店铺商品、心愿或手动输入；填写礼品类型和原价，支持其他自定义礼品名称。
+4. **小礼物**：同样可复用商品图片或手动输入，填写规格和原价。
+
+同名检测主要在失焦时于前端执行；不同商品添加数字后缀，同一商品/心愿确认可填充已有图片。检测范围与是否精确限定同店铺取决于调用方，不由数据库唯一约束保证。
+
+录入页每次只展示当前商品，可全局Ctrl+V粘贴；另支持共享上传组件的文件选择和拖拽。步骤可返回，最终组装multipart一次创建订单；成功后前端清理 `isFromWish` 对应心愿，再跳转详情。草稿没有持久化，刷新可能丢失。
+
+### 6.3 拼单录入与编辑
+
+- 录入按店铺标签切换，允许新增/删除店铺；至少保留一个店铺，不要求至少两个。
+- 每店铺多个商品，选择/手动输入商品、复用图片、规格购入价及原价；切换店铺时当前商品标签重置。
+- 新增店铺和提交前检查店铺名、商品名、图片或预览、至少一条规格。
+- 编辑器按稳定 `shopId` 管理店铺分组，支持折叠、新增/删除店铺、修改名称、选择已有商品及编辑规格。
+- 切换到已存在店铺时会更新组及各商品 `shopId`，保持商品集合；直接改名由后端 `renameShop` 同步关联数据。
+- 拼单编辑界面有心愿商品选项，但只选心愿会得到空 `productId`，保存校验仍要求新上传图片；当前未实现无上传直接复用心愿图片的完整编辑链路。
+
+### 6.4 订单总览
+
+店铺订单和拼单订单分栏，空栏目不渲染。两栏使用同一表格布局：序号4%、店铺名称15%、金额/礼品/小礼物/占比各7%、下单11%、发货/时长/到货各7%、备注21%。点击普通行进入详情，编辑单元格阻止行跳转。
+
+拼单店铺列显示 `groupOrderName || '拼单'`，不是实际店铺列表。排序和行内编辑规则见第5节。
+
+### 6.5 订单详情与编辑
+
+- 顶部显示编号和店铺/拼单名称，可编辑名称、删除订单（确认后执行）、返回列表。
+- 汇总始终显示金额、礼品总价、小礼物总价、占比四项；拼单也保留零值汇总。
+- 店铺订单有已购、礼品、小礼物三个栏目，各有编辑入口；拼单仅显示已购栏目与整体拼单编辑器。
+- 商品网格 `repeat(auto-fill,minmax(150px,230px))` 居中，不是旧设计的215px上限。
+- 商品卡片使用4:3缩略图，点击看原图；已购显示购入价及小计，赠品显示原价及小计。
+- 礼品按类型/自定义名称分组，拼单按店铺分组，在组的首商品上方绝对定位标签；包装项都加 `mt-8`。
+- 拼单卡片带到货复选框。规格按显示顺序排序；订单详情当前不滤掉数量0，商品详情会过滤。
+- 编辑使用弹层，顶部保存/取消，横向图片与商品字段、规格行、虚线添加入口；多商品粘贴按焦点选择目标。
+- 单店铺分类编辑仍提交全部三类数组以保留其他栏目。PUT不是按单个栏目局部合并，调用方若遗漏数组可能清空该类别。
+
+### 6.6 商品详情
+
+- 左侧容器固定640px，原图按容器宽度显示；右侧自适应展示已购/礼品/小礼物记录。原图来源不等于始终1:1像素展示。
+- 后端先从订单找商品店铺，再聚合该店铺同名商品的多个Product ID；店铺名精确匹配，商品名大小写无关。未找到归属时至少保留请求Product。
+- 每条订单项作为单独记录，不因同商品、同类别或同订单重复而消失；只展示数量>0的规格。
+- 已购记录显示购入价和原价，礼品/小礼物显示原价，各有订单跳转。
+- `from=set-products`、`from=loose-items`、`from=订单ID` 决定返回目标；散件 `categories` 参数随返回保留。
+- 商品详情礼品数据当前只带 `giftType`，未带 `customGiftType`，因此自定义名称可能显示成“其他”。
+
+### 6.7 店铺列表与心愿
+
+**店铺列表**：显示序号、加粗名称、创建日期和总数。已购店铺从订单顶层/订单项提取关联，排除名称“拼单”；心愿店铺必须有心愿且无订单引用。点击分别跳到 `/?shop=...` 和 `/wishes?shop=...`。
+
+**心愿图库**：搜索、50项渐进显示、4:3缩略图和原图查看。悬浮编辑/删除按钮；编辑只改商品名、店铺，不更换图片。后端修改条目名称/店铺ID，不同步改图片文件名。
+
+**添加弹窗**：可从全部非特殊店铺选择或手动输入，一次填写同店铺多个商品；支持文件选择和按目标聚焦的粘贴，使用独立上传逻辑，不沿用通用ImageUploader校验。提交只筛选名称和图片完整的条目，逐个POST；失败可能已有部分保存。重名弹层确认不同商品时直接添加 `(2)`，不保证该后缀全局唯一。
+
+### 6.8 Set和散件统计
+
+两种统计均遍历所有订单项（包含已购、礼品、小礼物），按大小写无关的店铺名+商品名汇总，不按订单类别或到货状态过滤。代表商品ID/图片取遍历遇到的首条，不保证最新。两页全量渲染，没有搜索栏或分页。
+
+**Set**：累加大食量set、小食量set、试吃set；条件为大>0或小>0或试吃≥5。依次按大、小、试吃数量降序。卡片显示店铺、正数规格和详情链接。
+
+**散件**：分类按钮多选采用OR匹配，未选时显示全部；选中后卡片只显示对应分类的正数规格。分类为折页（含异形）、卡头、卡背、贴纸（封口贴/长贴/其他贴纸）、贴纸包、衍生贴纸（封箱贴/豆丁贴/gift贴）、售后卡、磨砂盒、其他衍生。
+
+- 标准规格直接累计数字，多条类型按序号累计；自定义规格按 `${customType || 默认名}_${sequenceNumber || 1}` 累计。
+- 跨订单相同序号会合并；散件展示固定带序号，与详情页“仅多条显示序号”规则不同。
+- 当前吊牌不在散件汇总/分类中。字典类型的筛选检查键存在，不检查汇总值>0，可能纳入只有零数量键的商品。
+
+## 7. 搜索与去重
+
+实现源为 `server/services/database.ts`：
+
+1. 关键字trim、转小写，名称匹配使用includes。
+2. 空查询或商品名搜索只取已被任何订单项引用的Product，包含赠品，不是只取purchased。
+3. 店铺搜索先找匹配店铺；普通订单检查 `order.shopId`，拼单检查 `item.shopId`，再收集商品。
+4. 商品的店铺显示名由首个引用订单项推导。
+5. 按创建时间升序，以小写店铺名+商品名去重，**保留最早记录**，最终按创建时间降序返回。
+
+这与需求文档“同一商品名仅显示一次，保留最新”不同。心愿搜索不采用此Product去重，按心愿 `createdAt` 降序返回；按店铺精确取心愿的 `by-shop` 返回值也不含增强的店铺显示字段。
+
+## 8. 图片处理与拼接
+
+### 8.1 上传、存储与显示
+
+共享 `ImageUploader` 接收JPG/PNG/WebP，前端检查MIME和≤10MB。文件选择、拖拽、粘贴均交给回调；`alwaysListenClipboard` 用于单商品录入，`enableClipboard && isFocused` 用于多商品编辑。心愿添加采用独立逻辑，不具有完全相同的类型/大小限制。
+
+后端multer使用memoryStorage，没有显式 `limits` 或 `fileFilter`。sharp失败交给全局错误处理中间件，不能把前端限制当作API强制限制。
+
+命名：
+
+```text
+订单图片：清洗后的店铺名_商品名.原扩展名
+心愿图片：心愿_清洗后的店铺名_商品名.原扩展名
+通用上传：UUID.原扩展名
+缩略图：对应文件名去支持的扩展名后加 _thumb.jpg
 ```
 
----
+非法Windows文件名字符及空白替换为 `_`。原图保存原buffer，sharp生成640×480、cover居中裁剪、质量85 JPEG缩略图。数据库只存文件名；图片URL由前端拼接。
 
-## API Endpoints (Internal IPC / Function Calls)
+- 普通商品/心愿/订单详情/Set/散件卡片实际使用缩略图；查看器和商品详情使用原图。
+- `copyAndRenameImage` 复制原图/缩略图，缩略图不存在时重新生成。
+- 改店铺名调用 `renameShop`，尝试更新该店铺相关Product、心愿和图片文件名；文件操作失败被容错处理，不保证JSON/文件一致性。
+- 同店铺同商品同扩展名会写入同路径，可能覆盖原图；删除引用检查以Product ID为主，不具备共享图片路径引用计数。
 
-> Note: Since this is a local application, these are internal function calls rather than HTTP endpoints.
-> For Electron: Use IPC channels. For pure web: Direct function calls.
+### 8.2 原图查看器
 
-### Data Access Layer
-```typescript
-// shops.ts
-export const shopService = {
-  getAll: (): Shop[] => db.shops,
-  getById: (id: string): Shop | undefined => db.shops.find(s => s.id === id),
-  create: (name: string): Shop => { /* ... */ },
-};
+`ImageViewer` 为全屏遮罩，图片初始适配最大90vw/90vh。滚轮倍率范围0.5–5，倍率>1可拖动平移；点遮罩或Esc关闭，点图片不关闭。无可见操作按钮，有底部操作提示；打开时禁止body滚动。
 
-// products.ts
-export const productService = {
-  getAll: (): Product[] => db.products,
-  getById: (id: string): Product | undefined => db.products.find(p => p.id === id),
-  getPurchased: (): Product[] => { /* get products that appear in purchased items */ },
-  search: (type: 'productName' | 'shopName', keyword: string): Product[] => { /* ... */ },
-  create: (name: string, imageFile: File): Promise<Product> => { /* ... */ },
-};
+### 8.3 拼接
 
-// orders.ts
-export const orderService = {
-  getAll: (sortBy?: 'totalAmount' | 'giftRatio', order?: 'asc' | 'desc'): Order[] => { /* ... */ },
-  getById: (id: string): Order | undefined => db.orders.find(o => o.id === id),
-  create: (data: CreateOrderInput): Order => { /* ... */ },
-  update: (id: string, data: UpdateOrderInput): Order => { /* ... */ },
-};
+前端以 `imagePath` 为选择集合，最多9个唯一路径，显示选中边框、计数、清空及生成按钮。Set迭代顺序即选择顺序，成功后清空选择并提供新窗口查看链接；不是按屏幕卡片顺序自动排序。
+
+后端 `POST /api/products/merge-images` 读取原图，目标1200×1800（6:9），网格如下（列×行）：
+
+| 张数 | 网格 |
+| --- | --- |
+| 1 | 1×1 |
+| 2 | 1×2 |
+| 3 | 1×3 |
+| 4 | 2×2 |
+| 5–6 | 2×3 |
+| 7–9 | 3×3 |
+
+各图cover居中裁剪到单元格，白色背景，未填充格留白，按行优先排列；最终质量95 JPEG。写入 `data/append/merged_时间戳.jpg`，返回 `{success, filename, path: '/append/文件名', count}`。不写入db.json，也无自动清理拼接文件机制。
+
+## 9. HTTP API契约
+
+前端通用请求封装在 `src/api/client.ts`，以 `/api` 为base，非2xx尝试读取JSON `message` 并抛错；部分页面直接fetch PATCH，没有统一响应状态检查。
+
+### 9.1 店铺、商品与图片
+
+| 方法 | 路径（省略/api） | 输入 / 返回 |
+| --- | --- | --- |
+| GET | `/shops` | 有订单非“拼单”店铺，Shop[] |
+| GET | `/shops/wish` | 仅心愿店铺，Shop[] |
+| GET | `/shops/all` | 全部非“拼单”店铺，Shop[] |
+| POST | `/shops` | JSON `{name}`，201 Shop；不强制去重 |
+| GET | `/products` | 全部持久化Product（不限有订单），Product[] |
+| GET | `/products/search` | query `type=productName\|shopName`、`keyword`，去重商品+shopName |
+| GET | `/products/set-products` | Set数量汇总数组 |
+| GET | `/products/loose-items` | 散件数量/字典汇总数组 |
+| GET | `/products/:id` | ProductDetail及分类entries |
+| POST | `/products/merge-images` | JSON `{imagePaths: string[]}`，拼接结果 |
+| POST | `/images/upload` | multipart `image`，`{imagePath, thumbnailPath}` |
+
+### 9.2 订单
+
+| 方法 | 路径（省略/api） | 输入 / 返回 |
+| --- | --- | --- |
+| GET | `/orders` | query `sortBy=totalAmount\|giftTotal\|giftRatio`、`order=asc\|desc`，OrderSummary[] |
+| GET | `/orders/:id` | 分类商品、店铺及汇总详情 |
+| POST | `/orders` | 单店铺multipart，201 Order |
+| POST | `/orders/group` | 拼单multipart，201 Order |
+| PUT | `/orders/:id` | 普通/拼单完整商品数组，更新后Order |
+| DELETE | `/orders/:id` | 删除订单、孤立Product及图片，`{success, message}` |
+| PATCH | `/orders/:id/note` | JSON `{note}` |
+| PATCH | `/orders/:id/delivery-status` | JSON `{deliveryStatus}` |
+| PATCH | `/orders/:id/order-time` | JSON `{orderTime}`，空值清除 |
+| PATCH | `/orders/:id/shipping-time` | JSON `{shippingTime}`，空值清除 |
+| PATCH | `/orders/:id/group-order-name` | JSON `{groupOrderName}`，仅拼单，空值回退“拼单” |
+| PATCH | `/orders/:id/items/:itemId/arrived` | JSON `{arrived}`，仅拼单；严格true为到货 |
+
+PATCH成功返回更新后的Order；不存在订单/商品返回404，非法枚举、时间或错误订单类型返回400。时间验证使用Date可解析性，不是严格格式schema。
+
+**multipart字段约定**：
+
+- 普通POST/PUT：`shopName`（PUT可选）、`purchasedItems`、`gifts`、`smallGifts` 均为字符串/JSON字符串；图片为 `purchasedImage_i`、`giftImage_i`、`smallGiftImage_i`。
+- POST项包含 `productName`、`specifications`、可选 `existingImagePath`；礼品另有 `giftType/customGiftType`。有文件优先保存，否则复制已有路径，无图片来源返回400。
+- 普通PUT项包含 `id/productId/productName/specifications`；已有Product无变更保留ID，仅改图更新Product，仅改名修改Product名，两者同时改变则创建新Product。已购处理中的Product ID替换映射会传给本次礼品/小礼物处理，不是全库事务级替换。
+- 拼单POST：`shops` JSON数组 `[{shopName, items:[...]}]`；文件 `shop{店铺索引}_item{商品索引}`。无文件/已有路径时，还会尝试全库按商品名查找，未严格限定店铺。
+- 拼单PUT：`orderType='group'`、`items`、`shopIds`、`shopNames`（ID→名称JSON对象）；文件 `item_{订单项id}`。前端临时项ID以 `temp_` 开头，后端转换UUID。
+- 拼单PUT重建items未保留 `arrived`，已标记商品编辑后可能丢失到货标记。
+
+### 9.3 心愿
+
+| 方法 | 路径（省略/api） | 输入 / 返回 |
+| --- | --- | --- |
+| GET | `/wishes` | 全部增强心愿（含shopName） |
+| GET | `/wishes/search` | query `type`、`keyword`，增强心愿数组 |
+| GET | `/wishes/by-shop` | query `shopName`，精确店铺名的原始WishItem数组；无名称返回[] |
+| POST | `/wishes` | multipart `shopName/productName/shopId?`、`image`，201 WishItem |
+| PUT | `/wishes/:id` | JSON `productName/shopName`，修改后的心愿+shopName |
+| DELETE | `/wishes/by-product` | query `shopName/productName`，删除首个精确匹配心愿及其图片，`{success}` |
+| DELETE | `/wishes/:id` | 删除条目及图片，`{success:true}` |
+
+心愿转订单不是上述POST/PUT的后端事务：前端先保存订单，再逐项按店铺/商品名DELETE，失败只记录console错误。重复同名心愿可能只删除第一条。
+
+### 9.4 错误处理
+
+路由try/catch交给Express错误处理中间件：MulterError返回400，其他异常返回500 JSON `{message}` 并在控制台记录。缺失数据等由路由显式400/404处理。没有统一输入schema、事务回滚或错误码枚举。
+
+## 10. 本地持久化与维护
+
+```text
+data/
+  db.json
+  images/
+    original/               原始上传文件
+    thumbnails/             640×480 JPEG缩略图
+  backups/                  最近10份JSON备份
+  append/                   拼接结果
 ```
 
----
+路径由后端模块位置解析到项目根目录 `data`，不是浏览器存储。`data/` 被Git忽略。
 
-## Business Rules Summary
+### 10.1 加载和保存
 
-### Specification Multi-Entry Rules
-- **Types supporting multiple entries**: 卡头, 封口贴, 长贴
-- **Naming convention**: Display as "封口贴1", "封口贴2", "封口贴3"... only when multiple entries exist
-- **Storage**: Use `sequenceNumber` field (1, 2, 3...)
-- **Display Logic**: Check count of each spec type in order; only show sequence number if count > 1
+- 每次数据服务调用读取/解析db.json，没有全程常驻缓存；嵌套调用/统计循环可能重复读盘多次。
+- 自动创建data、backups、原图和缩略图目录，append按拼接需要创建。
+- 加载发现订单序号空缺/重复时按createdAt重排并直接写回；这一纠正路径没有先调用标准备份。
+- 读取/解析异常被统一catch，会调用保存默认数据库；没有区分文件不存在与损坏/权限错误，可能覆盖原有坏库。
+- 标准保存前尝试复制原JSON到时间戳备份，按文件名排序保留最近10份；随后更新lastModified、直接覆盖db.json。
+- 备份异常被忽略；没有原子临时文件替换、锁、并发写保护、自动恢复或完整schema校验。
+- JSON备份不包含图片，迁移与真实数据维护应备份整个data目录。
 
-### Custom Specification Types
-- **其他衍生** type supports custom names via `customType` field
-- When displaying: show `customType` value if present, otherwise show type name
+### 10.2 删除与名称变更
 
-### Price Rules
-- **购入价 (Purchase Price)**: Only for "已购商品" category, required
-- **原价 (Original Price)**: Required for all categories
+删除订单移除Order、重排全局序号，收集剩余订单关联店铺/Product，同时保留心愿引用的店铺和特殊“拼单”店铺；孤立Product删除后路由删除其图片。PUT删除商品并不执行同样完整的孤立清理。图片可能共享路径，不能保证仅删一个Product不会影响其他记录。
 
-### Display Rules
-- **Only show non-zero specifications**: Filter out specifications with quantity = 0
-- **Decimal precision**: All monetary values to 2 decimal places, ratios to 1 decimal place
-- **Product deduplication**: In product galleries, same product name only shows once (keep most recent)
-- **Sequence number visibility**: Only display sequence numbers when multiple entries of same spec type exist in that order
+店铺改名作用于共享Shop及其关联数据，不只是修改当前订单显示文字。Product只改名时不会自动改图片名；心愿条目编辑也不改图片名。
 
-### Order Sequencing
-- **Sequence number**: Auto-increment based on order creation time
-- **Auto-reordering**: When an order is deleted, all remaining orders are reordered sequentially (1, 2, 3...)
-- **No gaps**: Ensures sequence numbers are always consecutive
+### 10.3 维护脚本
 
----
+- `python3 scripts/merge_group_orders.py`：交互选择目标/来源拼单，合并店铺与items、重算金额、删除来源订单、重排序号，写入前备份JSON。该脚本金额使用 `purchasePrice or originalPrice`，与API仅用购入价规则不同，0购入价会回退原价。
+- `node scripts/rename-wish-images.cjs`：将心愿UUID图片改为语义名称并更新WishItem路径；没有自动备份，不是 `.js` 文件。
+- 维护脚本不是测试或启动前置步骤。运行前先确认操作范围并备份，避免与服务同时写真实数据。
 
-## Edge Cases & Error Handling
+## 11. 当前限制与待改进
 
-### Image Upload
-- **Error**: File too large → "文件大小不能超过 10MB"
-- **Error**: Invalid format → "仅支持 JPG、PNG、WebP 格式"
-- **Error**: Upload failed → "上传失败,请重试"
+下列是静态源码核对结果，未在本次启动应用复现；不表示已修复。
 
-### Form Validation
-- **Error**: Empty shop name → "请输入店铺名称"
-- **Error**: No specification selected → "请至少选择一个规格"
-- **Error**: Invalid quantity → "数量必须为正整数"
-- **Error**: Invalid price → "价格必须为正数"
+| 类别 | 当前限制 / 与目标差异 |
+| --- | --- |
+| 图库 | 保留最早同店铺同名记录，非需求中的最新；普通卡片用缩略图而非需求中的原图；主页首次追加可能跳两批 |
+| 规格/礼品 | 详情序号按订单项显示名称计数；订单详情不滤零数量；商品详情缺自定义礼品名称；散件缺吊牌 |
+| 到货状态 | 拼单全到货单向更新整单，取消单项不回退；整单状态不反向同步；拼单编辑可能丢arrived |
+| 心愿联动 | 订单保存与删除心愿不是事务；批量添加可部分成功；拼单编辑选择心愿仍需上传图片 |
+| API契约 | 单店铺创建未显式写orderType；详情部分类型字段未返回；普通PUT省略类别数组会清空，不是安全局部更新 |
+| 校验 | 后端缺统一规格/数量/价格schema、图片大小类型限制及路径边界校验；前端HTML限制可绕过 |
+| 错误反馈 | 列表等直接fetch PATCH未检查response.ok，HTTP失败可能仍显示保存成功 |
+| 图片一致性 | 语义名称碰撞、共享路径删除风险；JSON与文件操作无事务/回滚；零散Object URL未完整释放 |
+| 数据安全 | 加载异常可能初始化覆盖库；备份失败被吞；直接覆盖写无原子性/锁；序号计数器未完整同步 |
+| 时间 | 本地时间与北京时间计算混用，非固定UTC+8展示；无定时更新；跨时区/DST需验证 |
+| 展示 | 640px商品详情、固定侧栏/表格未形成完整移动端适配，不能承诺所有手机布局可用 |
+| 性能 | 全量获取/渲染，JSON重复读盘，无后台分页或缓存、索引；大图库与大量订单扩展能力有限 |
+| 服务安全 | 默认CORS、未明确只绑定localhost、无认证；不适合直接公网暴露 |
+| 部署 | /append缺开发代理，preview不提供完整后端；无Electron/生产后端发布流程 |
 
-### Search
-- **Empty keyword**: Show all products
-- **No results**: Display "未找到匹配的商品"
+这些问题应另立开发任务确认目标后修复，不通过文档更新悄悄改变实现。
 
-### Pagination
-- **First page**: Disable "上一页" button
-- **Last page**: Disable "下一页" button
-- **Empty results**: Show "暂无商品"
+## 12. 源码地图与验证清单
 
-### Division by Zero
-- **Gift ratio calculation**: If orderTotal = 0, display "-" instead of ratio
+### 12.1 源码地图
 
----
+| 路径 | 责任 |
+| --- | --- |
+| `src/App.tsx`、`src/main.tsx` | SPA入口与路由 |
+| `src/pages/` | 页面、行内PATCH、状态与跳转 |
+| `src/components/layout/` | 侧栏与整体布局 |
+| `src/components/order/OrderEntry/` | 单店铺步骤、共享规格输入 |
+| `src/components/order/GroupOrderEntry/` | 拼单按店铺录入 |
+| `src/components/order/OrderItemEditor.tsx` | 店铺订单分类编辑 |
+| `src/components/order/GroupOrderItemEditor.tsx` | 拼单店铺/商品编辑 |
+| `src/components/common/`、`src/hooks/useClipboardPaste.ts` | 上传、查看、延迟图片、搜索、分页组件及粘贴 |
+| `src/components/wish/` | 心愿卡片与添加弹窗 |
+| `src/api/client.ts`、`src/types/index.ts` | 请求封装、共享类型/常量 |
+| `src/utils/specificationSort.ts` | 规格显示排序 |
+| `server/index.ts` | Express入口、静态路径、全局错误 |
+| `server/routes/` | HTTP业务契约与统计/拼接 |
+| `server/services/` | JSON及图片文件操作 |
+| `scripts/` | 手动数据维护 |
 
-## Performance Considerations
+`Pagination.tsx` 存在不代表图库当前使用固定分页。当前不存在旧结构中的 `src/services/calculationService.ts`、Electron主进程或数据库安装层。
 
-### Local Application Optimizations
-- Load db.json once at startup, keep in memory
-- Lazy load images as user scrolls (intersection observer)
-- Debounce search input (300ms delay)
-- Auto-save with debounce (save 1 second after last change)
-- Keep backup cleanup async (don't block UI)
+### 12.2 建议验证（未执行）
 
----
+使用获准的测试副本，避免直接操作个人订单/图片：
 
-## Windows Deployment
+- [ ] 安装依赖、前端构建和后端TypeScript检查，记录已有失败，不随意放宽类型配置。
+- [ ] 单店铺仅已购/含赠品/零金额录入，确认金额、giftRatio与原图/缩略图持久化。
+- [ ] 拼单多店铺录入、现有商品复用、店铺改名及重关联，确认商品未丢失。
+- [ ] 分类编辑提交保留另外两类，多条/自定义规格、礼品名称和图片变更正确。
+- [ ] 店铺/拼单列表分栏、三种排序、时间清除/保存、备注、行点击与编号差异。
+- [ ] 拼单单项到货、取消、全到货、再编辑及整单状态之间的实际行为。
+- [ ] 心愿多条添加、重名、编辑、删除、转订单后的图片复制和清理失败反馈。
+- [ ] 同名跨店铺/同店铺多订单搜索和详情聚合，验证保留记录与数量。
+- [ ] Set统计含赠品、散件OR分类及序号汇总、详情返回保留分类。
+- [ ] 拼接1/2/3/4/5/6/7/9张、超过9张拒绝、选择顺序、输出分辨率及/append查看路径。
+- [ ] 文件选择/拖拽/粘贴目标隔离、类型/大小校验、查看器缩放拖动/Esc关闭。
+- [ ] 服务重启后的数据保存、备份数量、删除共享路径、损坏库和并发写风险（仅隔离副本）。
 
-### Option 1: Electron (Recommended for full native experience)
-```bash
-# Build commands
-npm run build          # Build React app
-npm run electron:build # Package as Windows .exe
+## 13. 文档演进
 
-# Output: dist/WenChuang-Setup-1.0.0.exe
-```
-
-### Option 2: Local Web Server (Simpler)
-```bash
-# Run locally
-npm run dev            # Start dev server at localhost:5173
-
-# Build static files
-npm run build          # Output to dist/
-
-# Run with simple server
-npx serve dist         # Serve static files
-```
-
-### Startup Script (run.bat)
-```batch
-@echo off
-cd /d "%~dp0"
-start "" http://localhost:5173
-npm run dev
-```
-
----
-
-## Project Structure
-```
-WenChuang/
-├── package.json
-├── vite.config.ts
-├── tsconfig.json
-├── index.html
-├── src/
-│   ├── main.tsx                    # Entry point
-│   ├── App.tsx                     # Root component with router
-│   ├── types/
-│   │   └── index.ts                # TypeScript interfaces
-│   ├── services/
-│   │   ├── database.ts             # JSON file operations
-│   │   ├── imageService.ts         # Image upload & thumbnail
-│   │   └── calculationService.ts   # Order calculations
-│   ├── hooks/
-│   │   ├── useDatabase.ts          # Data loading hook
-│   │   └── useClipboardPaste.ts    # Clipboard paste hook
-│   ├── components/
-│   │   ├── Layout/
-│   │   │   ├── Sidebar.tsx         # Navigation menu
-│   │   │   └── MainLayout.tsx
-│   │   ├── common/
-│   │   │   ├── ImageUploader.tsx   # File + clipboard upload
-│   │   │   ├── ImageViewer.tsx     # Lightbox with zoom/pan
-│   │   │   ├── Pagination.tsx
-│   │   │   └── SearchBar.tsx
-│   │   ├── product/
-│   │   │   ├── ProductCard.tsx
-│   │   │   ├── ProductGrid.tsx
-│   │   │   └── ProductDetail.tsx
-│   │   ├── order/
-│   │   │   ├── OrderEntry/
-│   │   │   │   ├── StepShop.tsx
-│   │   │   │   ├── StepPurchased.tsx
-│   │   │   │   ├── StepGifts.tsx
-│   │   │   │   ├── StepSmallGifts.tsx
-│   │   │   │   └── SpecificationForm.tsx
-│   │   │   ├── OrderList.tsx
-│   │   │   └── OrderDetail.tsx
-│   │   └── shop/
-│   │       └── ShopList.tsx
-│   ├── pages/
-│   │   ├── HomePage.tsx
-│   │   ├── OrderEntryPage.tsx
-│   │   ├── OrderListPage.tsx
-│   │   ├── OrderDetailPage.tsx
-│   │   ├── ProductDetailPage.tsx
-│   │   └── ShopListPage.tsx
-│   └── styles/
-│       └── globals.css
-├── data/                           # Created at runtime
-│   ├── db.json
-│   ├── images/
-│   │   ├── original/
-│   │   └── thumbnails/
-│   └── backups/
-└── public/
-    └── favicon.ico
-```
-
----
-
-## Testing Checklist
-
-### Image Upload
-- [ ] File selection works (JPG, PNG, WebP)
-- [ ] Clipboard paste (Ctrl+V) works
-- [ ] Drag and drop works
-- [ ] Invalid format rejected with error message
-- [ ] Large file (>10MB) rejected with error message
-- [ ] Thumbnail auto-generated correctly (480×640)
-- [ ] Preview shows after upload
-
-### Order Entry Flow
-- [ ] Can create order with all three categories
-- [ ] Can create order with only purchased items
-- [ ] Multi-entry specs (卡头/封口贴/长贴) work correctly
-- [ ] Calculations are accurate
-- [ ] Images upload and display correctly
-- [ ] Data persists after page refresh
-
-### Search & Filter
-- [ ] Product name search is case-insensitive
-- [ ] Shop name search returns correct products
-- [ ] Pagination works correctly
-- [ ] Search result count is accurate
-
-### Order Management
-- [ ] Orders display in correct sequence
-- [ ] Sorting by amount/ratio works
-- [ ] Edit functionality preserves data integrity
-- [ ] Links between pages work correctly
-
-### Product Details
-- [ ] All entries displayed grouped by category
-- [ ] Multiple entries in same category show separately
-- [ ] Links to order details work
-- [ ] Only non-zero specs are shown
-
-### Data Persistence
-- [ ] Data survives page refresh
-- [ ] Data survives app restart
-- [ ] Backup files created on save
-- [ ] Can recover from backup if db.json corrupted
-
----
-
-## Future Enhancements (Out of Scope)
-
-1. Export orders to Excel/CSV
-2. Bulk import from spreadsheet
-3. User authentication and multi-user support
-4. Order deletion with confirmation
-5. Analytics dashboard with charts
-6. Mobile app version
-7. Barcode scanning for products
-8. Automatic shop name suggestions
-9. Product duplication/templates
-10. Order status tracking
-
----
-
-## Glossary
-
-| 中文术语 | English | Description |
-|---------|---------|-------------|
-| 店铺 | Shop | Vendor/seller where products are purchased |
-| 商品 | Product | Merchandise item |
-| 规格 | Specification | Product variant/SKU with specific attributes |
-| 已购商品 | Purchased Item | Items bought with purchase price |
-| 礼品 | Gift | Promotional items given to customers |
-| 小礼物 | Small Gift | Additional small promotional items |
-| 订单金额 | Order Total | Total cost of purchased items |
-| 小礼物总价 | Small Gift Total | Total value of small gifts |
-| 小礼物占比 | Gift Ratio | Percentage of small gifts relative to order total |
-| 购入价 | Purchase Price | Cost to buy the item |
-| 原价 | Original Price | MSRP/retail price |
-| 满赠礼 | Full Purchase Gift | Gift for reaching spend threshold |
-| 宣传礼 | Promotional Gift | Marketing/advertising gift |
-| 手速礼 | Quick Purchase Gift | Gift for fast/early buyers |
-| 高消礼 | High Spender Gift | Gift for high-value purchases |
-
----
-
-## Document Change Log
-
-| Version | Date | Changes | Author |
-|---------|------|---------|--------|
-| 1.0 | 2026-04-04 | Initial design document | AI Assistant |
-| 1.1 | 2026-04-04 | Added: Windows local app, JSON storage, local images, clipboard paste | AI Assistant |
-| 1.2 | 2026-04-05 | Updated: Image size to 640×480, simplified ImageViewer (click-to-close), focus-based clipboard paste, clickable order rows, custom spec types, sequence number display logic, auto-reorder on deletion, product deduplication | AI Assistant |
-| 1.3 | 2026-04-05 | Updated: ProductCard to object-contain for complete image display, ImageViewer with wheel zoom (0.5x-5x) and drag pan (no visible buttons) | AI Assistant |
-| 1.4 | 2026-04-05 | Updated: ProductCard to object-cover for center-crop fill (no empty space) | AI Assistant |
-| 1.5 | 2026-04-05 | Updated: Product gallery uses original images with object-contain (consistent with order detail), shop name editable in order detail page | AI Assistant |
-| 1.6 | 2026-04-05 | Fixed: ProductCard image centering using absolute positioning (top/left 50% with translate) | AI Assistant |
-| 1.7 | 2026-04-05 | Updated: ProductCard responsive with aspect-[4/3] and object-cover fill, ProductDetailPage left-right layout (image 1/3, info 2/3) | AI Assistant |
-| 1.8 | 2026-04-05 | Fixed: ProductDetailPage left-right layout (image 640px fixed, records flexible) - records now alongside image | AI Assistant |
-| 1.9 | 2026-04-05 | Updated: OrderDetailPage items to responsive grid layout (2/3/4/5 columns) with card-style display, reduces whitespace | AI Assistant |
-| 1.10 | 2026-04-05 | Updated: OrderDetailPage items to auto-fill grid (max 200px item width) with original images (not thumbnails) | AI Assistant |
-| 1.11 | 2026-04-05 | Updated: OrderDetailPage item max width increased from 200px to 215px | AI Assistant |
-| 1.12 | 2026-04-05 | Fixed: OrderEntry steps (StepPurchased, StepGifts, StepSmallGifts) now support clipboard paste with enableClipboard={true} | AI Assistant |
-| 1.13 | 2026-04-05 | Updated: (1) Order entry pages support global clipboard paste without focus requirement (2) New item creation clears specification selections (3) Fixed specification display order in OrderDetailPage and ProductDetailPage | AI Assistant |
-| 1.14 | 2026-04-05 | Added: Two new specification types - "其他贴纸" (with custom name support, after 长贴) and "吊牌" (after 贴纸包) | AI Assistant |
-| 1.15 | 2026-04-05 | Fixed: OrderItemEditor now supports custom name input for "其他贴纸" specification | AI Assistant |
-| 1.16 | 2026-04-06 | Added: (1) New gift type "小时礼" (2) Gift total price display in order detail page | AI Assistant |
-| 1.17 | 2026-04-06 | Added: Gift total price column in order list page with sort support (asc/desc) | AI Assistant |
-| 1.18 | 2026-04-06 | Added: Click shop row in shop list page to navigate to home page and filter products by shop name | AI Assistant |
-| 1.19 | 2026-04-06 | Added: Two new gift types "新客礼" and "回购礼" (高消礼 already existed) | AI Assistant |
-| 1.20 | 2026-04-06 | Added: Product selection dropdown in gift and small gift entry steps - can select from purchased items or shop products, auto-fills name and image | AI Assistant |
-| 1.21 | 2026-04-06 | Fixed: Shop filter now works correctly on multiple clicks - SearchBar syncs with URL params, clears search when leaving shop filter | AI Assistant |
-| 1.22 | 2026-04-14 | Added: Order time (下单时间) and shipping time (发货时间) columns in order list page. Orders automatically sort by orderTime when set (chronologically), with orders without orderTime following in entry order. Both time fields are editable inline. | AI Assistant |
-| 1.23 | 2026-05-21 | Added: Image merge feature in SetProductsPage - select up to 9 products and merge their original images into a 6:9 ratio grid (1200×1800px), saved to data/append folder. New API endpoint POST /api/products/merge-images. | AI Assistant |
-
----
-
-END OF DOCUMENT
+| 版本 | 记录 |
+| --- | --- |
+| 1.0–1.12 | 初始业务与候选架构、JSON/图片存储、订单录入/详情、图片查看与布局迭代 |
+| 1.13–1.21 | 全局粘贴、规格扩充、自定义名称、礼品类型/总价、同店铺商品选择与搜索跳转 |
+| 1.22 | 下单/发货时间及排序说明 |
+| 1.23 | Set原图拼接（1200×1800、data/append） |
+| **1.24** | 以当前源码重写为实现设计：明确Vite+Express HTTP、真实实体与API、拼单/心愿/散件/到货功能、存储语义与现有限制；移除未实现架构/命令假设。完整旧正文与历史变更表可从Git中查看。 |
