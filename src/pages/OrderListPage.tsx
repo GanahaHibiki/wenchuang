@@ -148,14 +148,11 @@ export default function OrderListPage() {
         body: JSON.stringify({ orderTime: isoString })
       })
 
-      // Update local state and trigger re-sort
-      setOrders(orders.map(o =>
+      // Update this row only; keep the current ordering and scroll position.
+      setOrders(previous => previous.map(o =>
         o.id === orderId ? { ...o, orderTime: isoString || undefined } : o
       ))
       setEditingOrderTimeId(null)
-
-      // Reload to apply sorting
-      loadOrders()
     } catch (err) {
       alert('保存失败')
     }

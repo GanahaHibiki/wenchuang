@@ -28,7 +28,10 @@ async function installMocks(page) {
     // Delay responses to ensure scroll restoration waits for asynchronous DOM.
     await new Promise(resolve => setTimeout(resolve, 100))
     let data
-    if (url.pathname === '/api/orders') {
+    if (route.request().method() === 'PATCH' && url.pathname.endsWith('/order-time')) {
+      const id = url.pathname.split('/')[3]
+      data = { ...orders.find(order => order.id === id), ...route.request().postDataJSON() }
+    } else if (url.pathname === '/api/orders') {
       data = [...orders]
       if (url.searchParams.get('sortBy')) {
         const field = url.searchParams.get('sortBy')
@@ -130,6 +133,44 @@ async function back(page, path, y) {
     assert.equal(await page.evaluate(() => window.scrollY), 0)
     await back(page, '/orders', ordersY)
     console.log('PASS: order #100 returns to the same list position')
+
+    const listRequests = []
+    const trackListRequest = request => {
+      if (request.method() === 'GET' && new URL(request.url()).pathname === '/api/orders') {
+        listRequests.push(request.url())
+      }
+    }
+    page.on('request', trackListRequest)
+    const tableOrder = await page.locator('tbody tr td:nth-child(2)').allTextContents()
+    const dateCell = row.locator('..').locator('td').nth(6)
+    await dateCell.click()
+    const timeInput = page.getByPlaceholder('YYYY-MM-DD HH:mm:ss')
+    await timeInput.fill('2026-01-01 12:34:56')
+    const editY = await page.evaluate(() => window.scrollY)
+    const saveResponse = page.waitForResponse(response =>
+      response.request().method() === 'PATCH' && response.url().endsWith('/orders/order-100/order-time'))
+    await timeInput.press('Enter')
+    await saveResponse
+    await page.waitForTimeout(300)
+    assert.equal(await timeInput.count(), 0)
+    assert.match(await dateCell.innerText(), /2026-01-01/)
+    assert.deepEqual(await page.locator('tbody tr td:nth-child(2)').allTextContents(), tableOrder)
+    assert.deepEqual(listRequests, [])
+    await assertPosition(page, editY)
+
+    // Clearing on blur must also save locally without fetching or reordering the list.
+    await dateCell.click()
+    await timeInput.fill('')
+    const clearResponse = page.waitForResponse(response =>
+      response.request().method() === 'PATCH' && response.url().endsWith('/orders/order-100/order-time'))
+    await timeInput.press('Tab')
+    await clearResponse
+    await page.waitForTimeout(300)
+    assert.equal(await dateCell.innerText(), '')
+    assert.deepEqual(listRequests, [])
+    assert.deepEqual(await page.locator('tbody tr td:nth-child(2)').allTextContents(), tableOrder)
+    page.off('request', trackListRequest)
+    console.log('PASS: order time Enter/blur saves and clears without reloading, reordering or losing scroll')
 
     await row.click()
     await ready(page)
