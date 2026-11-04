@@ -3,7 +3,7 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import type { Database, Shop, Product, Order, WishItem, ProductSearchType, ProductStyle } from '../../src/types/index.js'
 import { getProductStyle } from '../../src/types/index.js'
-import { applyOrderArtists, buildProductAssociations, relatedProductIds, setArtist, setStyle } from './productAssociations.js'
+import { applyOrderArtists, buildProductAssociations, allRelatedProductIds, setArtist, setStyle } from './productAssociations.js'
 import type { OrderArtistInput } from './productAssociations.js'
 import { applyOrderRelations, buildRelationIndex, cleanProductLinks, relationMembers, setProductRelations, validateRelationSelection } from './productRelations.js'
 import type { ProductReference } from './productRelations.js'
@@ -423,7 +423,7 @@ export async function updateProductArtist(id: string, artist: string): Promise<P
   const product = index.products.get(id)
   if (!product) return null
 
-  for (const relatedId of relatedProductIds(index, id)) {
+  for (const relatedId of allRelatedProductIds(index, db, id)) {
     const relatedProduct = index.products.get(relatedId)
     if (relatedProduct) setArtist(relatedProduct, artist)
   }
@@ -437,7 +437,7 @@ export async function updateProductStyle(id: string, style: ProductStyle | ''): 
   const product = index.products.get(id)
   if (!product) return null
 
-  for (const relatedId of relatedProductIds(index, id)) {
+  for (const relatedId of allRelatedProductIds(index, db, id)) {
     const relatedProduct = index.products.get(relatedId)
     if (relatedProduct) setStyle(relatedProduct, style)
   }
@@ -685,8 +685,8 @@ export async function createOrder(
   }
 
   db.nextOrderSequence++
-  applyOrderArtists(db, newOrder, artists)
   applyOrderRelations(db, newOrder, artists)
+  applyOrderArtists(db, newOrder, artists)
   db.orders.push(newOrder)
   cleanProductLinks(db)
   await saveDatabase(db)
@@ -705,8 +705,8 @@ export async function updateOrder(
   if (index === -1) return null
 
   const updatedOrder = { ...db.orders[index], ...updates }
-  applyOrderArtists(db, updatedOrder, artists)
   applyOrderRelations(db, updatedOrder, artists)
+  applyOrderArtists(db, updatedOrder, artists)
   db.orders[index] = updatedOrder
   cleanProductLinks(db)
   await saveDatabase(db)

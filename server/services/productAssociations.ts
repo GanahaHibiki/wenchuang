@@ -55,7 +55,31 @@ export function relatedProductIds(index: ReturnType<typeof buildProductAssociati
   return ids
 }
 
-// Omitted artist is distinct from a provided empty string (which clears it).
+// Expand both history and overlapping legacy links until the group is complete.
+export function allRelatedProductIds(
+  associations: ReturnType<typeof buildProductAssociations>,
+  db: { productLinks?: { id: string; productIds: string[] }[] },
+  id: string
+): Set<string> {
+  const base = relatedProductIds(associations, id)
+  if (!db.productLinks?.length) return base
+  const all = new Set(base)
+  let changed = true
+  while (changed) {
+    changed = false
+    for (const link of db.productLinks) {
+      if (!link.productIds.some(pid => all.has(pid))) continue
+      for (const pid of link.productIds) {
+        if (all.has(pid)) continue
+        all.add(pid)
+        for (const related of relatedProductIds(associations, pid)) all.add(related)
+        changed = true
+      }
+    }
+  }
+  return all
+}
+
 export function isValidArtist(value: unknown): value is string {
   return typeof value === 'string'
 }
@@ -172,6 +196,32 @@ export function applyOrderArtists(db: Database, order: Order, inputs: OrderArtis
       if (product) {
         setArtist(product, update.artist)
         setStyle(product, update.style)
+      }
+    }
+  }
+  if (db.productLinks?.length) {
+    const propagated = new Set<string>()
+    for (const update of pending.values()) {
+      for (const id of update.ids) {
+        if (propagated.has(id)) continue
+        const all = allRelatedProductIds(index, db, id)
+        for (const relatedId of all) {
+          const related = index.products.get(relatedId)
+          if (!related) continue
+          setArtist(related, update.artist)
+          setStyle(related, update.style)
+          propagated.add(relatedId)
+        }
+      }
+    }
+    // Apply explicit fields in submission order so omitted fields and repeated
+    // logical products cannot override a later edit to another group member.
+    for (const input of inputs) {
+      for (const id of allRelatedProductIds(index, db, input.productId)) {
+        const product = index.products.get(id)
+        if (!product) continue
+        if (Object.prototype.hasOwnProperty.call(input, 'artist')) setArtist(product, input.artist)
+        if (Object.prototype.hasOwnProperty.call(input, 'style')) setStyle(product, input.style)
       }
     }
   }

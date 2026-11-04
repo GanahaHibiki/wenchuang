@@ -1,5 +1,5 @@
 import type { Database, Order, Product, ProductReference } from '../../src/types/index.js'
-import { buildProductAssociations } from './productAssociations.js'
+import { allRelatedProductIds, buildProductAssociations, setArtist, setStyle } from './productAssociations.js'
 import type { OrderArtistInput } from './productAssociations.js'
 
 export type { ProductReference } from '../../src/types/index.js'
@@ -182,12 +182,18 @@ export function setProductRelations(db: RelationsDatabase, id: string, productId
   if (!source) return []
   const groups = replaceGroup(index.groups, source.key, productIds.map(target => index.byId.get(target)!.key))
   persistGroups(db, index, groups)
-  return relationTargets(buildRelationIndex(db, index.associations), id)
+  const product = index.associations.products.get(id)!
+  for (const relatedId of allRelatedProductIds(index.associations, db, id)) {
+    const related = index.associations.products.get(relatedId)
+    if (!related) continue
+    setArtist(related, product.artist)
+    setStyle(related, product.style)
+  }
+  return relationTargets(buildRelationIndex(db), id)
 }
 
-// Called alongside artist/style in the final order save, but never propagates
-// those metadata fields across linked shops. Old + pending orders allow a new
-// physical ID to inherit before its predecessor loses its last order reference.
+// Resolve final membership before metadata propagation. Old + pending orders
+// let replacements inherit before their predecessor loses its last reference.
 export function applyOrderRelations(db: RelationsDatabase, order: Order, inputs: OrderArtistInput[]): void {
   const snapshot = { ...db, orders: [...db.orders, order] }
   if (!inputs.length || (!db.productLinks?.length && !inputs.some(input => input.relatedProductIds?.length))) return

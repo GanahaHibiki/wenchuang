@@ -128,8 +128,9 @@ async function equivalenceGroups() {
   assert.deepEqual(groups(test), [['a1', 'a2', 'b1', 'c1', 'c2']], 'Nonempty replaces old source group, merges target group')
   assert.deepEqual(relationIds(await get(test, 'c3')), [])
   assert.deepEqual(test.db().orders, originalOrders)
-  assert.equal(test.db().products.find(p => p.id === 'b1').artist, 'Bob')
-  assert.equal(test.db().products.find(p => p.id === 'b1').style, '盐系')
+  const a2product = test.db().products.find(p => p.id === 'a2')
+  assert.equal(test.db().products.find(p => p.id === 'b1').artist, a2product.artist)
+  assert.equal(test.db().products.find(p => p.id === 'b1').style, a2product.style)
   assertDisjoint(test)
   // Old overlapping groups and incomplete history are normalized at mutation.
   const malformed = fixture()
@@ -139,7 +140,7 @@ async function equivalenceGroups() {
   await put(normalized, 'a2', ['b1'])
   assert.deepEqual(groups(normalized), [['a1', 'a2', 'b1', 'c1', 'c2']])
   assertDisjoint(normalized)
-  console.log('PASS group creation/merge/replacement/detach; history expansion; disjoint normalization; unchanged metadata/orders')
+  console.log('PASS group creation/merge/replacement/detach; history expansion; disjoint normalization; synchronized metadata/unchanged orders')
 }
 async function invalidOrders() {
   const test = sandbox()
@@ -186,8 +187,14 @@ async function ordinaryOrders() {
         assert.deepEqual(relationIds(await get(test, id)), mode === 'empty' ? [] : mode === 'replace' ? ['c1'] : ['b1'])
         assert.deepEqual(relationIds(await get(test, 'a2')), mode === 'empty' ? [] : mode === 'replace' ? ['c1'] : ['b1'])
         const db = test.db()
-        assert.equal(db.products.find(p => p.id === 'b1').artist, 'Bob')
-        assert.equal(db.products.find(p => p.id === 'b1').style, '盐系')
+        assert.equal(db.products.find(p => p.id === 'b1').artist, mode === 'omitted' ? 'Updated Alice' : 'Alice')
+        assert.equal(db.products.find(p => p.id === 'b1').style, '食物系')
+        if (mode === 'replace') {
+          for (const target of ['c1', 'c2']) {
+            assert.equal(db.products.find(p => p.id === target).artist, 'Updated Alice')
+            assert.equal(db.products.find(p => p.id === target).style, '食物系')
+          }
+        }
         assert.equal(db.products.find(p => p.id === id).artist, 'Updated Alice')
         assert.equal(result.data.totalAmount, category === 'purchased' ? 6 : 0)
         assert.equal(result.data.giftTotal, category === 'gift' ? 10 : 0)
@@ -199,7 +206,7 @@ async function ordinaryOrders() {
     }
   }
   // Replacement physical ID with a renamed product inherits the selected
-  // predecessor's links without syncing metadata to linked other shops.
+  // predecessor's links and metadata.
   const test = sandbox()
   await put(test, 'a1', ['b1'])
   const result = await test.run('orders', 'put', '/:id', { params: { id: 'o1' }, body: normalBody([
@@ -222,6 +229,7 @@ async function groupOrdersAndDeletion() {
       const test = sandbox()
       await put(test, 'a1', ['b1'])
       const data = input('Sun', { id: mode === 'new' ? 'temp_new' : 'i4', shopId: 'a',
+        artist: 'Group Alice', style: '花卉系',
         ...(mode === 'new' ? {} : { productId: 'a2' }),
         ...(mode === 'empty' ? { relatedProductIds: [] } : mode === 'replace' ? { relatedProductIds: ['c1'] } : {}),
       })
@@ -235,6 +243,15 @@ async function groupOrdersAndDeletion() {
       assert.equal(result.data.totalAmount, method === 'post' ? 6 : 12)
       assert.equal(result.data.giftTotal + result.data.smallGiftTotal + result.data.giftRatio, 0)
       assert.equal(result.data.items[0].shopId, 'a')
+      const current = test.db()
+      assert.equal(current.products.find(p => p.id === result.data.items[0].productId).artist, 'Group Alice')
+      const linkedToB = mode === 'omitted' || mode === 'new'
+      assert.equal(current.products.find(p => p.id === 'b1').artist, linkedToB ? 'Group Alice' : 'Alice')
+      assert.equal(current.products.find(p => p.id === 'b1').style, linkedToB ? '花卉系' : '食物系')
+      if (mode === 'replace') {
+        assert.equal(current.products.find(p => p.id === 'c2').artist, 'Group Alice')
+        assert.equal(current.products.find(p => p.id === 'c2').style, '花卉系')
+      }
       assertDisjoint(test)
     }
   }
@@ -260,8 +277,10 @@ async function groupOrdersAndDeletion() {
   console.log('PASS group POST/PUT existing/new/omit/empty/replace; sole-reference cleanup; deletion transfers historical links')
 }
 async function groupedSearchAndDetail() {
-  const test = sandbox()
-  await put(test, 'a1', ['b1', 'c1'])
+  // Legacy inconsistent groups still require both filters on the same member.
+  const initial = fixture()
+  initial.productLinks = [{ id: 'legacy', productIds: ['a1', 'a2', 'b1', 'c1', 'c2'] }]
+  const test = sandbox(initial)
   for (const query of [
     { type: 'artist', keyword: 'Alice', style: '盐系' },
     { type: 'productName', keyword: 'Moon', style: '食物系' },
@@ -406,7 +425,87 @@ async function existingRegressions() {
   assert.ok(!process.exitCode, 'Existing style/artist/performance regressions must pass')
   console.log('PASS existing style/artist/performance suites with relation dependency mocks')
 }
+async function sharedMetadata() {
+  const test = sandbox()
+  const linked = await put(test, 'a1', ['b1', 'c1'])
+  assert.ok(linked.data.every(p => p.artist === 'Alice' && p.style === '食物系'), 'Relation response includes synchronized metadata')
+  const ids = ['a1', 'a2', 'b1', 'c1', 'c2']
+  const check = (artist, style) => {
+    for (const id of ids) {
+      const product = test.db().products.find(p => p.id === id)
+      assert.equal(product.artist, artist, `${id} artist`)
+      assert.equal(product.style, style, `${id} style`)
+    }
+    assert.equal(test.db().products.find(p => p.id === 'case').artist, 'Case Artist')
+    assert.equal(test.db().products.find(p => p.id === 'orphan').artist, 'Orphan Artist')
+  }
+  check('Alice', '食物系')
+  const orders = test.db().orders
+  for (const id of ids) {
+    const updated = await test.run('products', 'patch', '/:id/artist', { params: { id }, body: { artist: ` Artist ${id} ` } })
+    assert.equal(updated.status, 200)
+    assert.equal(updated.reads, 1)
+    assert.equal(updated.writes, 1)
+    check(`Artist ${id}`, '食物系')
+    await test.run('products', 'patch', '/:id/style', { params: { id }, body: { style: '复古系' } })
+    check(`Artist ${id}`, '复古系')
+    await test.run('products', 'patch', '/:id/artist', { params: { id }, body: { artist: '' } })
+    check(undefined, '复古系')
+    await test.run('products', 'patch', '/:id/style', { params: { id }, body: { style: '' } })
+    check(undefined, '食物系')
+  }
+  assert.deepEqual(test.db().orders, orders)
+  await put(test, 'c1', [])
+  await test.run('products', 'patch', '/:id/artist', { params: { id: 'b1' }, body: { artist: 'Detached' } })
+  assert.equal(test.db().products.find(p => p.id === 'c1').artist, undefined)
+  assert.equal(test.db().products.find(p => p.id === 'c2').artist, undefined)
+
+  const legacy = fixture()
+  legacy.productLinks = [
+    { id: 'legacy-a', productIds: ['a1', 'b1'] },
+    { id: 'legacy-b', productIds: ['a2', 'c1'] },
+  ]
+  const old = sandbox(legacy)
+  await old.run('products', 'patch', '/:id/artist', { params: { id: 'b1' }, body: { artist: 'Legacy' } })
+  for (const id of ids) assert.equal(old.db().products.find(p => p.id === id).artist, 'Legacy')
+
+  // Fresh orders without metadata use the source's inherited values, not the target's.
+  for (const method of ['post', 'put']) {
+    for (const group of [false, true]) {
+      const current = sandbox()
+      const data = input('Sun', { id: group ? 'i4' : 'i1', productId: group ? 'a2' : 'a1', shopId: 'a',
+        existingImagePath: 'fake.png', relatedProductIds: ['c1'] })
+      const result = await current.run('orders', method, method === 'post' ? (group ? '/group' : '/') : '/:id', {
+        params: { id: group ? 'o2' : 'o1' },
+        body: group ? (method === 'post' ? groupBody([data]) : groupPutBody([data])) : normalBody([data]),
+      })
+      assert.equal(result.status, method === 'post' ? 201 : 200)
+      for (const id of [result.data.items[0].productId, 'a2', 'c1', 'c2']) {
+        const product = current.db().products.find(p => p.id === id)
+        assert.equal(product.artist, 'Alice', `${method}/${group}/${id} source inheritance`)
+        assert.equal(product.style, '食物系')
+      }
+    }
+  }
+
+  // In one linked group, the last explicit value wins per field, including duplicate categories.
+  const mixed = sandbox()
+  await put(mixed, 'a1', ['b1', 'c1'])
+  const result = await mixed.run('orders', 'put', '/:id', { params: { id: 'o2' }, body: groupPutBody([
+    input('Sun', { id: 'i4', productId: 'a2', shopId: 'a', artist: 'First' }),
+    input('Sun', { id: 'i5', productId: 'b1', shopId: 'b', artist: 'Last', style: '花卉系' }),
+    input('Sun', { id: 'temp_gift', productId: 'a2', shopId: 'a', category: 'gift', giftType: '其他', style: '盐系', existingImagePath: 'fake.png' }),
+  ]) })
+  assert.equal(result.status, 200)
+  for (const id of [...ids, ...result.data.items.map(item => item.productId)]) {
+    const product = mixed.db().products.find(p => p.id === id)
+    assert.equal(product.artist, 'Last', `${id} last explicit artist`)
+    assert.equal(product.style, '盐系', `${id} last explicit style`)
+  }
+  console.log('PASS shared metadata: source-wins linking/response; edit any member; independent clear/reset; history; detach; ordinary/group inheritance; per-field conflicts')
+}
 ;(async () => {
+  await sharedMetadata()
   await candidatesAndValidation()
   await equivalenceGroups()
   await invalidOrders()

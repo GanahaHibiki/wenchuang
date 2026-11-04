@@ -70,7 +70,7 @@ export default function RelatedProductSelector({ shopName, productId, value, onC
       <label htmlFor={id} className="block text-sm font-medium text-gray-700">
         关联同款商品（选填）
       </label>
-      <p className="text-xs text-gray-500">仅可选择其他店铺已录入的商品。关联已有同款组中的商品会合并整组。</p>
+      <p className="text-xs text-gray-500">仅可选择其他店铺已录入的商品。关联已有同款组中的商品会合并整组；保存时以当前商品的美工和分类统一整组，之后修改任意成员会同步更新。</p>
       {selected.length > 0 && (
         <ul aria-label="已选择的关联商品" className="flex flex-wrap gap-2">
           {selected.map(product => (

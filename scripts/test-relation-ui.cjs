@@ -30,6 +30,11 @@ function setRelations(id, targets) {
   const merged = new Set([id, ...targets.flatMap(target => family(target).map(product => product.id))])
   groups = groups.filter(group => ![...group].some(member => merged.has(member)))
   groups.push(merged)
+  const source = byId(id)
+  for (const product of family(id)) {
+    product.artist = source.artist
+    product.style = source.style || '食物系'
+  }
 }
 function entries(product) {
   const record = sequence => ({ orderId: `order-${sequence}`, orderSequence: sequence, orderType: 'shop', shopName: product.shopName, specifications: [spec] })
@@ -87,6 +92,12 @@ async function pick(page, name, shop) {
         data = products.filter(product => product.recorded && product.shopName !== shop && product.name.toLowerCase().includes(keyword))
       } else if (url.pathname === '/api/products/artists') {
         data = [...new Set(products.map(product => product.artist).filter(Boolean))]
+      } else if (request.method() === 'PATCH' && /\/(artist|style)$/.test(url.pathname)) {
+        const id = url.pathname.split('/')[3]
+        const field = url.pathname.split('/').pop()
+        const value = request.postDataJSON()[field]
+        for (const product of family(id)) product[field] = field === 'artist' ? value.trim() : value || '食物系'
+        data = byId(id)
       } else if (url.pathname.endsWith('/relations')) {
         const id = url.pathname.split('/')[3]
         if (request.method() === 'PUT') setRelations(id, request.postDataJSON().productIds)
@@ -158,6 +169,35 @@ async function pick(page, name, shop) {
     assert.equal(await page.locator('main a[href="/orders/order-101"]').count(), 1)
     assert.equal(await page.locator('main img[src="/images/original/b.png"]').count(), 1)
     console.log('PASS: existing product links other-shop candidates; every member shows all categorized orders')
+
+    assert.match(await page.locator('main').innerText(), /修改美工或分类会同步更新整个同款关联组/)
+    await page.getByRole('button', { name: '编辑美工', exact: true }).click()
+    await page.getByPlaceholder('请输入美工名称').fill('同步美工')
+    await page.getByPlaceholder('请输入美工名称').press('Escape')
+    await page.getByRole('button', { name: '保存美工', exact: true }).click()
+    await page.getByRole('button', { name: '编辑美工', exact: true }).waitFor()
+    await page.goto(`${base}/products/b`)
+    await ready(page)
+    assert.match(await page.locator('main').innerText(), /美工：同步美工/)
+    assert.match(await page.locator('main').innerText(), /风格分类：食物系/)
+    await page.getByRole('button', { name: '编辑风格分类', exact: true }).click()
+    await page.getByLabel('风格分类（选填）', { exact: true }).selectOption('复古系')
+    await page.getByRole('button', { name: '保存分类', exact: true }).click()
+    await page.getByRole('button', { name: '编辑风格分类', exact: true }).waitFor()
+    await page.goto(`${base}/products/a`)
+    await ready(page)
+    assert.match(await page.locator('main').innerText(), /风格分类：复古系/)
+    assert.match(await page.locator('main').innerText(), /美工：同步美工/)
+    await page.getByRole('button', { name: '编辑美工', exact: true }).click()
+    await page.getByPlaceholder('请输入美工名称').fill('')
+    await page.getByPlaceholder('请输入美工名称').press('Escape')
+    await page.getByRole('button', { name: '保存美工', exact: true }).click()
+    await page.getByRole('button', { name: '编辑美工', exact: true }).waitFor()
+    await page.goto(`${base}/products/b`)
+    await ready(page)
+    assert.match(await page.locator('main').innerText(), /美工：未填写/)
+    assert.match(await page.locator('main').innerText(), /风格分类：复古系/)
+    console.log('PASS: shared metadata notice, edit either member, reload another member, clear artist without changing style')
 
     await page.goto(base)
     await ready(page)

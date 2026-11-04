@@ -105,13 +105,13 @@ export default function ProductDetailPage() {
         <h1 className="text-2xl font-bold break-words">{title}</h1>
         <BackButton />
       </div>
-      {grouped && <p className="text-sm text-gray-600">当前编辑商品：{product.name}（{sourceShopName || '未识别店铺'}）。美工和分类只修改该店铺的商品。</p>}
+      {grouped && <p className="text-sm text-gray-600">当前编辑商品：{product.name}（{sourceShopName || '未识别店铺'}）。修改美工或分类会同步更新整个同款关联组。</p>}
 
       <section className="bg-white rounded-lg shadow p-4">
         {editingArtist ? (
           <form onSubmit={event => { event.preventDefault(); saveArtist() }} className="space-y-3">
             <ArtistInput value={artistDraft} onChange={setArtistDraft} disabled={saving} />
-            <p className="text-xs text-gray-500">留空可清除。同店铺同名商品的历史记录会同步更新。</p>
+            <p className="text-xs text-gray-500">留空可清除。同店铺同名历史记录及关联同款商品会同步更新。</p>
             <div className="flex gap-3">
               <button type="submit" disabled={saving} className="px-3 py-1 bg-blue-600 text-white rounded disabled:opacity-50">
                 {savingArtist ? '保存中...' : '保存美工'}
@@ -135,7 +135,7 @@ export default function ProductDetailPage() {
           {editingStyle ? (
             <form onSubmit={event => { event.preventDefault(); saveStyle() }} className="space-y-3">
               <StyleInput value={styleDraft} onChange={setStyleDraft} disabled={saving} />
-              <p className="text-xs text-gray-500">未选择时默认食物系。同店铺同名商品的历史记录会同步更新。</p>
+              <p className="text-xs text-gray-500">未选择时默认食物系。同店铺同名历史记录及关联同款商品会同步更新。</p>
               <div className="flex gap-3">
                 <button type="submit" disabled={saving} className="px-3 py-1 bg-blue-600 text-white rounded disabled:opacity-50">{savingStyle ? '保存中...' : '保存分类'}</button>
                 <button type="button" disabled={saving} onClick={() => { setEditingStyle(false); setStyleError(null) }} className="px-3 py-1 bg-gray-200 rounded">取消</button>
