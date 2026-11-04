@@ -85,6 +85,8 @@ async function pick(page, name, shop) {
         const shop = source?.shopName || url.searchParams.get('shopName')
         const keyword = (url.searchParams.get('keyword') || '').toLowerCase()
         data = products.filter(product => product.recorded && product.shopName !== shop && product.name.toLowerCase().includes(keyword))
+      } else if (url.pathname === '/api/products/artists') {
+        data = [...new Set(products.map(product => product.artist).filter(Boolean))]
       } else if (url.pathname.endsWith('/relations')) {
         const id = url.pathname.split('/')[3]
         if (request.method() === 'PUT') setRelations(id, request.postDataJSON().productIds)

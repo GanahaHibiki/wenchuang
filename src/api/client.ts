@@ -112,6 +112,8 @@ export interface ProductWithShop extends Product {
 export const productApi = {
   getAll: () => request<Product[]>('/products'),
 
+  getArtists: () => request<string[]>('/products/artists'),
+
   search: (type: ProductSearchType, keyword: string, exact = false, style?: ProductStyle, groupRelated = false) =>
     request<ProductWithShop[]>(`/products/search?type=${type}&keyword=${encodeURIComponent(keyword)}${exact ? '&exact=true' : ''}${style ? `&style=${encodeURIComponent(style)}` : ''}${groupRelated ? '&groupRelated=true' : ''}`),
 

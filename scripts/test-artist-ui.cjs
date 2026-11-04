@@ -58,6 +58,8 @@ async function ready(page) {
         const product = productById(url.pathname.split('/')[3])
         product.artist = request.postDataJSON().artist.trim()
         data = product
+      } else if (url.pathname === '/api/products/artists') {
+        data = [...new Set(products.map(product => product.artist).filter(Boolean))]
       } else if (request.method() === 'GET' && url.pathname.endsWith('/relations')) {
         data = []
       } else if (url.pathname === '/api/products/search') {
@@ -149,6 +151,7 @@ async function ready(page) {
     await ready(page)
     await page.getByRole('button', { name: '编辑美工' }).click()
     await page.getByPlaceholder('请输入美工名称').fill('')
+    await page.getByPlaceholder('请输入美工名称').press('Escape')
     await page.getByRole('button', { name: '保存美工', exact: true }).click()
     await page.waitForFunction(() => document.querySelector('main')?.textContent.includes('美工：未填写'))
     console.log('PASS: old artist can be cleared without changing product data')

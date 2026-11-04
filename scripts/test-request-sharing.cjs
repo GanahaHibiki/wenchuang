@@ -101,4 +101,16 @@ const fulfill = (index, data) => requests[index].resolve({ ok: true, json: async
   fulfill(14, [])
   await update
   console.log('PASS: gallery grouping is opt-in, candidate names encoded, and relation IDs sent correctly')
+
+  const artists = productApi.getArtists()
+  const duplicateArtists = productApi.getArtists()
+  assert.equal(requests.length, 16)
+  assert.equal(requests[15].url, '/api/products/artists')
+  fulfill(15, ['美工甲'])
+  assert.deepEqual(await artists, await duplicateArtists)
+  const freshArtists = productApi.getArtists()
+  assert.equal(requests.length, 17)
+  fulfill(16, ['新美工'])
+  assert.deepEqual(await freshArtists, ['新美工'])
+  console.log('PASS: simultaneous artist suggestions share one GET, later focus can fetch fresh names')
 })().catch(error => { console.error(error); process.exitCode = 1 })

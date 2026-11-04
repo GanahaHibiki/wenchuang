@@ -30,6 +30,26 @@ router.get('/', async (req, res, next) => {
   }
 })
 
+// GET /api/products/artists - Small, deduplicated names list for all editors
+router.get('/artists', async (_req, res, next) => {
+  try {
+    const db = await loadDatabase()
+    const seen = new Set<string>()
+    const names: string[] = []
+    for (const product of db.products) {
+      if (typeof product.artist !== 'string') continue
+      const name = product.artist.trim()
+      const key = name.toLowerCase()
+      if (!name || seen.has(key)) continue
+      seen.add(key)
+      names.push(name)
+    }
+    res.json(names.sort((a, b) => a.localeCompare(b, 'zh-CN')))
+  } catch (err) {
+    next(err)
+  }
+})
+
 // GET /api/products/search
 router.get('/search', async (req, res, next) => {
   try {
