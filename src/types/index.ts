@@ -10,7 +10,7 @@ export interface Product {
   id: string
   name: string
   artist?: string // Optional artwork creator; old records may omit this field
-  style?: ProductStyle | '' // Empty string is an editing-only clear value
+  style?: ProductStyle | '' // Legacy blank values reset to the default style
   imagePath: string
   thumbnailPath: string
   imageResolution?: { width: number; height: number }
@@ -29,6 +29,8 @@ export interface ProductLinkGroup {
 
 export type ProductStyle = '食物系' | '盐系' | '可爱系' | '花卉系' | '复古系' | '其他'
 export const PRODUCT_STYLES: ProductStyle[] = ['食物系', '盐系', '可爱系', '花卉系', '复古系', '其他']
+export const DEFAULT_PRODUCT_STYLE: ProductStyle = '食物系'
+export const getProductStyle = (style?: ProductStyle | ''): ProductStyle => style || DEFAULT_PRODUCT_STYLE
 
 export type ProductSearchType = 'productName' | 'shopName' | 'artist'
 

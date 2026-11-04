@@ -66,9 +66,7 @@ async function selectFilter(page, style) {
       let data
       if (request.method() === 'PATCH' && url.pathname.endsWith('/style')) {
         const product = productById(url.pathname.split('/')[3])
-        const style = request.postDataJSON().style
-        if (style) product.style = style
-        else delete product.style
+        product.style = request.postDataJSON().style || '食物系'
         data = product
       } else if (url.pathname === '/api/products/artists') {
         data = [...new Set(products.map(product => product.artist).filter(Boolean))]
@@ -81,7 +79,7 @@ async function selectFilter(page, style) {
         data = products.filter(product => {
           const name = (type === 'artist' ? product.artist || '' : type === 'shopName' ? product.shopName : product.name).toLowerCase()
           const matches = !keyword || (url.searchParams.get('exact') === 'true' ? name === keyword : name.includes(keyword))
-          return matches && (!style || product.style === style)
+          return matches && (!style || (product.style || '食物系') === style)
         })
       } else if (url.pathname.startsWith('/api/products/')) {
         data = { ...productById(url.pathname.split('/').pop()), entries: { purchased: Array.from({ length: 20 }, () => ({
@@ -121,13 +119,13 @@ async function selectFilter(page, style) {
     await ready(page)
     assert.deepEqual(await filter(page).getByRole('button').allTextContents(), ['全部', ...styles])
     await selectFilter(page, '食物系')
-    assert.equal(await cardLinks(page).count(), 3)
+    assert.equal(await cardLinks(page).count(), 4)
     const foodCard = page.locator('main a[href="/products/food-a"]').locator('..')
     assert(!await foodCard.innerText().then(text => text.includes('食物系')))
     await foodCard.getByRole('link', { name: '店铺甲', exact: true }).click()
     await ready(page)
     assert.equal(new URL(page.url()).searchParams.get('style'), '食物系')
-    assert.equal(await cardLinks(page).count(), 1)
+    assert.equal(await cardLinks(page).count(), 2)
     await selectFilter(page, '盐系')
     assert.equal(await cardLinks(page).count(), 0)
     assert.equal(await page.locator('main select').inputValue(), 'shopName')
@@ -143,7 +141,7 @@ async function selectFilter(page, style) {
     await page.goto(`${base}/?type=artist&keyword=${encodeURIComponent('美工甲')}&exact=true`)
     await ready(page)
     await selectFilter(page, '食物系')
-    assert.equal(await cardLinks(page).count(), 1)
+    assert.equal(await cardLinks(page).count(), 2)
     await selectFilter(page, '可爱系')
     assert.equal(await cardLinks(page).count(), 1)
     assert.equal(await cardLinks(page).first().getAttribute('href'), '/products/cute-a')
@@ -160,7 +158,7 @@ async function selectFilter(page, style) {
 
     await page.goto(`${base}/products/old`)
     await ready(page)
-    assert.match(await page.locator('main').innerText(), /风格分类：未分类/)
+    assert.match(await page.locator('main').innerText(), /风格分类：食物系/)
     await page.getByRole('button', { name: '编辑风格分类', exact: true }).click()
     await page.getByLabel('风格分类（选填）', { exact: true }).selectOption('盐系')
     await page.getByRole('button', { name: '保存分类', exact: true }).click()
@@ -170,16 +168,17 @@ async function selectFilter(page, style) {
     assert.match(await page.locator('main').innerText(), /风格分类：盐系/)
     assert.match(await page.locator('main').innerText(), /美工：美工甲/)
     await page.getByRole('button', { name: '编辑风格分类', exact: true }).click()
-    await page.getByLabel('风格分类（选填）', { exact: true }).selectOption('')
+    await page.getByLabel('风格分类（选填）', { exact: true }).selectOption('食物系')
     await page.getByRole('button', { name: '保存分类', exact: true }).click()
     await page.getByRole('button', { name: '编辑风格分类', exact: true }).waitFor()
-    assert.match(await page.locator('main').innerText(), /风格分类：未分类/)
-    console.log('PASS: old product classification saved/cleared independently of artist')
+    assert.match(await page.locator('main').innerText(), /风格分类：食物系/)
+    console.log('PASS: old missing style defaults to food and can be reset without changing artist')
 
     await page.goto(`${base}/order-entry`)
     await page.getByPlaceholder('输入或选择店铺名').fill('新店铺')
     await page.getByRole('button', { name: '确认并进入下一步' }).click()
     await page.getByPlaceholder('请输入商品名称', { exact: true }).fill('新分类商品')
+    assert.equal(await page.getByLabel('风格分类（选填）', { exact: true }).inputValue(), '食物系')
     await page.getByLabel('风格分类（选填）', { exact: true }).selectOption('复古系')
     await page.locator('input[type="file"]').setInputFiles(image)
     await page.getByLabel('大食量set', { exact: true }).check()
@@ -199,7 +198,7 @@ async function selectFilter(page, style) {
     await page.getByLabel('大食量set', { exact: true }).check()
     await page.getByRole('button', { name: '添加新店铺', exact: true }).click()
     await page.waitForTimeout(300)
-    assert.equal(await page.getByLabel('风格分类（选填）', { exact: true }).inputValue(), '')
+    assert.equal(await page.getByLabel('风格分类（选填）', { exact: true }).inputValue(), '食物系')
     await page.getByPlaceholder('输入或选择店铺名').fill('新拼单店铺')
     await page.getByPlaceholder('请输入商品名称', { exact: true }).fill('新拼单分类商品')
     await page.getByLabel('风格分类（选填）', { exact: true }).selectOption('花卉系')

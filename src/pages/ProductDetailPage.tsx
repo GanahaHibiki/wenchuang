@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { productApi } from '@/api/client'
 import type { ProductDetail, ProductStyle, ProductReference } from '@/types'
+import { DEFAULT_PRODUCT_STYLE, getProductStyle } from '@/types'
 import ImageViewer from '@/components/common/ImageViewer'
 import StyleInput from '@/components/common/StyleInput'
 import ArtistInput from '@/components/common/ArtistInput'
@@ -21,7 +22,7 @@ export default function ProductDetailPage() {
   const [savingArtist, setSavingArtist] = useState(false)
   const [artistError, setArtistError] = useState<string | null>(null)
   const [editingStyle, setEditingStyle] = useState(false)
-  const [styleDraft, setStyleDraft] = useState<ProductStyle | ''>('')
+  const [styleDraft, setStyleDraft] = useState<ProductStyle | ''>(DEFAULT_PRODUCT_STYLE)
   const [savingStyle, setSavingStyle] = useState(false)
   const [styleError, setStyleError] = useState<string | null>(null)
   const [editingRelations, setEditingRelations] = useState(false)
@@ -134,7 +135,7 @@ export default function ProductDetailPage() {
           {editingStyle ? (
             <form onSubmit={event => { event.preventDefault(); saveStyle() }} className="space-y-3">
               <StyleInput value={styleDraft} onChange={setStyleDraft} disabled={saving} />
-              <p className="text-xs text-gray-500">选择未分类可清除。同店铺同名商品的历史记录会同步更新。</p>
+              <p className="text-xs text-gray-500">未选择时默认食物系。同店铺同名商品的历史记录会同步更新。</p>
               <div className="flex gap-3">
                 <button type="submit" disabled={saving} className="px-3 py-1 bg-blue-600 text-white rounded disabled:opacity-50">{savingStyle ? '保存中...' : '保存分类'}</button>
                 <button type="button" disabled={saving} onClick={() => { setEditingStyle(false); setStyleError(null) }} className="px-3 py-1 bg-gray-200 rounded">取消</button>
@@ -142,9 +143,9 @@ export default function ProductDetailPage() {
             </form>
           ) : (
             <div className="flex items-center gap-3">
-              <span className="text-gray-700">风格分类：{product.style || '未分类'}</span>
+              <span className="text-gray-700">风格分类：{getProductStyle(product.style)}</span>
               <button type="button" disabled={saving} className="text-sm text-blue-600 hover:underline" onClick={() => {
-                setStyleDraft(product.style || ''); setStyleError(null); setEditingStyle(true)
+                setStyleDraft(getProductStyle(product.style)); setStyleError(null); setEditingStyle(true)
               }}>编辑风格分类</button>
             </div>
           )}

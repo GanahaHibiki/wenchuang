@@ -1,5 +1,5 @@
 import type { Database, Order, Product, ProductStyle } from '../../src/types/index.js'
-import { PRODUCT_STYLES } from '../../src/types/index.js'
+import { PRODUCT_STYLES, getProductStyle } from '../../src/types/index.js'
 
 // All indexes are scoped to a single database snapshot, never cached across requests.
 export function productGroupKey(shopName: string, productName: string): string {
@@ -83,8 +83,7 @@ export function hasInvalidStyles(items: Array<{ style?: unknown }>): boolean {
 }
 
 export function setStyle(product: Product, style: ProductStyle | '' | undefined): void {
-  if (style) product.style = style
-  else delete product.style
+  product.style = getProductStyle(style)
 }
 
 export interface OrderArtistInput {

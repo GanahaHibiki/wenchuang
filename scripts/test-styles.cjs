@@ -1,7 +1,7 @@
 /* Run: node scripts/test-styles.cjs
  * Real server code in VM + the existing artist fake-FS/image harness.
  * No HTTP server, real data/ or external files. Existing tests are read-only;
- * their VM module mocks are extended in memory for PRODUCT_STYLES only.
+ * their VM module mocks use the current shared style contract in memory.
  */
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
@@ -17,6 +17,10 @@ vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(root, 'src/types
 }).outputText, { module: exportedTypes, exports: exportedTypes.exports })
 const sharedTypes = exportedTypes.exports
 assert.deepEqual(Array.from(sharedTypes.PRODUCT_STYLES), STYLES, 'Shared style contract')
+assert.equal(sharedTypes.DEFAULT_PRODUCT_STYLE, '食物系', 'Shared default style contract')
+for (const style of [undefined, '', ...STYLES]) {
+  assert.equal(sharedTypes.getProductStyle(style), style || '食物系', 'Default only for missing/blank styles')
+}
 
 const artistSource = fs.readFileSync(path.join(root, 'scripts/test-artists.cjs'), 'utf8')
 const artistMockAnchor = "if (name === 'express') return { Router: () => router }"
@@ -67,6 +71,13 @@ const imageField = category => ({ purchased: 'purchasedImage_0', gift: 'giftImag
 
 async function patchAndValidation() {
   const test = sandbox(fixture())
+  for (const style of [undefined, '', ...STYLES]) {
+    const product = { style: '盐系', artist: 'Alice' }
+    test.helpers.setStyle(product, style)
+    assert.equal(product.style, style || '食物系', 'setStyle stores the default without changing selected styles')
+    assert.equal(Object.hasOwn(product, 'style'), true)
+    assert.equal(product.artist, 'Alice')
+  }
   assert.equal(test.helpers.hasInvalidStyles([{}]), false)
   assert.equal(test.helpers.hasInvalidStyles([{ style: undefined }]), true)
   assert.equal(Object.hasOwn(test.helpers.orderArtistInput('id', {}), 'style'), false)
@@ -98,16 +109,24 @@ async function patchAndValidation() {
   assert.equal(missing.status, 404)
   assert.equal(missing.writes, 0)
   for (const id of ['a1', 'orphan']) {
+    const before = test.db()
     const result = await test.run('products', 'patch', '/:id/style', { params: { id }, body: { style: '' } })
     assert.equal(result.status, 200)
-    assert.equal(Object.hasOwn(result.data, 'style'), false)
+    assert.equal(result.data.style, '食物系')
+    assert.equal(Object.hasOwn(result.data, 'style'), true, 'Blank style resets rather than deletes')
+    assert.equal(result.reads, 1)
+    assert.equal(result.writes, 1)
+    assertStyles(test, ['b1'], '盐系')
+    assertStyles(test, ['case'], '复古系')
+    unchangedArtists(before, test.db())
   }
-  assertStyles(test, ['a1', 'a2', 'orphan'], undefined)
+  assertStyles(test, ['a1', 'a2', 'orphan'], '食物系')
   test.reset(fixture())
   await test.run('products', 'patch', '/:id/artist', { params: { id: 'a1' }, body: { artist: '' } })
   assertStyles(test, ['a1'], '食物系')
+  // Artist-only PATCH must not normalize untouched legacy style fields.
   assertStyles(test, ['a2'], undefined)
-  console.log('PASS six enum values; PATCH validation/404/same-shop sync/clear; artist independence')
+  console.log('PASS six enum/default values; PATCH validation/404/same-shop sync/default reset; artist independence')
 }
 
 async function searchAndReads() {
@@ -115,22 +134,23 @@ async function searchAndReads() {
   const date = '2026-02-01T00:00:00.000Z'
   db.shops.push({ id: 'prefix-shop', name: '店铺A Plus', createdAt: date })
   const add = (id, name, artist, style, shopId = 'prefix-shop') => {
-    db.products.push({ id, name, artist, ...(style ? { style } : {}), imagePath: `${id}.png`, thumbnailPath: `${id}.jpg`, createdAt: date })
+    db.products.push({ id, name, artist, ...(style === undefined ? {} : { style }), imagePath: `${id}.png`, thumbnailPath: `${id}.jpg`, createdAt: date })
     db.orders.push({ ...clone(db.orders[0]), id: `${id}-order`, shopId, items: [{ ...clone(db.orders[0].items[0]), id: `${id}-item`, productId: id }], sequenceNumber: db.orders.length + 1, createdAt: date })
   }
   add('prefix', 'Sun Plus', 'Alice Team', '食物系')
   add('exact', ' Sun ', ' Alice ', '食物系')
   add('unclassified', 'No style', 'Alice', undefined)
-  // The oldest namesake is unclassified; style filtering precedes dedup.
+  add('empty-style', 'Empty style', 'Alice', '')
+  // Different styles on namesakes: style filtering must still precede dedup.
   db.products.find(p => p.id === 'a2').style = '可爱系'
   db.products.find(p => p.id === 'a2').artist = 'Alice'
   db.nextOrderSequence = db.orders.length + 1
   const test = sandbox(db)
   const cases = [
-    [{ style: '食物系' }, ['prefix', 'exact', 'a1']],
-    [{ type: 'artist', keyword: ' ALIce ', style: '食物系' }, ['prefix', 'exact', 'a1']],
-    [{ type: 'artist', keyword: ' ALIce ', exact: 'true', style: '食物系' }, ['exact', 'a1']],
-    [{ type: 'shopName', keyword: '店铺A', style: '食物系' }, ['prefix', 'exact', 'a1']],
+    [{ style: '食物系' }, ['prefix', 'exact', 'unclassified', 'empty-style', 'a1']],
+    [{ type: 'artist', keyword: ' ALIce ', style: '食物系' }, ['prefix', 'exact', 'unclassified', 'empty-style', 'a1']],
+    [{ type: 'artist', keyword: ' ALIce ', exact: 'true', style: '食物系' }, ['exact', 'unclassified', 'empty-style', 'a1']],
+    [{ type: 'shopName', keyword: '店铺A', style: '食物系' }, ['prefix', 'exact', 'unclassified', 'empty-style', 'a1']],
     [{ type: 'shopName', keyword: ' 店铺A ', exact: 'true', style: '食物系' }, ['a1']],
     [{ type: 'productName', keyword: ' sUN ', style: '食物系' }, ['prefix', 'exact', 'a1']],
     [{ type: 'productName', keyword: ' sUN ', exact: 'true', style: '食物系' }, ['exact', 'a1']],
@@ -138,7 +158,11 @@ async function searchAndReads() {
     [{ type: 'shopName', keyword: '店铺B', style: '盐系' }, ['b1']],
     [{ keyword: 'sun', style: '可爱系' }, ['a2']],
     [{ keyword: ' ', style: '其他' }, ['small']],
+    [{ keyword: 'No style', style: '食物系' }, ['unclassified']],
+    [{ keyword: 'Empty style', exact: 'true', style: '食物系' }, ['empty-style']],
     [{ keyword: 'No style', style: '其他' }, []],
+    [{ keyword: 'Empty style', style: '其他' }, []],
+    ...['盐系', '可爱系'].flatMap(style => ['No style', 'Empty style'].map(keyword => [{ keyword, style }, []])),
   ]
   for (const [query, expected] of cases) {
     const result = await test.run('products', 'get', '/search', { query })
@@ -147,7 +171,8 @@ async function searchAndReads() {
     assert.equal(result.reads, 1)
     assert.equal(result.writes, 0)
   }
-  assert.deepEqual((await test.service.searchProducts('artist', 'Alice', true, '食物系')).map(p => p.id), ['exact', 'a1'])
+  assert.deepEqual((await test.service.searchProducts('artist', 'Alice', true, '食物系')).map(p => p.id), ['exact', 'unclassified', 'empty-style', 'a1'])
+  assert.deepEqual(test.db(), db, 'Default-food filtering must not normalize stored legacy JSON')
   for (const style of ['', '未分类', '食物系 ', ['其他'], {}, null]) {
     const result = await test.run('products', 'get', '/search', { query: { style } })
     assert.equal(result.status, 400)
@@ -160,11 +185,12 @@ async function searchAndReads() {
   // Compare current no-style GET results to pre-task server sources, including legacy data.
   const baselineSources = Object.fromEntries(['server/routes/products.ts', 'server/routes/orders.ts', 'server/services/database.ts', 'server/services/productAssociations.ts'].map(file =>
     [path.join(root, file), execFileSync('git', ['show', `f9a7a59:${file}`], { cwd: root, encoding: 'utf8' })]))
-  for (const initial of [artistFixture(), fixture()]) {
+  for (const initial of [artistFixture(), fixture(), db]) {
     const before = sandbox(initial, baselineSources)
     const after = sandbox(initial)
     for (const [file, routePath, params = {}, query = {}] of [
       ['products', '/'], ['products', '/:id', { id: 'a1' }], ['products', '/:id', { id: 'a2' }],
+      ['products', '/:id', { id: 'unclassified' }], ['products', '/:id', { id: 'empty-style' }],
       ['products', '/:id', { id: 'missing' }], ['products', '/set-products'], ['products', '/loose-items'],
       ['orders', '/'], ['orders', '/:id', { id: 'o1' }], ['orders', '/:id', { id: 'o2' }],
       ...['productName', 'shopName', 'artist'].flatMap(type => ['', 'Sun', '店铺A', 'Alice'].flatMap(keyword => [undefined, 'true'].map(exact =>
@@ -174,13 +200,14 @@ async function searchAndReads() {
       const actual = await after.run(file, 'get', routePath, { params, query })
       assert.equal(actual.status, expected.status)
       assert.deepEqual(actual.data, expected.data, `${file} ${routePath} no-style regression`)
+      assert.deepEqual(after.db(), initial, 'Unfiltered GET must not normalize stored styles')
       assert.equal(actual.reads, 1)
       assert.equal(actual.writes, 0)
     }
   }
   const detail = await test.run('orders', 'get', '/:id', { params: { id: 'o1' } })
   assert.equal(detail.data.purchasedItems[0].product.style, '食物系')
-  console.log('PASS AND/exact artist/shop/product searches; unclassified != 其他; dedup/order/old data unchanged; single-snapshot GET')
+  console.log('PASS AND/exact artist/shop/product searches; legacy missing/blank styles match default food only; selected styles/dedup/order/old GET JSON unchanged; single-snapshot GET')
 }
 
 async function invalidOrders() {
@@ -226,7 +253,7 @@ async function ordinaryOrders() {
           files: ['image', 'name-image', 'new'].includes(mode) ? [upload(imageField(category))] : [],
         })
         assert.equal(result.status, 200, `${category}/${mode}/${explicit}`)
-        assertStyles(test, result.data.items.map(i => i.productId), explicit === undefined ? style : explicit || undefined)
+        assertStyles(test, result.data.items.map(i => i.productId), explicit === undefined ? style : explicit || '食物系')
         assert.equal(productOf(test, result.data.items[0].productId).artist, productOf(sandbox(fixture()), sourceId).artist)
         assert.equal(result.data.totalAmount, category === 'purchased' ? 6 : 0)
         assert.equal(result.data.giftTotal, category === 'gift' ? 10 : 0)
@@ -244,7 +271,7 @@ async function ordinaryOrders() {
           body: normalBody(...arraysFor(category, [data])), files: mode === 'upload' ? [upload(imageField(category))] : [],
         })
         assert.equal(result.status, 201)
-        assertStyles(test, [sourceId, ...result.data.items.map(i => i.productId)], explicit === undefined ? style : explicit || undefined)
+        assertStyles(test, [sourceId, ...result.data.items.map(i => i.productId)], explicit === undefined ? style : explicit || '食物系')
         assertStyles(test, ['b1'], '盐系')
       }
     }
@@ -266,7 +293,7 @@ async function ordinaryOrders() {
   result = await test.run('orders', 'post', '/', { body: normalBody(
     [input('Sun', { existingImagePath: 'fake.png', style: '' })], [input('Sun', { existingImagePath: 'fake.png' })],
   ) })
-  assertStyles(test, ['a1', 'a2', ...result.data.items.map(i => i.productId)], undefined)
+  assertStyles(test, ['a1', 'a2', ...result.data.items.map(i => i.productId)], '食物系')
   test.reset(fixture())
   result = await test.run('orders', 'post', '/', { body: normalBody([input('Selected alias', { productId: 'a1', existingImagePath: 'fake.png' })]) })
   assertStyles(test, result.data.items.map(i => i.productId), '食物系')
@@ -287,8 +314,8 @@ async function ordinaryOrders() {
     ),
   })
   assert.equal(result.status, 200)
-  assertStyles(test, ['a1', 'a2'], undefined)
-  assert.equal(productOf(test, 'a1').artist, 'Changed', 'Style clear does not clear artist')
+  assertStyles(test, ['a1', 'a2'], '食物系')
+  assert.equal(productOf(test, 'a1').artist, 'Changed', 'Style reset does not clear artist')
   assert.equal(result.data.giftRatio, 166.7)
   test.reset(fixture())
   result = await test.run('orders', 'put', '/:id', {
@@ -297,8 +324,9 @@ async function ordinaryOrders() {
   assertStyles(test, ['a1', 'a2'], '食物系')
   test.reset(artistFixture())
   result = await test.run('orders', 'post', '/', { body: normalBody([input('Brand new', { existingImagePath: 'fake.png' })]) })
-  assertStyles(test, result.data.items.map(i => i.productId), undefined)
-  console.log('PASS ordinary POST/PUT all categories and image/rename/new/selection/mapping branches; explicit/clear/omit/last wins; artist/totals intact')
+  assert.equal(result.status, 201)
+  assertStyles(test, result.data.items.map(i => i.productId), '食物系')
+  console.log('PASS ordinary POST/PUT all categories and image/rename/new/selection/mapping branches; explicit/default reset/omit/last wins; artist/totals intact')
 }
 
 async function groupOrders() {
@@ -309,7 +337,7 @@ async function groupOrders() {
       const data = input('Sun', { productId: 'a2', ...(mode === 'copy' ? { existingImagePath: 'fake.png' } : {}), ...(explicit === undefined ? {} : { style: explicit }) })
       const result = await test.run('orders', 'post', '/group', { body: groupBody([data]), files: mode === 'upload' ? [upload('shop0_item0')] : [] })
       assert.equal(result.status, 201)
-      assertStyles(test, ['a1', 'a2', ...result.data.items.map(i => i.productId)], explicit === undefined ? '食物系' : explicit || undefined)
+      assertStyles(test, ['a1', 'a2', ...result.data.items.map(i => i.productId)], explicit === undefined ? '食物系' : explicit || '食物系')
       assertStyles(test, ['b1'], '盐系')
       assert.deepEqual(result.data.shopIds, ['a'])
       assert.equal(result.data.items[0].shopId, 'a')
@@ -322,7 +350,7 @@ async function groupOrders() {
       const data = input(mode.startsWith('name') ? 'Sun renamed' : 'Sun', { id: mode === 'new' ? 'temp_new' : 'i4', shopId: 'a', ...(mode === 'new' ? {} : { productId: 'a1' }), ...(explicit === undefined ? {} : { style: explicit }) })
       const result = await test.run('orders', 'put', '/:id', { params: { id: 'o2' }, body: groupPutBody([data, input('Sun', { id: 'i5', productId: 'b1', shopId: 'b' })]), files: ['image', 'name-image', 'new'].includes(mode) ? [upload(`item_${data.id}`)] : [] })
       assert.equal(result.status, 200)
-      assertStyles(test, [result.data.items[0].productId], explicit === undefined ? '食物系' : explicit || undefined)
+      assertStyles(test, [result.data.items[0].productId], explicit === undefined ? '食物系' : explicit || '食物系')
       assertStyles(test, ['b1'], '盐系')
       assert.deepEqual(result.data.shopIds, ['a', 'b'])
       assert.equal(result.data.items[0].shopId, 'a')
@@ -338,7 +366,7 @@ async function groupOrders() {
   })
   assert.equal(result.status, 201)
   assert.equal(new Set(result.data.items.map(i => i.productId)).size, 1, 'Request-local index reused')
-  assertStyles(test, result.data.items.map(i => i.productId), undefined)
+  assertStyles(test, result.data.items.map(i => i.productId), '食物系')
   assert.equal(productOf(test, result.data.items[0].productId).artist, undefined)
   test.reset(fixture())
   result = await test.run('orders', 'put', '/:id', { params: { id: 'o2' }, body: groupPutBody([
@@ -370,7 +398,73 @@ async function groupOrders() {
   test.reset(fixture())
   result = await test.run('orders', 'post', '/group', { body: { shops: JSON.stringify([{ shopName: 'New shop', items: [input('Sun', { productId: 'b1' })] }]) } })
   assert.equal(result.status, 400)
-  console.log('PASS group POST/PUT all branches; request-local reuse/sync/inheritance/clear/last wins/shop rename/isolation; artist/totals intact')
+  console.log('PASS group POST/PUT all branches; request-local reuse/sync/inheritance/default reset/last wins/shop rename/isolation; artist/totals intact')
+}
+
+async function defaultAndInheritance() {
+  // A default for old missing/blank values must not mask an explicitly entered
+  // non-default style on a later namesake when creating a new Product ID.
+  for (const legacyStyle of [undefined, '']) {
+    for (const style of ['盐系', '可爱系']) {
+      for (const group of [false, true]) {
+        for (const method of ['post', 'put']) {
+          const db = fixture()
+          if (legacyStyle === undefined) delete db.products.find(p => p.id === 'a1').style
+          else db.products.find(p => p.id === 'a1').style = legacyStyle
+          db.products.find(p => p.id === 'a2').style = style
+          const test = sandbox(db)
+          const data = input('Sun', { id: 'temp_new', shopId: 'a', existingImagePath: 'fake.png' })
+          const body = group
+            ? method === 'post' ? groupBody([data]) : groupPutBody([data])
+            : normalBody([data])
+          const result = await test.run('orders', method, method === 'put' ? '/:id' : group ? '/group' : '/', {
+            params: { id: group ? 'o2' : 'o1' }, body,
+            files: method === 'put' ? [upload(group ? 'item_temp_new' : 'purchasedImage_0')] : [],
+          })
+          assert.equal(result.status, method === 'post' ? 201 : 200)
+          assert.ok(!['a1', 'a2'].includes(result.data.items[0].productId), 'A new namesake was created')
+          assertStyles(test, ['a1', 'a2', ...result.data.items.map(i => i.productId)], style)
+          assertStyles(test, ['b1'], '盐系')
+          assertStyles(test, ['orphan'], '可爱系')
+          assert.equal(productOf(test, result.data.items[0].productId).artist, 'Alice')
+          assert.equal(result.data.totalAmount, 6)
+          assert.equal(result.data.giftTotal + result.data.smallGiftTotal + result.data.giftRatio, 0)
+          if (group) {
+            assert.deepEqual(result.data.shopIds, method === 'post' ? ['a'] : ['a', 'b'])
+            assert.equal(result.data.items[0].shopId, 'a')
+          }
+        }
+      }
+    }
+  }
+  for (const style of ['盐系', '可爱系']) {
+    const db = fixture()
+    db.products.find(p => p.id === 'a1').style = style
+    const test = sandbox(db)
+    const result = await test.run('orders', 'post', '/', {
+      body: normalBody([input('Selected alias', { productId: 'a1', existingImagePath: 'fake.png' })]),
+    })
+    assert.equal(result.status, 201)
+    assertStyles(test, ['a1', ...result.data.items.map(i => i.productId)], style)
+    assertStyles(test, ['b1'], '盐系')
+    assertStyles(test, ['orphan'], '可爱系')
+  }
+  for (const style of [undefined, '盐系', '可爱系']) {
+    const test = sandbox(artistFixture())
+    const result = await test.run('orders', 'post', '/group', {
+      body: groupBody([input('Brand new', style === undefined ? {} : { style }), input('brand NEW')]),
+      files: [upload('shop0_item0')],
+    })
+    assert.equal(result.status, 201)
+    assert.equal(new Set(result.data.items.map(i => i.productId)).size, 1, 'New request-local namesake reused')
+    assertStyles(test, result.data.items.map(i => i.productId), style || '食物系')
+    assert.equal(result.data.totalAmount, 12)
+    assert.equal(result.data.giftTotal + result.data.smallGiftTotal + result.data.giftRatio, 0)
+    assert.deepEqual(result.data.shopIds, ['a'])
+    assert.equal(result.data.items.every(i => i.shopId === 'a'), true)
+    assert.equal(productOf(test, result.data.items[0].productId).artist, undefined)
+  }
+  console.log('PASS missing/blank namesakes inherit explicit salt/cute; selected styles unchanged; wholly unclassified new group defaults to food; request-local omissions preserve explicit styles')
 }
 
 async function existingRegressions() {
@@ -389,6 +483,7 @@ async function existingRegressions() {
   await invalidOrders()
   await ordinaryOrders()
   await groupOrders()
+  await defaultAndInheritance()
   await existingRegressions()
   console.log('All style backend regressions passed (synthetic data only).')
 })().catch(error => { console.error(error); process.exitCode = 1 })

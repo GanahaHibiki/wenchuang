@@ -2,6 +2,7 @@ import fs from 'fs/promises'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import type { Database, Shop, Product, Order, WishItem, ProductSearchType, ProductStyle } from '../../src/types/index.js'
+import { getProductStyle } from '../../src/types/index.js'
 import { applyOrderArtists, buildProductAssociations, relatedProductIds, setArtist, setStyle } from './productAssociations.js'
 import type { OrderArtistInput } from './productAssociations.js'
 import { applyOrderRelations, buildRelationIndex, cleanProductLinks, relationMembers, setProductRelations, validateRelationSelection } from './productRelations.js'
@@ -537,7 +538,7 @@ export async function searchProducts(
 
   // Apply style as an AND condition before the existing dedup/sort pipeline.
   // Unclassified products are not the enum value '其他'.
-  if (style !== undefined) matchingProducts = matchingProducts.filter(p => p.style === style)
+  if (style !== undefined) matchingProducts = matchingProducts.filter(p => getProductStyle(p.style) === style)
 
   // Add shopName to each product
   const productsWithShop = matchingProducts
