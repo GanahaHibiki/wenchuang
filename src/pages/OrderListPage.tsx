@@ -114,9 +114,10 @@ export default function OrderListPage() {
     }
   }
 
-  const handleOrderTimeSave = async (orderId: string) => {
+  const handleOrderTimeSave = async (orderId: string, value: string) => {
     if (orderTimeSavingRef.current) return
-    const normalized = normalizeOrderTime(orderTimeValue).trim()
+    // Normalize only after editing finishes, never inside an active IME composition.
+    const normalized = normalizeOrderTime(value).trim()
     setOrderTimeValue(normalized)
     let isoString = ''
     if (normalized) {
@@ -152,20 +153,17 @@ export default function OrderListPage() {
     }
   }
 
-  const handleOrderTimeKeyDown = (orderId: string, e: React.KeyboardEvent) => {
-    if (e.nativeEvent.isComposing || orderTimeSavingRef.current) return
+  const handleOrderTimeKeyDown = (orderId: string, e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Some IMEs report the confirmation Enter as keyCode 229 even when isComposing is false.
+    if (e.nativeEvent.isComposing || e.nativeEvent.keyCode === 229 || orderTimeSavingRef.current) return
     if (e.key === 'Enter') {
       e.preventDefault()
-      handleOrderTimeSave(orderId)
+      handleOrderTimeSave(orderId, e.currentTarget.value)
     } else if (e.key === 'Escape') {
       setEditingOrderTimeId(null)
       setOrderTimeValue('')
       setOrderTimeError('')
     }
-  }
-
-  const handleOrderTimeBlur = (orderId: string) => {
-    handleOrderTimeSave(orderId)
   }
 
   const handleShippingTimeClick = (order: OrderSummary, e: React.MouseEvent) => {
@@ -347,11 +345,11 @@ export default function OrderListPage() {
                           disabled={savingOrderTime}
                           value={orderTimeValue}
                           onChange={(e) => {
-                            setOrderTimeValue(normalizeOrderTime(e.target.value))
+                            setOrderTimeValue(e.target.value)
                             setOrderTimeError('')
                           }}
                           onKeyDown={(e) => handleOrderTimeKeyDown(order.id, e)}
-                          onBlur={() => handleOrderTimeBlur(order.id)}
+                          onBlur={(e) => handleOrderTimeSave(order.id, e.currentTarget.value)}
                           className="px-2 py-1 border rounded text-sm w-full"
                           placeholder="YYYY-MM-DD HH:mm:ss"
                           autoFocus
