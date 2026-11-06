@@ -20,6 +20,7 @@ import { saveImage, copyAndRenameImage, deleteImage } from '../services/imageSer
 import { buildProductAssociations, productGroupKey, hasInvalidArtists, hasInvalidStyles, orderArtistInput } from '../services/productAssociations.js'
 import type { OrderArtistInput } from '../services/productAssociations.js'
 import { validateOrderRelations } from '../services/productRelations.js'
+import { normalizeNoteHighlights } from '../../src/utils/noteHighlights.js'
 import type {
   Order,
   OrderItem,
@@ -67,6 +68,7 @@ router.get('/', async (req, res, next) => {
           smallGiftTotal: o.smallGiftTotal,
           giftRatio: o.giftRatio,
           note: o.note || '',
+          noteHighlights: o.noteHighlights,
           deliveryStatus: o.deliveryStatus || '未到货',
           orderTime: o.orderTime,
           shippingTime: o.shippingTime,
@@ -887,9 +889,22 @@ router.delete('/:id', async (req, res, next) => {
 router.patch('/:id/note', async (req, res, next) => {
   try {
     const { id } = req.params
-    const { note } = req.body
+    const { note, noteHighlights } = req.body
+    if (typeof note !== 'string') {
+      return res.status(400).json({ message: '备注必须为字符串' })
+    }
+    if (noteHighlights !== undefined && (!Array.isArray(noteHighlights) || noteHighlights.some(range =>
+      !range || !Number.isInteger(range.start) || !Number.isInteger(range.end) ||
+      range.start < 0 || range.end <= range.start || range.end > note.length
+    ))) {
+      return res.status(400).json({ message: '无效的备注标红范围' })
+    }
 
-    const updated = await updateOrder(id, { note: note || '' })
+    // Legacy text-only clients clear obsolete ranges instead of coloring unrelated text.
+    const updated = await updateOrder(id, {
+      note,
+      noteHighlights: normalizeNoteHighlights(note, noteHighlights || []),
+    })
 
     if (!updated) {
       return res.status(404).json({ message: '订单不存在' })

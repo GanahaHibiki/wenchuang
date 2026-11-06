@@ -91,8 +91,9 @@ function sandbox(initial = fixture(), overrides = {}) {
   }
   function load(filename) {
     filename = path.resolve(filename)
-    assert.ok(filename.startsWith(path.join(root, 'server') + path.sep) || filename === path.join(root, 'src/types/index.ts'),
-      'Only server sources and shared type constants may be loaded')
+    assert.ok(filename.startsWith(path.join(root, 'server') + path.sep) ||
+      ['src/types/index.ts', 'src/utils/noteHighlights.ts'].some(file => filename === path.join(root, file)),
+      'Only server sources and explicitly allowed shared utilities may be loaded')
     if (cache.has(filename)) return cache.get(filename).exports
     const exported = { exports: {} }
     cache.set(filename, exported)

@@ -1,8 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { orderApi } from '@/api/client'
 import { useHistoryState } from '@/hooks/useHistoryState'
-import type { OrderSummary, DeliveryStatus } from '@/types'
+import OrderNoteEditor, { HighlightedNote } from '@/components/order/OrderNoteEditor'
+import { normalizeOrderTime, parseOrderTime } from '@/utils/orderTime'
+import type { OrderSummary, DeliveryStatus, NoteHighlight } from '@/types'
 
 type SortField = 'totalAmount' | 'giftTotal' | 'giftRatio'
 type SortOrder = 'asc' | 'desc'
@@ -15,7 +17,9 @@ export default function OrderListPage() {
   const [sortField, setSortField] = useHistoryState<SortField | null>('orderSortField', null)
   const [sortOrder, setSortOrder] = useHistoryState<SortOrder>('orderSortOrder', 'desc')
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
-  const [noteValue, setNoteValue] = useState('')
+  const [orderTimeError, setOrderTimeError] = useState('')
+  const [savingOrderTime, setSavingOrderTime] = useState(false)
+  const orderTimeSavingRef = useRef(false)
   const [editingOrderTimeId, setEditingOrderTimeId] = useState<string | null>(null)
   const [orderTimeValue, setOrderTimeValue] = useState('')
   const [editingShippingTimeId, setEditingShippingTimeId] = useState<string | null>(null)
@@ -58,40 +62,19 @@ export default function OrderListPage() {
   const handleNoteClick = (order: OrderSummary, e: React.MouseEvent) => {
     e.stopPropagation()
     setEditingNoteId(order.id)
-    setNoteValue(order.note || '')
   }
 
-  const handleNoteSave = async (orderId: string) => {
-    try {
-      await fetch(`/api/orders/${orderId}/note`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ note: noteValue })
-      })
-
-      // Update local state
-      setOrders(orders.map(o =>
-        o.id === orderId ? { ...o, note: noteValue } : o
-      ))
-      setEditingNoteId(null)
-    } catch (err) {
-      alert('保存失败')
-    }
-  }
-
-  const handleNoteKeyDown = (orderId: string, e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      e.preventDefault()
-      handleNoteSave(orderId)
-    } else if (e.key === 'Escape') {
-      setEditingNoteId(null)
-      setNoteValue('')
-    }
-  }
-
-  const handleNoteBlur = (orderId: string) => {
-    // Auto-save when losing focus
-    handleNoteSave(orderId)
+  const handleNoteSave = async (orderId: string, note: string, noteHighlights: NoteHighlight[]) => {
+    const response = await fetch(`/api/orders/${orderId}/note`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ note, noteHighlights })
+    })
+    if (!response.ok) throw new Error('保存失败')
+    setOrders(previous => previous.map(o =>
+      o.id === orderId ? { ...o, note, noteHighlights } : o
+    ))
+    setEditingNoteId(current => current === orderId ? null : current)
   }
 
   const handleDeliveryStatusChange = async (orderId: string, status: DeliveryStatus) => {
@@ -113,7 +96,9 @@ export default function OrderListPage() {
 
   const handleOrderTimeClick = (order: OrderSummary, e: React.MouseEvent) => {
     e.stopPropagation()
+    if (editingOrderTimeId === order.id || orderTimeSavingRef.current) return
     setEditingOrderTimeId(order.id)
+    setOrderTimeError('')
     // Format orderTime to YYYY-MM-DD HH:mm:ss if it exists
     if (order.orderTime) {
       const date = new Date(order.orderTime)
@@ -130,41 +115,52 @@ export default function OrderListPage() {
   }
 
   const handleOrderTimeSave = async (orderId: string) => {
-    try {
-      // Convert YYYY-MM-DD HH:mm:ss to ISO string
-      let isoString = ''
-      if (orderTimeValue.trim()) {
-        const date = new Date(orderTimeValue)
-        if (isNaN(date.getTime())) {
-          alert('时间格式错误，请使用 YYYY-MM-DD HH:mm:ss 格式')
-          return
-        }
-        isoString = date.toISOString()
+    if (orderTimeSavingRef.current) return
+    const normalized = normalizeOrderTime(orderTimeValue).trim()
+    setOrderTimeValue(normalized)
+    let isoString = ''
+    if (normalized) {
+      const date = parseOrderTime(normalized)
+      if (!date) {
+        setOrderTimeError('时间格式错误，请使用 YYYY-MM-DD HH:mm:ss 格式及有效日期')
+        return
       }
+      isoString = date.toISOString()
+    }
 
-      await fetch(`/api/orders/${orderId}/order-time`, {
+    orderTimeSavingRef.current = true
+    setSavingOrderTime(true)
+    setOrderTimeError('')
+    try {
+      const response = await fetch(`/api/orders/${orderId}/order-time`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ orderTime: isoString })
       })
+      if (!response.ok) throw new Error('保存失败')
 
       // Update this row only; keep the current ordering and scroll position.
       setOrders(previous => previous.map(o =>
         o.id === orderId ? { ...o, orderTime: isoString || undefined } : o
       ))
       setEditingOrderTimeId(null)
-    } catch (err) {
-      alert('保存失败')
+    } catch {
+      setOrderTimeError('下单时间保存失败，请重试')
+    } finally {
+      orderTimeSavingRef.current = false
+      setSavingOrderTime(false)
     }
   }
 
   const handleOrderTimeKeyDown = (orderId: string, e: React.KeyboardEvent) => {
+    if (e.nativeEvent.isComposing || orderTimeSavingRef.current) return
     if (e.key === 'Enter') {
       e.preventDefault()
       handleOrderTimeSave(orderId)
     } else if (e.key === 'Escape') {
       setEditingOrderTimeId(null)
       setOrderTimeValue('')
+      setOrderTimeError('')
     }
   }
 
@@ -275,9 +271,9 @@ export default function OrderListPage() {
     return (
       <div className="space-y-4">
         <h2 className="text-xl font-bold">{title}</h2>
-        <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="bg-white rounded-lg shadow overflow-clip">
           <table className="w-full table-fixed">
-            <thead className="bg-gray-50">
+            <thead className="bg-gray-50 [&_th]:sticky [&_th]:top-0 [&_th]:z-10 [&_th]:bg-gray-50 [&_th]:shadow-sm">
               <tr>
                 <th className="w-[4%] px-2 py-3 text-left text-sm font-medium text-gray-700">
                   序号
@@ -342,17 +338,27 @@ export default function OrderListPage() {
                   </td>
                   <td className="px-4 py-3" onClick={(e) => handleOrderTimeClick(order, e)}>
                     {editingOrderTimeId === order.id ? (
-                      <input
-                        type="text"
-                        value={orderTimeValue}
-                        onChange={(e) => setOrderTimeValue(e.target.value)}
-                        onKeyDown={(e) => handleOrderTimeKeyDown(order.id, e)}
-                        onBlur={() => handleOrderTimeBlur(order.id)}
-                        className="px-2 py-1 border rounded text-sm w-full"
-                        placeholder="YYYY-MM-DD HH:mm:ss"
-                        autoFocus
-                        onClick={(e) => e.stopPropagation()}
-                      />
+                      <div>
+                        <input
+                          type="text"
+                          aria-label="编辑下单时间"
+                          aria-invalid={!!orderTimeError}
+                          aria-describedby={orderTimeError ? `order-time-error-${order.id}` : undefined}
+                          disabled={savingOrderTime}
+                          value={orderTimeValue}
+                          onChange={(e) => {
+                            setOrderTimeValue(normalizeOrderTime(e.target.value))
+                            setOrderTimeError('')
+                          }}
+                          onKeyDown={(e) => handleOrderTimeKeyDown(order.id, e)}
+                          onBlur={() => handleOrderTimeBlur(order.id)}
+                          className="px-2 py-1 border rounded text-sm w-full"
+                          placeholder="YYYY-MM-DD HH:mm:ss"
+                          autoFocus
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                        {orderTimeError && <p id={`order-time-error-${order.id}`} role="alert" className="mt-1 text-xs text-red-600">{orderTimeError}</p>}
+                      </div>
                     ) : (
                       <div className="min-h-[24px] cursor-pointer">
                         {order.orderTime ? new Date(order.orderTime).toLocaleString('zh-CN', {
@@ -410,21 +416,15 @@ export default function OrderListPage() {
                   </td>
                   <td className="px-8 py-3" onClick={(e) => handleNoteClick(order, e)}>
                     {editingNoteId === order.id ? (
-                      <input
-                        type="text"
-                        value={noteValue}
-                        onChange={(e) => setNoteValue(e.target.value)}
-                        onKeyDown={(e) => handleNoteKeyDown(order.id, e)}
-                        onBlur={() => handleNoteBlur(order.id)}
-                        className="px-2 py-1 border rounded text-sm w-full"
-                        placeholder="输入备注后按回车"
-                        autoFocus
-                        onClick={(e) => e.stopPropagation()}
+                      <OrderNoteEditor
+                        key={order.id}
+                        note={order.note || ''}
+                        highlights={order.noteHighlights}
+                        onSave={(note, highlights) => handleNoteSave(order.id, note, highlights)}
+                        onCancel={() => setEditingNoteId(null)}
                       />
                     ) : (
-                      <div className="min-h-[24px] cursor-pointer font-bold">
-                        {order.note || ''}
-                      </div>
+                      <HighlightedNote note={order.note || ''} highlights={order.noteHighlights} />
                     )}
                   </td>
                 </tr>

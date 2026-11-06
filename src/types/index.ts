@@ -130,6 +130,11 @@ export interface OrderItem {
 
 export type DeliveryStatus = '未到货' | '已到货'
 
+export interface NoteHighlight {
+  start: number
+  end: number
+}
+
 export interface Order {
   id: string
   sequenceNumber: number
@@ -143,6 +148,7 @@ export interface Order {
   smallGiftTotal: number
   giftRatio: number
   note?: string // User note for this order
+  noteHighlights?: NoteHighlight[] // Red text ranges; old notes default to unmarked
   deliveryStatus?: DeliveryStatus // Delivery status, defaults to '未到货'
   orderTime?: string // Order time in ISO format (precision to seconds)
   shippingTime?: string // Shipping time in ISO format (precision to day)
@@ -234,6 +240,7 @@ export interface OrderSummary {
   smallGiftTotal: number
   giftRatio: number
   note?: string
+  noteHighlights?: NoteHighlight[]
   deliveryStatus?: DeliveryStatus
   orderTime?: string
   shippingTime?: string

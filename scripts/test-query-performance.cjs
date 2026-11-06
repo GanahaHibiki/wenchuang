@@ -59,6 +59,11 @@ vm.runInNewContext(ts.transpileModule(fs.readFileSync('server/services/productRe
   },
 })
 
+const noteModule = { exports: {} }
+vm.runInNewContext(ts.transpileModule(fs.readFileSync('src/utils/noteHighlights.ts', 'utf8'), {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+}).outputText, { module: noteModule, exports: noteModule.exports })
+
 function loadHandlers(source, filename) {
   const handlers = new Map()
   let reads = 0
@@ -92,6 +97,7 @@ function loadHandlers(source, filename) {
   vm.runInNewContext(compiled, {
     module: exported, exports: exported.exports,
     require(name) {
+      if (name === '../../src/utils/noteHighlights.js') return noteModule.exports
       if (name.includes('services/database')) return database
       if (name.includes('services/productAssociations')) return associationsModule.exports
       if (name.includes('services/productRelations')) return relationsModule.exports

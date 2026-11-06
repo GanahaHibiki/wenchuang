@@ -2,8 +2,8 @@
 
 ## 1. 文档定位
 
-- **版本**：1.34（同款关联共享美工与分类）
-- **核对基线**：Git `88c8fd7` 及本次关联元数据同步；旧缺失/空分类按食物系读取和筛选，不批量改写旧数据。
+- **版本**：1.35（订单总览表头冻结、局部备注标红与日期输入修复）
+- **核对基线**：本次订单总览更新；旧备注默认无标红，不迁移或批量改写已有数据。
 - **性质**：当前实现说明（as-built），不是未来架构提案或已通过测试的证明。
 - **依据**：`package.json`、`vite.config.ts`、`src/`、`server/`、`scripts/`；业务目标另见 `需求.md`。
 - **维护规则**：实现行为与需求不一致时，本文件记录实际行为，并在“限制与待改进”中列出差异；不得把未实现能力描述为已完成。
@@ -140,6 +140,7 @@ interface Order {
   smallGiftTotal: number
   giftRatio: number
   note?: string
+  noteHighlights?: { start: number; end: number }[]
   deliveryStatus?: DeliveryStatus
   orderTime?: string
   shippingTime?: string
@@ -262,8 +263,10 @@ giftRatio = totalAmount > 0
 
 ### 5.4 时间、备注与到货
 
-- 下单输入提示 `YYYY-MM-DD HH:mm:ss`，按浏览器Date解析转ISO；发货输入 `YYYY-MM-DD`，按本地午夜转ISO。显示为浏览器本地时间，不是所有字段都强制北京时间。
-- 时间和备注通过Enter或失焦PATCH保存，Esc取消；空时间清除字段。
+- 下单输入 `YYYY-MM-DD HH:mm:ss`，全角ASCII符号/数字及全角空格自动转半角；保存时校验格式与有效日历日期，以本地时间转ISO（不接受2月30日等自动溢出日期）。错误在输入框下方显示，保留输入供修改，不再弹alert；HTTP失败也保留编辑，可重试。Enter/失焦并发保存有防重保护，输入法组合中的Enter不提交。
+- 发货输入 `YYYY-MM-DD`，按本地午夜转ISO，保持原有解析及弹窗提示。时间显示为浏览器本地时间，不是所有字段都强制北京时间。
+- 时间和备注通过Enter或失焦PATCH保存，Esc取消；空时间清除字段。备注新增选中文字“标红选中”/“取消选中标红”、实时预览、保存/取消按钮，Shift+Enter可换行。编辑区域内操作不触发失焦保存，离开整个区域才自动保存。
+- 备注以纯文本 `note` 加UTF-16偏移区间 `noteHighlights` 保存，不存HTML，不使用dangerouslySetInnerHTML；旧备注没有区间时显示普通文字。同一订单支持多个片段标红及部分取消，区间排序/合并；修改文字保留未变部分的颜色，新插入/替换文字默认不标红。
 - 发货时长：无下单时间显示 `-`；有发货时间用本地归零后的日期差；无发货时间用偏移计算的北京时间当前日期，最终 `Math.floor(毫秒差/86400000)` 显示天数。没有定时器驱动实时刷新，跨时区/DST一致性仍需验证。
 - 整单到货下拉默认未到货，已到货绿色、未到货红色。
 - 拼单商品 `arrived` 通过专用PATCH更新；全部商品已到货时把整单改为已到货。取消某项到货时保留原整单状态；整单下拉也不反向修改商品，当前不是双向同步。
@@ -339,6 +342,8 @@ giftRatio = totalAmount > 0
 店铺订单和拼单订单分栏，空栏目不渲染。两栏使用同一表格布局：序号4%、店铺名称15%、金额/礼品/小礼物/占比各7%、下单11%、发货/时长/到货各7%、备注21%。点击普通行进入详情，编辑单元格阻止行跳转。
 
 拼单店铺列显示 `groupOrderName || '拼单'`，不是实际店铺列表。排序和行内编辑规则见第5节。
+
+两栏表头的11个单元格均使用 `sticky top-0` 与不透明背景，窗口向下滚动时固定在视口顶部；滚出本表格后让位给下一栏表头。表格外层使用overflow-clip；MainLayout仅在 `/orders` 使用overflow-visible，避免无独立高度的overflow-auto祖先截断sticky，其它页面滚动布局保持原样。
 
 ### 6.5 订单详情与编辑
 
@@ -492,7 +497,7 @@ Set、散件、商品详情以及订单列表/详情的GET请求各读取一次�
 | POST | `/orders/group` | 拼单multipart，201 Order |
 | PUT | `/orders/:id` | 普通/拼单完整商品数组，更新后Order |
 | DELETE | `/orders/:id` | 删除订单、孤立Product及图片，`{success, message}` |
-| PATCH | `/orders/:id/note` | JSON `{note}` |
+| PATCH | `/orders/:id/note` | JSON `{note: string, noteHighlights?: {start: number, end: number}[]}`；区间须为有效整数且在文本长度内，非法400；不传区间的旧客户端清空标红，避免颜色错位 |
 | PATCH | `/orders/:id/delivery-status` | JSON `{deliveryStatus}` |
 | PATCH | `/orders/:id/order-time` | JSON `{orderTime}`，空值清除 |
 | PATCH | `/orders/:id/shipping-time` | JSON `{shippingTime}`，空值清除 |
@@ -576,7 +581,7 @@ data/
 | 心愿联动 | 订单保存与删除心愿不是事务；批量添加可部分成功；拼单编辑选择心愿仍需上传图片 |
 | API契约 | 单店铺创建未显式写orderType；详情部分类型字段未返回；普通PUT省略类别数组会清空，不是安全局部更新 |
 | 校验 | 后端缺统一规格/数量/价格schema、图片大小类型限制及路径边界校验；前端HTML限制可绕过 |
-| 错误反馈 | 列表等直接fetch PATCH未检查response.ok，HTTP失败可能仍显示保存成功 |
+| 错误反馈 | 下单时间与备注PATCH已检查response.ok并保留失败草稿，其余列表等直接fetch PATCH仍未统一检查，HTTP失败可能仍显示保存成功 |
 | 图片一致性 | 语义名称碰撞、共享路径删除风险；JSON与文件操作无事务/回滚；零散Object URL未完整释放 |
 | 数据安全 | 加载异常可能初始化覆盖库；备份失败被吞；直接覆盖写无原子性/锁；序号计数器未完整同步 |
 | 时间 | 本地时间与北京时间计算混用，非固定UTC+8展示；无定时更新；跨时区/DST需验证 |
@@ -718,6 +723,21 @@ NODE_PATH=/path/to/playwright/node_modules node scripts/test-style-ui.cjs
 - `npm run build` 仍受原有TS6306/TS6310项目引用配置阻塞；`npx --no-install tsc -p tsconfig.node.json` 仍有原有后端诊断。TypeScript API分别独立检查前端和后端，并与HEAD `88c8fd7` 比较：24/20条诊断均未增加。`npx --no-install vite build` 通过，未修改或放宽类型配置。
 - 所有验证使用虚构数据，未启动真实后端、访问真实data或验证真实HTTP/磁盘持久化；未批量改写已有同款组。
 
+### 12.12 订单总览验证
+
+```sh
+node scripts/test-order-overview.cjs
+NODE_PATH=/path/to/playwright/node_modules node scripts/test-order-overview-ui.cjs
+NODE_PATH=/path/to/playwright/node_modules node scripts/test-navigation.cjs
+node scripts/test-relations.cjs
+```
+
+- 新增后端/工具测试以假JSON文件系统执行实际路由及数据库代码：普通/拼单局部备注持久化与重新读取、旧客户端兼容、区间排序合并、非法区间400/404、原订单项不变；覆盖全角转换、非法日历日期、插入/替换/删除文字的区间调整。
+- 新增模拟API浏览器测试通过：两栏全部表头随窗口滚动冻结，日期Enter/失焦错误后重新编辑、全角输入、失败重试、清空、防重复请求；备注选中文字标红、部分取消、刷新恢复、插入文字区间移位、Esc取消、失焦保存、失败保留草稿，编辑不误跳详情。
+- 原导航浏览器回归、同款/分类/美工/查询性能模拟回归通过。测试脚本harness允许明确的共享noteHighlights工具，未放宽用户数据访问。
+- `npm run build`仍因原有TS6306/TS6310项目引用设置失败；`npx --no-install vite build`通过。用TypeScript API独立检查并与修改前HEAD源码比较：前端26→24、后端20→20条诊断，新增0；未修改类型配置。
+- UI截图为 `artifacts/order-overview.png`（仅虚构测试数据，不提交）。未启动真实后端、访问真实data或验证真实磁盘/图片持久化。
+
 ## 13. 文档演进
 
 | 版本 | 记录 |
@@ -737,3 +757,4 @@ NODE_PATH=/path/to/playwright/node_modules node scripts/test-style-ui.cjs
 | **1.32** | 美工输入支持已录入名称浮动下拉、输入过滤、候选选择及自由新名称；新增只读名称接口和模拟候选回归验证。 |
 | **1.33** | 缺失/空风格默认食物系，详情和录入统一默认、筛选兼容旧记录、新品保存默认；旧空值请求重置食物系，不批量改写旧数据。 |
 | **1.34** | 关联同款共享美工及分类，初次以当前商品统一整组；普通/拼单保存按最终成员同步，解除/替换不误改旧成员，字段冲突分别取最后显式值；更新同步提示和回归脚本。 |
+| **1.35** | 两栏订单表头随窗口滚动冻结；备注支持选中文字标红、区间持久化及编辑预览；下单时间全角转半角、有效日期校验、内联错误与失败重试；补充模拟回归与类型基线比较。 |
